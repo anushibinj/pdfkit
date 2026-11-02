@@ -1,0 +1,7 @@
+node_modules
+.next
+out
+pnpm-lock.yaml
+public/wasm
+public/og
+src/components/ui
