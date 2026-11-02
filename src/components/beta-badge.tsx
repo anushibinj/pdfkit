@@ -7,7 +7,7 @@ export function BetaBadge({ className }: { className?: string }) {
     <Badge
       variant="secondary"
       className={cn(
-        "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200",
+        "bg-yellow-100 text-yellow-900 dark:bg-yellow-950 dark:text-yellow-200",
         className,
       )}
     >
