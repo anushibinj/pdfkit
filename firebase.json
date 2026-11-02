@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "site": "pdfkit-web",
     "public": "out",
     "cleanUrls": true,
     "trailingSlashBehavior": "ADD",
