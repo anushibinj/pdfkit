@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { GeistMono } from "geist/font/mono";
 import { GeistSans } from "geist/font/sans";
-import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { ServiceWorkerRegistrar } from "@/components/sw-registrar";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -75,7 +74,6 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <main id="main" className="mx-auto w-full max-w-5xl flex-1 px-4">
             {children}
           </main>
-          <SiteFooter />
           <Toaster position="bottom-center" />
           <ServiceWorkerRegistrar />
         </ThemeProvider>
