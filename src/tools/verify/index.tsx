@@ -190,8 +190,11 @@ export default function VerifyTool() {
         A green tick means the signed content is unchanged and the signature is
         cryptographically correct. It does <strong>not</strong> confirm who the
         signer is: certificates are not checked against a trust list or for
-        revocation. Adding the tick re-saves the file, so the original
-        signature will not validate in other PDF readers.
+        revocation. The tick is added as an appended annotation, so the
+        original signed bytes are left untouched and the signature stays
+        valid; some readers will note that an annotation was added after
+        signing, and a certified document that forbids annotations may flag
+        it.
       </p>
 
       <div role="status" aria-live="polite" className="sr-only">
