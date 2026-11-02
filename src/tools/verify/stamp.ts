@@ -144,7 +144,7 @@ export async function stampVerified(
   ].join("\n");
 
   const bytes = new TextEncoder().encode(content);
-  const apDict = ctx.obj({
+  const apStream = ctx.stream(bytes, {
     Type: "XObject",
     Subtype: "Form",
     BBox: [0, 0, boxW, boxH],
@@ -158,10 +158,8 @@ export async function stampVerified(
         },
       },
     },
-    Length: bytes.length,
   });
   const apRef = ctx.nextRef();
-  const apStream = ctx.stream(bytes, apDict);
 
   const annotRef = ctx.nextRef();
   const annot = ctx.obj({
