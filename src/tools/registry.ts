@@ -23,6 +23,12 @@ export const tools: ToolDefinition[] = [
       "offline pdf unlocker",
     ],
     icon: LockOpen,
+    howItWorks: [
+      "Add one or more PDF files. They are read by your browser and never sent anywhere.",
+      "pdfkit checks each file with qpdf, running as WebAssembly inside a Web Worker on your device.",
+      "If a file needs a password to open, you are asked for it. Files that only have owner restrictions are unlocked automatically.",
+      "Download the unlocked copy. Your original file is not changed.",
+    ],
     faq: [
       {
         q: "Is my PDF uploaded anywhere?",

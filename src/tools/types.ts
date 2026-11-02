@@ -13,6 +13,8 @@ export interface ToolDefinition {
   keywords: string[];
   icon: LucideIcon;
   faq: { q: string; a: string }[];
+  /** Optional tool-specific steps for the "How it works" section */
+  howItWorks?: string[];
   /** Lazy client UI, only loaded on the tool's own page */
   component: () => Promise<{ default: ComponentType }>;
 }
