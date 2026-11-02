@@ -39,6 +39,7 @@ export const tools: ToolDefinition[] = [
       "offline pdf verifier",
     ],
     icon: ShieldCheck,
+    beta: true,
     component: () => import("./verify"),
   },
 ];

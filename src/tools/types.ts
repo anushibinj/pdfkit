@@ -11,6 +11,8 @@ export interface ToolDefinition {
   /** Meta description, 150-160 characters */
   description: string;
   keywords: string[];
+  /** Shows a "Beta" label on the tool card and the tool page */
+  beta?: boolean;
   icon: LucideIcon;
   /** Lazy client UI, only loaded on the tool's own page */
   component: () => Promise<{ default: ComponentType }>;
