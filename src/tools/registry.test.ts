@@ -20,11 +20,6 @@ describe("tool registry", () => {
       expect(tool.keywords.length).toBeGreaterThan(0);
       expect(tool.icon).toBeTruthy();
       expect(typeof tool.component).toBe("function");
-      expect(tool.faq.length).toBeGreaterThan(0);
-      for (const item of tool.faq) {
-        expect(item.q.trim()).not.toBe("");
-        expect(item.a.trim()).not.toBe("");
-      }
     },
   );
 

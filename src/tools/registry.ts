@@ -23,38 +23,6 @@ export const tools: ToolDefinition[] = [
       "offline pdf unlocker",
     ],
     icon: LockOpen,
-    howItWorks: [
-      "Add one or more PDF files. They are read by your browser and never sent anywhere.",
-      "pdfkit checks each file with qpdf, running as WebAssembly inside a Web Worker on your device.",
-      "If a file needs a password to open, you are asked for it. Files that only have owner restrictions are unlocked automatically.",
-      "Download the unlocked copy. Your original file is not changed.",
-    ],
-    faq: [
-      {
-        q: "Is my PDF uploaded anywhere?",
-        a: "No. The PDF is read by your browser and processed by qpdf compiled to WebAssembly, inside a Web Worker on your device. There is no server that receives your file.",
-      },
-      {
-        q: "Can it crack a password I have forgotten?",
-        a: "No. This tool does not guess or brute-force passwords. It removes restrictions or decrypts a file only when you can open it or know the password.",
-      },
-      {
-        q: "What is the difference between an owner password and a user password?",
-        a: "A user password is needed to open the file at all. An owner password only restricts actions such as printing, copying or editing; such files open without a password and can be unlocked automatically.",
-      },
-      {
-        q: "Does it work offline?",
-        a: "Yes. After your first visit the app is cached by a service worker, so it keeps working without a connection. You can also install it as an app.",
-      },
-      {
-        q: "Is there a file size limit?",
-        a: "There is no fixed limit, but the whole file is held in your browser's memory. Files over 500 MB show a warning and may fail on devices with little memory.",
-      },
-      {
-        q: "Should I only unlock files I am allowed to?",
-        a: "Yes. Only remove protection from documents you own or have permission to modify.",
-      },
-    ],
     component: () => import("./unlock"),
   },
 ];
