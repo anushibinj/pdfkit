@@ -175,10 +175,13 @@ export default function VerifyTool() {
 
   return (
     <div className="space-y-6">
-      <Alert role="note">
+      <Alert
+        role="note"
+        className="border-emerald-300 bg-emerald-50 text-emerald-950 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-100"
+      >
         <TriangleAlert aria-hidden="true" />
         <AlertTitle>Beta: signature checks are limited for now</AlertTitle>
-        <AlertDescription>
+        <AlertDescription className="text-emerald-900 dark:text-emerald-200">
           <ul className="list-disc space-y-1 pl-4">
             <li>
               We check that the signed content is unchanged and that the
