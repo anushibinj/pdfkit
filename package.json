@@ -11,7 +11,9 @@
     "test": "vitest run",
     "preview": "pnpm dlx serve@14 out -l 3000",
     "icons": "node scripts/generate-icons.mjs",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "predev": "node scripts/copy-wasm.mjs",
+    "prebuild": "node scripts/copy-wasm.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
