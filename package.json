@@ -14,7 +14,7 @@
     "format": "prettier --write .",
     "predev": "node scripts/copy-wasm.mjs",
     "prebuild": "node scripts/copy-wasm.mjs",
-    "postbuild": "node scripts/build-sw.mjs"
+    "postbuild": "node scripts/build-sw.mjs && node scripts/csp-hash.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
