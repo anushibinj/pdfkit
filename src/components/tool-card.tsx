@@ -1,6 +1,6 @@
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
+import { BetaBadge } from "@/components/beta-badge";
 import {
   Card,
   CardDescription,
@@ -30,7 +30,7 @@ export function ToolCard({ tool }: { tool: ToolDefinition }) {
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <CardTitle className="text-lg">{tool.name}</CardTitle>
-              {tool.beta && <Badge variant="secondary">Beta</Badge>}
+              {tool.beta && <BetaBadge />}
             </div>
             <CardDescription>{tool.tagline}</CardDescription>
           </CardHeader>

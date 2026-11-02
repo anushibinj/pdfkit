@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Badge } from "@/components/ui/badge";
+import { BetaBadge } from "@/components/beta-badge";
 import { ToolLoader } from "@/components/tool-loader";
 import { absoluteUrl, site } from "@/lib/site";
 import { getTool, tools } from "@/tools/registry";
@@ -76,7 +76,7 @@ export default async function ToolPage({
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
             {tool.name}
           </h1>
-          {tool.beta && <Badge variant="secondary">Beta</Badge>}
+          {tool.beta && <BetaBadge />}
         </div>
         <p className="mt-3 max-w-2xl text-lg text-muted-foreground">
           {tool.description}
