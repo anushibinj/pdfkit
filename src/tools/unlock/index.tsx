@@ -95,12 +95,6 @@ export default function UnlockTool() {
         }
       />
 
-      <p className="text-sm text-muted-foreground">
-        This tool removes restrictions, or decrypts a file, only when you know
-        the password or the file opens without one. It does not guess or crack
-        passwords.
-      </p>
-
       <div role="status" aria-live="polite" className="sr-only">
         {announcement}
       </div>
