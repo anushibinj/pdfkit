@@ -40,12 +40,6 @@ export async function generateMetadata({
   };
 }
 
-const DEFAULT_STEPS = [
-  "Add your files. They are read by your browser and never sent anywhere.",
-  "The work is done on your device by WebAssembly running in a Web Worker.",
-  "Download the result.",
-];
-
 export default async function ToolPage({
   params,
 }: PageProps<"/tools/[slug]">) {
@@ -64,26 +58,12 @@ export default async function ToolPage({
     browserRequirements: "Requires JavaScript and WebAssembly",
     offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
   };
-  const faqLd = {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    mainEntity: tool.faq.map((f) => ({
-      "@type": "Question",
-      name: f.q,
-      acceptedAnswer: { "@type": "Answer", text: f.a },
-    })),
-  };
-  const steps = tool.howItWorks ?? DEFAULT_STEPS;
 
   return (
     <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(webApp) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }}
       />
       <nav aria-label="Breadcrumb" className="pt-6 text-sm text-muted-foreground">
         <Link href="/" className="underline underline-offset-4">
@@ -102,48 +82,6 @@ export default async function ToolPage({
       <section aria-label={tool.name}>
         <ToolLoader slug={tool.slug} />
       </section>
-
-      <div className="mt-16 max-w-2xl space-y-12">
-        <section aria-labelledby="how-heading" className="space-y-3">
-          <h2 id="how-heading" className="text-2xl font-semibold">
-            How it works
-          </h2>
-          <ol className="list-decimal space-y-2 pl-5 text-muted-foreground">
-            {steps.map((s) => (
-              <li key={s}>{s}</li>
-            ))}
-          </ol>
-        </section>
-
-        <section aria-labelledby="private-heading" className="space-y-3">
-          <h2 id="private-heading" className="text-2xl font-semibold">
-            Is it private?
-          </h2>
-          <p className="text-muted-foreground">
-            Yes. {site.name} has no upload step and no server that receives
-            your files. Processing happens in your browser, and the site loads
-            no analytics, ads or third-party scripts. You can check this in
-            your browser&apos;s Network tab, or turn off your connection after
-            the page has loaded and see that it still works.
-          </p>
-        </section>
-
-        <section aria-labelledby="faq-heading" className="space-y-4">
-          <h2 id="faq-heading" className="text-2xl font-semibold">
-            Frequently asked questions
-          </h2>
-          <dl className="space-y-5">
-            {tool.faq.map((f) => (
-              <div key={f.q}>
-                <dt className="font-medium">
-                  <h3>{f.q}</h3>
-                </dt>
-                <dd className="mt-1 text-muted-foreground">{f.a}</dd>
-              </div>
-            ))}
-          </dl>
-        </section>
-      </div>
     </>
   );
 }
