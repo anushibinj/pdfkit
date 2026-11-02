@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, ShieldCheck, Trash2, X } from "lucide-react";
+import { Download, ShieldCheck, Trash2, TriangleAlert, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Dropzone } from "@/components/dropzone";
@@ -175,6 +175,33 @@ export default function VerifyTool() {
 
   return (
     <div className="space-y-6">
+      <Alert role="note">
+        <TriangleAlert aria-hidden="true" />
+        <AlertTitle>Beta: signature checks are limited for now</AlertTitle>
+        <AlertDescription>
+          <ul className="list-disc space-y-1 pl-4">
+            <li>
+              We check that the signed content is unchanged and that the
+              signature is cryptographically correct.
+            </li>
+            <li>
+              We do not yet check who signed. Certificates are not validated
+              against a trusted list (such as Adobe or EU trust lists) or for
+              revocation, so a green tick means &ldquo;signature intact&rdquo;,
+              not &ldquo;signer trusted&rdquo;.
+            </li>
+            <li>
+              The tick is added as an annotation after the original signature.
+              The signature stays valid, but some PDF readers will report a
+              change made after signing.
+            </li>
+          </ul>
+          <p className="mt-2">
+            We are working on full certificate and revocation checks.
+          </p>
+        </AlertDescription>
+      </Alert>
+
       <Dropzone
         accept=".pdf,application/pdf"
         isAccepted={isPdfFile}
@@ -185,17 +212,6 @@ export default function VerifyTool() {
           )
         }
       />
-
-      <p className="text-sm text-muted-foreground">
-        A green tick means the signed content is unchanged and the signature is
-        cryptographically correct. It does <strong>not</strong> confirm who the
-        signer is: certificates are not checked against a trust list or for
-        revocation. The tick is added as an appended annotation, so the
-        original signed bytes are left untouched and the signature stays
-        valid; some readers will note that an annotation was added after
-        signing, and a certified document that forbids annotations may flag
-        it.
-      </p>
 
       <div role="status" aria-live="polite" className="sr-only">
         {announcement}
