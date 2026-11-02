@@ -9,7 +9,8 @@ describe("ToolGrid", () => {
   it("renders one focusable link per registered tool", () => {
     render(<ToolGrid tools={tools} />);
     const items = screen.getAllByRole("listitem");
-    expect(items).toHaveLength(tools.length);
+    // one extra non-link placeholder card at the end
+    expect(items).toHaveLength(tools.length + 1);
     for (const tool of tools) {
       const link = screen.getByRole("link", { name: new RegExp(tool.name) });
       // next/link applies the trailingSlash config at build time, not in tests
@@ -23,6 +24,14 @@ describe("ToolGrid", () => {
     expect(within(card).getByText(tools[0].name)).toBeInTheDocument();
     expect(within(card).getByText(tools[0].tagline)).toBeInTheDocument();
     expect(within(card).queryByText("Private, runs locally")).toBeNull();
+  });
+
+  it("ends with a non-link 'More tools on the way' card", () => {
+    render(<ToolGrid tools={tools} />);
+    const items = screen.getAllByRole("listitem");
+    const last = items[items.length - 1];
+    expect(within(last).getByText("More tools on the way")).toBeInTheDocument();
+    expect(within(last).queryByRole("link")).toBeNull();
   });
 
   it("adds a card when a tool is added to the array", () => {
