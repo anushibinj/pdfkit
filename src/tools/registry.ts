@@ -1,4 +1,4 @@
-import { LockOpen } from "lucide-react";
+import { LockOpen, ShieldCheck } from "lucide-react";
 import type { ToolDefinition } from "./types";
 
 export type { ToolDefinition } from "./types";
@@ -24,6 +24,23 @@ export const tools: ToolDefinition[] = [
     ],
     icon: LockOpen,
     component: () => import("./unlock"),
+  },
+  {
+    slug: "verify",
+    name: "Signature Verifier",
+    tagline: "Check PDF digital signatures, locally.",
+    description:
+      "Free PDF signature verifier that runs in your browser. Check that a signed PDF is unmodified and its signature is correct, then export it with a green tick.",
+    keywords: [
+      "verify pdf signature",
+      "check pdf digital signature",
+      "validate signed pdf",
+      "pdf signature checker",
+      "offline pdf verifier",
+    ],
+    icon: ShieldCheck,
+    beta: true,
+    component: () => import("./verify"),
   },
 ];
 

@@ -26,6 +26,23 @@ describe("ToolGrid", () => {
     expect(within(card).queryByText("Private, runs locally")).toBeNull();
   });
 
+  it("labels only beta tools with 'Beta', next to the name", () => {
+    render(<ToolGrid tools={tools} />);
+    for (const tool of tools) {
+      const link = screen.getByRole("link", { name: new RegExp(tool.name) });
+      const label = within(link).queryByText("Beta");
+      if (tool.beta) {
+        expect(label).toBeInTheDocument();
+        // same row as the title, i.e. not in a footer below the description
+        expect(label?.parentElement).toContainElement(
+          within(link).getByText(tool.name),
+        );
+      } else {
+        expect(label).toBeNull();
+      }
+    }
+  });
+
   it("ends with a non-link 'More tools on the way' card", () => {
     render(<ToolGrid tools={tools} />);
     const items = screen.getAllByRole("listitem");
