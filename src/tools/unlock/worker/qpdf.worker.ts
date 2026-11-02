@@ -14,7 +14,7 @@ interface QpdfFS {
   writeFile(path: string, data: Uint8Array): void;
   readFile(path: string): Uint8Array;
   unlink(path: string): void;
-  analyzePath(path: string): { exists: boolean };
+  stat(path: string): unknown;
 }
 interface QpdfModule {
   FS: QpdfFS;
@@ -42,6 +42,14 @@ let modulePromise: Promise<QpdfModule> | null = null;
 function loadQpdf(): Promise<QpdfModule> {
   if (modulePromise) return modulePromise;
   const promise = (async () => {
+    // This qpdf build ignores the print/printErr options and binds
+    // console.log/console.warn when it is evaluated. Install capturing
+    // versions first so qpdf's stderr can be read (this is a worker, so the
+    // page's console is unaffected).
+    console.warn = (...args: unknown[]) => {
+      stderrBuffer.push(args.map(String).join(" "));
+    };
+    console.log = () => {};
     // The glue code is a static file in public/, not part of the bundle.
     const glue = (await import(
       /* webpackIgnore: true */ /* turbopackIgnore: true */ `${WASM_DIR}qpdf.mjs`
@@ -86,9 +94,18 @@ function run(qpdf: QpdfModule, args: string[]): { code: number; stderr: string }
   return { code, stderr: stderrBuffer.join("\n") };
 }
 
+function fileExists(fs: QpdfFS, path: string): boolean {
+  try {
+    fs.stat(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function tryUnlink(fs: QpdfFS, path: string): void {
   try {
-    if (fs.analyzePath(path).exists) fs.unlink(path);
+    if (fileExists(fs, path)) fs.unlink(path);
   } catch {
     /* best effort cleanup */
   }
@@ -134,7 +151,7 @@ async function unlock({ data, password }: UnlockRequest): Promise<UnlockResult> 
     if (password !== undefined) args.push(`--password=${password}`);
     const res = run(qpdf, [...args, input, output]);
 
-    if (res.code === EXIT_ERROR || !qpdf.FS.analyzePath(output).exists) {
+    if (res.code === EXIT_ERROR || !fileExists(qpdf.FS, output)) {
       if (isInvalidPassword(res.stderr)) return { status: "wrong-password" };
       return {
         status: "error",

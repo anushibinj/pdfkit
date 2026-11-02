@@ -16,7 +16,7 @@ export function friendlyQpdfMessage(stderr: string): string {
     .filter(Boolean)
     // "qpdf: /job-1-in.pdf: can't find startxref" -> "can't find startxref"
     .map((l) =>
-      l.replace(/^(qpdf|WARNING):?\s*/i, "").replace(/^\/job-[\w-]+\.pdf:\s*/i, ""),
+      l.replace(/^(this\.program|qpdf|WARNING):?\s*/i, "").replace(/^\/job-[\w-]+\.pdf:\s*/i, ""),
     );
   if (lines.length === 0) return "qpdf could not process this file.";
   const text = lines.join(" ");
