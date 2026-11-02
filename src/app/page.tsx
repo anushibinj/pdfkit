@@ -31,33 +31,6 @@ export default function HomePage() {
         </h2>
         <ToolGrid tools={tools} />
       </section>
-
-      <section
-        aria-labelledby="verify-heading"
-        className="mt-16 max-w-2xl space-y-3"
-      >
-        <h2 id="verify-heading" className="text-xl font-semibold">
-          How to verify nothing is uploaded
-        </h2>
-        <p className="text-muted-foreground">
-          You do not have to take our word for it. Check it yourself:
-        </p>
-        <ol className="list-decimal space-y-2 pl-5 text-muted-foreground">
-          <li>
-            Open your browser&apos;s developer tools (F12, or Ctrl/Cmd +
-            Shift + I) and switch to the <strong>Network</strong> tab.
-          </li>
-          <li>Open a tool and add a PDF.</li>
-          <li>
-            Watch the Network tab while the file is processed. You will see no
-            request carrying your file, and no requests to other websites.
-          </li>
-          <li>
-            For extra proof, switch the browser to offline mode. The tools
-            keep working.
-          </li>
-        </ol>
-      </section>
     </>
   );
 }
