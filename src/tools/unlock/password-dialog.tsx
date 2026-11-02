@@ -34,7 +34,7 @@ export function PasswordDialog({
     <Dialog open onOpenChange={(open) => !open && onCancel()}>
       <DialogContent>
         <form
-          className="grid gap-4"
+          className="grid min-w-0 gap-4"
           onSubmit={(e) => {
             e.preventDefault();
             if (password.length > 0) onSubmit(password);
@@ -42,9 +42,9 @@ export function PasswordDialog({
         >
           <DialogHeader>
             <DialogTitle>Password needed</DialogTitle>
-            <DialogDescription className="break-words">
+            <DialogDescription className="break-words [overflow-wrap:anywhere]">
               Enter the password to open{" "}
-              <span className="font-medium text-foreground">{fileName}</span>.
+              <span className="break-all font-medium text-foreground">{fileName}</span>.
               It is used only on this device.
             </DialogDescription>
           </DialogHeader>
