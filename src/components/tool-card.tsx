@@ -1,6 +1,5 @@
-import { ArrowRight, ShieldCheck } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardDescription,
@@ -30,12 +29,6 @@ export function ToolCard({ tool }: { tool: ToolDefinition }) {
             </div>
             <CardTitle className="text-lg">{tool.name}</CardTitle>
             <CardDescription>{tool.tagline}</CardDescription>
-            <div>
-              <Badge variant="secondary" className="gap-1">
-                <ShieldCheck className="size-3" aria-hidden="true" />
-                Private, runs locally
-              </Badge>
-            </div>
           </CardHeader>
         </Card>
       </Link>

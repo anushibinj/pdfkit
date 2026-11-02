@@ -17,12 +17,12 @@ describe("ToolGrid", () => {
     }
   });
 
-  it("shows name, tagline and the privacy badge on each card", () => {
+  it("shows name and tagline, without a badge, on each card", () => {
     render(<ToolGrid tools={tools} />);
     const [card] = screen.getAllByRole("listitem");
     expect(within(card).getByText(tools[0].name)).toBeInTheDocument();
     expect(within(card).getByText(tools[0].tagline)).toBeInTheDocument();
-    expect(within(card).getByText("Private, runs locally")).toBeInTheDocument();
+    expect(within(card).queryByText("Private, runs locally")).toBeNull();
   });
 
   it("adds a card when a tool is added to the array", () => {
