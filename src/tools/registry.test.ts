@@ -35,4 +35,9 @@ describe("tool registry", () => {
     expect(getTool("unlock")?.name).toBe("PDF Unlocker");
     expect(getTool("nope")).toBeUndefined();
   });
+
+  it("flags the signature verifier as beta and the unlocker as stable", () => {
+    expect(getTool("verify")?.beta).toBe(true);
+    expect(getTool("unlock")?.beta).toBeFalsy();
+  });
 });
