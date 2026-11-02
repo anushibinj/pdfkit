@@ -128,5 +128,5 @@ PDF unlocking uses **qpdf**, Copyright (c) Jay Berkenbilt, licensed under the
 **Apache License 2.0** (qpdf is also available under the Artistic License 2.0).
 The WebAssembly build is [`@jspawn/qpdf-wasm`](https://github.com/jsscheller/qpdf-wasm)
 (Apache-2.0). The licence text ships at `/wasm/LICENSE.txt`, a notice at
-`/wasm/NOTICE.txt`, and qpdf is credited in the site footer. Fonts: Geist and
+`/wasm/NOTICE.txt`. qpdf is credited here. Fonts: Geist and
 Inter (SIL Open Font License 1.1), bundled locally.

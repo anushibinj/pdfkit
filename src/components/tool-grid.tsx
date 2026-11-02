@@ -7,6 +7,11 @@ export function ToolGrid({ tools }: { tools: ToolDefinition[] }) {
       {tools.map((tool) => (
         <ToolCard key={tool.slug} tool={tool} />
       ))}
+      <li data-testid="more-tools-card">
+        <div className="flex h-full min-h-32 items-center justify-center rounded-xl border-2 border-dashed border-muted-foreground/40 p-6 text-center text-muted-foreground">
+          More tools on the way
+        </div>
+      </li>
     </ul>
   );
 }
