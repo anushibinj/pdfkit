@@ -11,6 +11,8 @@ interface CodeEditorProps {
   actions?: ReactNode;
   placeholder?: string;
   className?: string;
+  /** Shows the text but blocks edits, e.g. while a conversion runs */
+  readOnly?: boolean;
 }
 
 /**
@@ -29,6 +31,7 @@ export function CodeEditor({
   actions,
   placeholder,
   className,
+  readOnly,
 }: CodeEditorProps) {
   const id = useId();
   return (
@@ -44,6 +47,7 @@ export function CodeEditor({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
+        readOnly={readOnly}
         spellCheck={false}
         autoCapitalize="off"
         autoCorrect="off"

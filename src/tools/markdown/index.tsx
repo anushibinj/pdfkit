@@ -122,16 +122,18 @@ export default function MarkdownTool() {
           value={markdown}
           onChange={edit(setMarkdown)}
           placeholder="# Write Markdown here"
+          readOnly={converting}
         />
         <CodeEditor
           label="CSS"
           value={css}
           onChange={edit(setCss)}
+          readOnly={converting}
           actions={
             <Button
               variant="outline"
               className="min-h-11"
-              disabled={css === DEFAULT_STYLESHEET}
+              disabled={converting || css === DEFAULT_STYLESHEET}
               onClick={() => edit(setCss)(DEFAULT_STYLESHEET)}
             >
               <RotateCcw aria-hidden="true" /> Reset CSS
@@ -141,7 +143,14 @@ export default function MarkdownTool() {
       </div>
 
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <PageSettings value={page} onChange={edit(setPage)} />
+        {/* Inputs are locked while converting so the finished PDF always
+            matches what the editors show (the reducer keeps a running job's
+            result even if input-changed arrives). */}
+        <PageSettings
+          value={page}
+          onChange={edit(setPage)}
+          disabled={converting}
+        />
         <div className="flex flex-wrap gap-3">
           {converting ? (
             <Button variant="outline" className="min-h-11" onClick={cancel}>

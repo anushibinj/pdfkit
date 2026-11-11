@@ -77,6 +77,11 @@ describe("MarkdownTool", () => {
     const user = userEvent.setup();
     render(<MarkdownTool />);
     expect(screen.queryByRole("button", { name: /Convert to PDF/ })).toBeNull();
+    // inputs are locked so the result matches the editors
+    expect(markdownBox()).toHaveAttribute("readonly");
+    expect(cssBox()).toHaveAttribute("readonly");
+    expect(screen.getByLabelText("Paper size")).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Reset CSS/ })).toBeDisabled();
     await user.click(screen.getByRole("button", { name: /Cancel/ }));
     expect(hook.cancel).toHaveBeenCalled();
   });

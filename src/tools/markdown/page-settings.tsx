@@ -11,6 +11,8 @@ import type { PageSetup } from "./messages";
 interface PageSettingsProps {
   value: PageSetup;
   onChange: (value: PageSetup) => void;
+  /** Blocks changes, e.g. while a conversion runs */
+  disabled?: boolean;
 }
 
 const fieldClass =
@@ -26,11 +28,14 @@ const fieldClass =
  * @param props The current setup and a change handler.
  * @returns A fieldset with the two controls.
  */
-export function PageSettings({ value, onChange }: PageSettingsProps) {
+export function PageSettings({ value, onChange, disabled }: PageSettingsProps) {
   const sizeId = useId();
   const marginId = useId();
   return (
-    <fieldset className="flex flex-wrap items-end gap-4">
+    <fieldset
+      disabled={disabled}
+      className="flex flex-wrap items-end gap-4 disabled:opacity-60"
+    >
       <legend className="sr-only">Page settings</legend>
       <div className="flex flex-col gap-1">
         <label htmlFor={sizeId} className="text-sm font-medium">

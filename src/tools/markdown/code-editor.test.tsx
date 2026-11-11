@@ -28,4 +28,9 @@ describe("CodeEditor", () => {
     );
     expect(screen.getByRole("button", { name: "Reset" })).toBeInTheDocument();
   });
+
+  it("can be made read-only", () => {
+    render(<CodeEditor label="CSS" value="" onChange={() => {}} readOnly />);
+    expect(screen.getByLabelText("CSS")).toHaveAttribute("readonly");
+  });
 });

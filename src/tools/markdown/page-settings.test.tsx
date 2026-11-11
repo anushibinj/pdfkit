@@ -46,4 +46,16 @@ describe("PageSettings", () => {
     );
     expect(screen.getByLabelText("Margin (mm)")).toHaveValue(null);
   });
+
+  it("disables both controls when asked", () => {
+    render(
+      <PageSettings
+        value={{ size: "A4", marginMm: 20 }}
+        onChange={() => {}}
+        disabled
+      />,
+    );
+    expect(screen.getByLabelText("Paper size")).toBeDisabled();
+    expect(screen.getByLabelText("Margin (mm)")).toBeDisabled();
+  });
 });
