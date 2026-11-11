@@ -1,4 +1,4 @@
-import { LockOpen, ShieldCheck } from "lucide-react";
+import { FileCode, LockOpen, ShieldCheck } from "lucide-react";
 import type { ToolDefinition } from "./types";
 
 export type { ToolDefinition } from "./types";
@@ -41,6 +41,24 @@ export const tools: ToolDefinition[] = [
     icon: ShieldCheck,
     beta: true,
     component: () => import("./verify"),
+  },
+  {
+    slug: "markdown-to-pdf",
+    name: "Markdown to PDF",
+    tagline: "Turn Markdown into a styled PDF with your own CSS, locally.",
+    description:
+      "Free Markdown to PDF converter that runs in your browser. Style the document with your own CSS, pick the paper size, and download the PDF. Nothing is uploaded.",
+    keywords: [
+      "markdown to pdf",
+      "convert markdown to pdf",
+      "md to pdf",
+      "markdown pdf custom css",
+      "offline markdown converter",
+      "private markdown to pdf",
+    ],
+    icon: FileCode,
+    beta: true,
+    component: () => import("./markdown"),
   },
 ];
 

@@ -29,16 +29,5 @@ export function friendlyQpdfMessage(stderr: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-const OOM_PATTERNS = [
-  /out of memory/i,
-  /memory access out of bounds/i,
-  /Cannot enlarge memory/i,
-  /Array buffer allocation failed/i,
-  /Aborted\(.*(OOM|memory)/i,
-];
-
-export function isOutOfMemory(err: unknown): boolean {
-  if (err instanceof RangeError) return true;
-  const text = err instanceof Error ? err.message : String(err);
-  return OOM_PATTERNS.some((p) => p.test(text));
-}
+// Shared with other tools; re-exported so existing imports keep working.
+export { isOutOfMemory } from "@/lib/errors";

@@ -6,6 +6,10 @@ import path from "node:path";
 
 const out = path.resolve(import.meta.dirname, "../out");
 const SKIP = new Set(["sw.js", "404.html", "404/index.html"]);
+// Too large to download on every visitor's first load (ironpress is ~15 MB).
+// Kept out of the precache; the service worker caches it the first time a
+// tool actually requests it, so it still works offline after one use.
+const ON_FIRST_USE = new Set(["wasm/ironpress_bg.wasm"]);
 
 async function walk(dir) {
   const entries = await readdir(dir, { withFileTypes: true });
@@ -21,12 +25,16 @@ const files = (await walk(out))
   .map((f) => path.relative(out, f).split(path.sep).join("/"))
   .filter((f) => !SKIP.has(f) && !f.endsWith(".map"))
   .sort();
+const lazy = files.filter((f) => ON_FIRST_USE.has(f));
 
 const urls = [];
 const hash = createHash("sha256");
+// Lazy files are still hashed, so a new engine version changes the cache
+// version and the old copy is dropped on activation.
 for (const f of files) {
   hash.update(f);
   hash.update(await readFile(path.join(out, f)));
+  if (ON_FIRST_USE.has(f)) continue;
   if (f === "index.html") urls.push("/");
   else if (f.endsWith("/index.html")) urls.push(`/${f.slice(0, -"index.html".length)}`);
   else urls.push(`/${f}`);
@@ -39,6 +47,9 @@ const template = await readFile(path.resolve(import.meta.dirname, "sw-template.j
 const sw =
   `self.__PRECACHE_VERSION__ = ${JSON.stringify(version)};\n` +
   `self.__PRECACHE_MANIFEST__ = ${JSON.stringify(manifest, null, 1)};\n` +
+  `self.__CACHE_ON_FIRST_USE__ = ${JSON.stringify(lazy.map((f) => `/${f}`))};\n` +
   template;
 await writeFile(path.join(out, "sw.js"), sw);
-console.log(`sw.js: ${manifest.length} precached URLs, version ${version}`);
+console.log(
+  `sw.js: ${manifest.length} precached URLs, ${lazy.length} cached on first use, version ${version}`,
+);
