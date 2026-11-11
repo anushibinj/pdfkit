@@ -40,4 +40,15 @@ describe("tool registry", () => {
     expect(getTool("verify")?.beta).toBe(true);
     expect(getTool("unlock")?.beta).toBeFalsy();
   });
+
+  it("registers the Markdown to PDF converter as a beta tool", () => {
+    const tool = getTool("markdown-to-pdf");
+    expect(tool?.name).toBe("Markdown to PDF");
+    expect(tool?.beta).toBe(true);
+  });
+
+  it("loads the Markdown to PDF component lazily", async () => {
+    const mod = await getTool("markdown-to-pdf")!.component();
+    expect(typeof mod.default).toBe("function");
+  });
 });
