@@ -2,6 +2,8 @@
  * scripts/build-sw.mjs. Same-origin only: nothing here talks to other hosts. */
 const PRECACHE = self.__PRECACHE_MANIFEST__;
 const VERSION = self.__PRECACHE_VERSION__;
+// Large files that are not precached but kept once fetched (see build-sw.mjs).
+const ON_FIRST_USE = new Set(self.__CACHE_ON_FIRST_USE__ || []);
 const CACHE = `pdfkit-${VERSION}`;
 const OFFLINE_URL = "/offline/";
 
@@ -62,7 +64,16 @@ self.addEventListener("fetch", (event) => {
         return hit;
       }
       try {
-        return await fetch(req);
+        const res = await fetch(req);
+        // Keep large engine files after their first successful download so the
+        // tool also works offline later. Only complete 200 responses are
+        // stored (a 206 partial response must never be cached). The copy is
+        // written in the background (waitUntil) so the page gets the response
+        // immediately, and a storage failure (quota) never breaks the fetch.
+        if (ON_FIRST_USE.has(url.pathname) && res.status === 200) {
+          event.waitUntil(cache.put(url.pathname, res.clone()).catch(() => {}));
+        }
+        return res;
       } catch (err) {
         if (req.mode === "navigate") {
           const offline = await cache.match(OFFLINE_URL);

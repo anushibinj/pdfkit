@@ -8,6 +8,14 @@ Currently shipped tools:
 - **PDF Unlocker** (`/tools/unlock/`): removes owner restrictions and decrypts
   files whose password you know, using [qpdf](https://github.com/qpdf/qpdf)
   compiled to WASM. It does not crack or guess passwords.
+- **Signature Verifier** (`/tools/verify/`, beta): checks that a signed PDF is
+  unmodified and its signature is cryptographically correct.
+- **Markdown to PDF** (`/tools/markdown-to-pdf/`, beta): renders Markdown
+  (CommonMark + GitHub Flavored Markdown, via [marked](https://marked.js.org))
+  with your own CSS into a PDF, using the
+  [ironpress](https://github.com/gastongouron/ironpress) HTML/CSS layout engine
+  compiled to WASM. Paper size and margins come from the page settings, or from
+  an `@page` rule in the CSS (which wins).
 
 Built with Next.js (App Router, static export), TypeScript (strict), Tailwind
 CSS, shadcn/ui, next-themes and Vitest. It is an installable, offline-capable PWA.
@@ -19,7 +27,7 @@ CSS, shadcn/ui, next-themes and Vitest. It is an installable, offline-capable PW
 - **Work happens in a Web Worker.** The file is read with `File.arrayBuffer()`
   and handed to the worker as a transferred `ArrayBuffer`. qpdf runs against an
   in-memory virtual file system that is cleaned up after every job.
-- **Same-origin only.** The `.wasm` and its loader are served from `/wasm/`
+- **Same-origin only.** Each `.wasm` and its loader are served from `/wasm/`
   (copied from `node_modules` by `scripts/copy-wasm.mjs`), never a CDN. No
   analytics, no external fonts.
 - **A strict CSP** in `firebase.json` blocks every third-party host:
@@ -97,6 +105,27 @@ service worker precache are all derived from `src/tools/registry.ts`.
 3. Done. `pnpm test` validates the entry; `pnpm build` generates
    `/tools/<slug>/`, its OG card, sitemap entry and precache.
 
+## Large engines and the service worker
+
+The service worker precaches every file in `out/` except those listed in
+`ON_FIRST_USE` in `scripts/build-sw.mjs`. The ironpress binary (~15 MB, ~6 MB
+gzipped) is one of them: it is cached the first time the Markdown to PDF tool
+loads it, so visitors who never use that tool never download it, and the tool
+still works offline after its first use.
+
+## Manual test checklist (Markdown to PDF)
+
+- [ ] The sample document converts; **Download PDF** saves `document.pdf`.
+- [ ] Changing `h1 { color: ... }` in the CSS changes the heading colour in the PDF.
+- [ ] **Paper size** Letter gives an 8.5 x 11 in page; an `@page { size: A5; }`
+      rule in the CSS overrides it.
+- [ ] Opening `notes.md` fills the editor and the download is named `notes.pdf`;
+      a `.png` is rejected with a toast.
+- [ ] Editing anything after converting hides the old **Download PDF** button.
+- [ ] **Cancel** stops a long conversion and the next one works.
+- [ ] Offline after one conversion: reload with DevTools > Network > Offline
+      and convert again.
+
 ## Manual test checklist (PDF Unlocker)
 
 Sample files live in `fixtures/` (`plain.pdf`, `owner-restricted.pdf`,
@@ -128,5 +157,9 @@ PDF unlocking uses **qpdf**, Copyright (c) Jay Berkenbilt, licensed under the
 **Apache License 2.0** (qpdf is also available under the Artistic License 2.0).
 The WebAssembly build is [`@jspawn/qpdf-wasm`](https://github.com/jsscheller/qpdf-wasm)
 (Apache-2.0). The licence text ships at `/wasm/LICENSE.txt`, a notice at
-`/wasm/NOTICE.txt`. qpdf is credited here. Fonts: Geist and
+`/wasm/NOTICE.txt`. qpdf is credited here.
+
+Markdown to PDF uses **ironpress**, Copyright (c) 2026 Gaston Gouron, licensed
+under the **MIT License** (licence at `/wasm/LICENSE-ironpress.txt`), and
+**marked**, licensed under the **MIT License**. Fonts: Geist and
 Inter (SIL Open Font License 1.1), bundled locally.
