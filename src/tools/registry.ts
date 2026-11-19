@@ -1,4 +1,4 @@
-import { FileCode, LockOpen, ShieldCheck } from "lucide-react";
+import { FileCode, FilePen, LockOpen, ShieldCheck } from "lucide-react";
 import type { ToolDefinition } from "./types";
 
 export type { ToolDefinition } from "./types";
@@ -60,8 +60,33 @@ export const tools: ToolDefinition[] = [
     beta: true,
     component: () => import("./markdown"),
   },
+  {
+    slug: "edit",
+    name: "PDF Editor",
+    tagline: "Add text, drawings, images and white-out to a PDF, locally.",
+    description:
+      "Free PDF editor that runs in your browser. Add text, drawings, highlights, images and white-out, and rotate, reorder or delete pages. Nothing is uploaded.",
+    keywords: [
+      "pdf editor",
+      "edit pdf online",
+      "add text to pdf",
+      "sign pdf",
+      "white out pdf",
+      "rotate pdf pages",
+      "private pdf editor",
+    ],
+    icon: FilePen,
+    beta: true,
+    component: () => import("./edit"),
+  },
 ];
 
+/**
+ * Look a tool up by its URL segment.
+ *
+ * @param slug For example "edit" (from /tools/edit/).
+ * @returns The tool, or `undefined` for an unknown slug.
+ */
 export function getTool(slug: string): ToolDefinition | undefined {
   return tools.find((t) => t.slug === slug);
 }

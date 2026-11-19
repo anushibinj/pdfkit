@@ -47,6 +47,17 @@ describe("tool registry", () => {
     expect(tool?.beta).toBe(true);
   });
 
+  it("registers the PDF editor as a beta tool", () => {
+    const tool = getTool("edit");
+    expect(tool?.name).toBe("PDF Editor");
+    expect(tool?.beta).toBe(true);
+  });
+
+  it("loads the PDF editor component lazily", async () => {
+    const mod = await getTool("edit")!.component();
+    expect(typeof mod.default).toBe("function");
+  });
+
   it("loads the Markdown to PDF component lazily", async () => {
     const mod = await getTool("markdown-to-pdf")!.component();
     expect(typeof mod.default).toBe("function");

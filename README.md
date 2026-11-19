@@ -16,6 +16,16 @@ Currently shipped tools:
   [ironpress](https://github.com/gastongouron/ironpress) HTML/CSS layout engine
   compiled to WASM. Paper size and margins come from the page settings, or from
   an `@page` rule in the CSS (which wins).
+- **PDF Editor** (`/tools/edit/`, beta): adds text, freehand drawings, boxes,
+  highlights, images (PNG/JPEG, such as a signature) and white-out to a PDF,
+  and rotates, reorders or deletes pages, using
+  [PDFium](https://pdfium.googlesource.com/pdfium/) compiled to WASM
+  ([`@embedpdf/pdfium`](https://github.com/embedpdf/embed-pdf-viewer)).
+  White-out is a real redaction: the text and image pixels under the box are
+  deleted from the saved file. Password-protected PDFs open with their
+  password and stay protected after saving. Existing text cannot be edited in
+  place, and typed text is limited to the standard PDF fonts (WinAnsi:
+  English and Western European languages).
 
 Built with Next.js (App Router, static export), TypeScript (strict), Tailwind
 CSS, shadcn/ui, next-themes and Vitest. It is an installable, offline-capable PWA.
@@ -109,9 +119,37 @@ service worker precache are all derived from `src/tools/registry.ts`.
 
 The service worker precaches every file in `out/` except those listed in
 `ON_FIRST_USE` in `scripts/build-sw.mjs`. The ironpress binary (~15 MB, ~6 MB
-gzipped) is one of them: it is cached the first time the Markdown to PDF tool
-loads it, so visitors who never use that tool never download it, and the tool
-still works offline after its first use.
+gzipped) and the PDFium binary (~4.6 MB, ~2 MB gzipped) are on that list: each
+is cached the first time its tool loads it, so visitors who never use that
+tool never download it, and the tool still works offline after its first use.
+
+## Manual test checklist (PDF Editor)
+
+Sample files live in `fixtures/` (`user-password.pdf` has password `hunter2`).
+
+- [ ] Opening a PDF shows every page; pages far off screen render when
+      scrolled to.
+- [ ] **Text:** click a page, type in "Text content"; font, size and colour
+      change the preview. Typing `₹` shows a toast and the character is removed.
+- [ ] **Draw, Box, Highlight, White-out:** drag on a page; each tool stays
+      active for the next shape. A click (no drag) makes a default-size box.
+- [ ] **Image:** pick a PNG with a transparent background, click a page; it is
+      placed at 40% of the page width and the background stays transparent in
+      the download.
+- [ ] **Select:** drag an object to move it, drag the corner handle to resize a
+      box or image; Tab to an object, arrow keys nudge it, Delete removes it,
+      Ctrl+Z / Ctrl+Shift+Z undo and redo.
+- [ ] Rotate, move and delete pages; the last page cannot be deleted.
+- [ ] **Download PDF** saves `<name>-edited.pdf`; in a PDF reader the added
+      text is selectable and text under white-out cannot be copied or found.
+- [ ] `user-password.pdf`: wrong password shows "Wrong password"; `hunter2`
+      opens it; the download still asks for `hunter2`.
+- [ ] **Open another** with unsaved edits asks before discarding them; closing
+      the tab with unsaved edits asks too.
+- [ ] Offline after one use: reload with DevTools > Network > Offline, open a
+      PDF and download it.
+- [ ] At 360px width there is no horizontal scroll and drawing with a finger
+      does not scroll the page.
 
 ## Manual test checklist (Markdown to PDF)
 
@@ -163,3 +201,10 @@ Markdown to PDF uses **ironpress**, Copyright (c) 2026 Gaston Gouron, licensed
 under the **MIT License** (licence at `/wasm/LICENSE-ironpress.txt`), and
 **marked**, licensed under the **MIT License**. Fonts: Geist and
 Inter (SIL Open Font License 1.1), bundled locally.
+
+The PDF Editor uses **PDFium**, Copyright The PDFium Authors, licensed under
+the **BSD 3-Clause License** and the **Apache License 2.0** (licence at
+`/wasm/LICENSE-pdfium.txt`), compiled to WebAssembly by **@embedpdf/pdfium**,
+Copyright (c) 2024 CloudPDF, Ji Chang, licensed under the **MIT License**
+(licence at `/wasm/LICENSE-embedpdf-pdfium.txt`). Text measurements come from
+Adobe's standard font metrics via **@pdf-lib/standard-fonts** (MIT License).
