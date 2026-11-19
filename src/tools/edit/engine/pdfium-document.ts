@@ -168,10 +168,17 @@ export class PdfiumDocument {
    * width * 4). The pixels are copied out row by row when there is padding,
    * so the result is always exactly width * height * 4 bytes.
    *
+   * `prepare` may change the loaded page before it is drawn, e.g. apply
+   * text edits for a preview. Those changes live only in the loaded page:
+   * without `FPDFPage_GenerateContent` nothing is written back to the
+   * document, and closing the page throws them away, so the next render
+   * starts from the original content again.
+   *
    * @param index Zero-based page index.
    * @param width Output width in pixels.
    * @param height Output height in pixels.
    * @param turns Clockwise quarter turns to add to the page's rotation.
+   * @param prepare Optional changes to make to the loaded page first.
    * @returns The pixels.
    */
   render(
@@ -179,8 +186,10 @@ export class PdfiumDocument {
     width: number,
     height: number,
     turns: QuarterTurns,
+    prepare?: (page: number) => void,
   ): RenderedPage {
     return this.withPage(index, (page) => {
+      prepare?.(page);
       const bitmap = this.api.FPDFBitmap_Create(width, height, 1);
       if (!bitmap)
         throw new RangeError("out of memory: could not create a bitmap");

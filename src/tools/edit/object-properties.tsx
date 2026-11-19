@@ -1,8 +1,7 @@
 "use client";
 
 import { Trash2, X } from "lucide-react";
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { toast } from "sonner";
+import { useId, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { hexToRgb, rgbToHex } from "./core/colors";
 import type { ObjectPatch } from "./core/editor-state";
@@ -15,11 +14,8 @@ import {
   type Rgb,
   type TextObject,
 } from "./core/model";
-import {
-  normalizeTextInput,
-  stripUnsupported,
-  type FontMetricsSource,
-} from "./core/text-layout";
+import { stripUnsupported, type FontMetricsSource } from "./core/text-layout";
+import { cleanTypedText } from "./text-input";
 
 const fieldClass =
   "h-11 rounded-lg border border-input bg-transparent px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm dark:bg-input/30";
@@ -34,13 +30,13 @@ export const FONT_OPTIONS: readonly { value: FontFamily; label: string }[] = [
 /** What each tool does, shown when nothing is selected. */
 export const TOOL_HINTS: Record<DrawingTool, string> = {
   select:
-    "Click an item to select it, then drag to move it. Arrow keys nudge it; Delete removes it.",
-  text: "Click on a page to add text, then type here.",
+    "Click an item to select it, then drag to move it. Arrow keys nudge it; Delete removes it. Double-click added text to change it.",
+  "edit-text":
+    "Click any line of the PDF's text and type to change it in place. Enter applies, Esc cancels; empty the line to delete it.",
+  text: "Click on a page to add text, and type it right there.",
   ink: "Draw on a page with your mouse, finger or pen.",
   rect: "Drag on a page to draw a box.",
   highlight: "Drag over text to highlight it.",
-  whiteout:
-    "Drag over content to delete it. What is under the box is removed from the saved file.",
 };
 
 /**
@@ -184,69 +180,40 @@ export function FontField({
 interface TextContentFieldProps {
   object: TextObject;
   metrics: FontMetricsSource;
-  /** Focus and select the text once (right after the object was placed). */
-  autoFocus: boolean;
-  onFocused(): void;
   onChange(text: string): void;
 }
 
 /**
- * The text area that edits a text object's content.
+ * The text area that edits a text object's content from the panel. The
+ * same text can be typed on the page itself (`ObjectTextEditor`); this
+ * field is the keyboard-friendly alternative and shows the whole text.
  *
- * Every change is normalised (line breaks, tabs) and stripped of characters
- * the standard PDF fonts cannot show, so what the preview shows is exactly
- * what will be saved. Removed characters are reported in a toast (which
- * screen readers announce) rather than in a line under the field, because
- * the panel keeps a fixed height (see {@link ObjectProperties}).
+ * Every change goes through `cleanTypedText`, as on the page. The field is
+ * one line tall to fit the panel; Enter still adds lines, and the field
+ * scrolls.
  *
- * The field is one line tall to fit the panel; Enter still adds lines, and
- * the field scrolls.
- *
- * @param props The object and callbacks.
+ * @param props The object and callback.
  * @returns The field.
  */
 export function TextContentField({
   object,
   metrics,
-  autoFocus,
-  onFocused,
   onChange,
 }: TextContentFieldProps) {
   const id = useId();
-  const ref = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    if (!autoFocus) return;
-    ref.current?.focus();
-    ref.current?.select();
-    onFocused();
-  }, [autoFocus, onFocused]);
-
   return (
     <div className="flex min-w-60 flex-1 flex-col gap-1">
       <label htmlFor={id} className="text-sm font-medium">
         Text content
       </label>
       <textarea
-        ref={ref}
         id={id}
         rows={1}
         className="border-input focus-visible:border-ring focus-visible:ring-ring/50 dark:bg-input/30 h-11 w-full resize-none rounded-lg border bg-transparent px-3 py-2.5 text-base outline-none focus-visible:ring-3 md:text-sm"
         value={object.text}
-        onChange={(e) => {
-          const cleaned = stripUnsupported(
-            normalizeTextInput(e.target.value),
-            object.font,
-            metrics,
-          );
-          if (cleaned.removed.length > 0) {
-            const one = cleaned.removed.length === 1;
-            toast.warning(
-              `Removed ${cleaned.removed.join(" ")}: the standard PDF fonts cannot show ${one ? "this character" : "these characters"}.`,
-            );
-          }
-          onChange(cleaned.text);
-        }}
+        onChange={(e) =>
+          onChange(cleanTypedText(e.target.value, object.font, metrics))
+        }
       />
     </div>
   );
@@ -299,9 +266,6 @@ export interface ObjectPropertiesProps {
   pendingImageName: string | null;
   onCancelImage(): void;
   metrics: FontMetricsSource;
-  /** Focus the text field once (after placing new text). */
-  focusText: boolean;
-  onTextFocused(): void;
 }
 
 /**
@@ -351,8 +315,6 @@ export function ObjectProperties(props: ObjectPropertiesProps) {
               key={selected.id}
               object={selected}
               metrics={props.metrics}
-              autoFocus={props.focusText}
-              onFocused={props.onTextFocused}
               onChange={(text) => onUpdate({ text }, key("text"))}
             />
             <FontField
@@ -397,7 +359,6 @@ export function ObjectProperties(props: ObjectPropertiesProps) {
             onChange={(strokeWidth) => onUpdate({ strokeWidth }, key("width"))}
           />
         )}
-        {selected.kind === "whiteout" && <Hint>{TOOL_HINTS.whiteout}</Hint>}
         <Button
           variant="destructive"
           className="min-h-11 shrink-0"

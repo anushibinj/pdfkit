@@ -41,7 +41,6 @@ const objects: Record<EditObject["kind"], EditObject> = {
     height: 10,
     color: { r: 255, g: 255, b: 0 },
   },
-  whiteout: { ...frame, kind: "whiteout", width: 20, height: 10 },
   image: { ...frame, kind: "image", width: 20, height: 10, imageId: "a" },
 };
 
@@ -57,7 +56,6 @@ describe("describeObject", () => {
     expect(describeObject(objects.ink)).toBe("Drawing");
     expect(describeObject(objects.rect)).toBe("Box");
     expect(describeObject(objects.highlight)).toBe("Highlight");
-    expect(describeObject(objects.whiteout)).toBe("White-out");
     expect(describeObject(objects.image)).toBe("Image");
   });
 });
@@ -98,7 +96,7 @@ describe("ObjectShape", () => {
     expect(line.getAttribute("stroke-linecap")).toBe("round");
   });
 
-  it("draws boxes, highlights and white-out", () => {
+  it("draws boxes and highlights", () => {
     const rect = draw(
       <ObjectShape
         object={objects.rect}
@@ -115,15 +113,6 @@ describe("ObjectShape", () => {
       />,
     );
     expect(hl.querySelector("rect")?.getAttribute("fill-opacity")).toBe("0.4");
-    const wo = draw(
-      <ObjectShape
-        object={objects.whiteout}
-        transform={[1, 0, 0, 1, 0, 0]}
-        metrics={fakeMetrics}
-      />,
-    );
-    expect(wo.querySelector("rect")?.getAttribute("fill")).toBe("#ffffff");
-    expect(wo.querySelector("[data-preview-only]")).not.toBeNull();
   });
 
   it("draws images from their preview URL, or a placeholder without one", () => {
@@ -204,5 +193,38 @@ describe("ObjectShape", () => {
       );
       expect(c.querySelector("[data-resize-handle]")).toBeNull();
     }
+  });
+
+  it("hides its body for an inline editor but keeps outline and hit area", () => {
+    const c = draw(
+      <ObjectShape
+        object={objects.text}
+        transform={[1, 0, 0, 1, 0, 0]}
+        metrics={fakeMetrics}
+        interactive
+        selected
+        hideBody
+      />,
+    );
+    expect(c.querySelector("text")).toBeNull();
+    expect(c.querySelector("[data-selection-outline]")).not.toBeNull();
+  });
+
+  it("opens with a double-click or Enter when it can be activated", () => {
+    const onActivate = vi.fn();
+    const c = draw(
+      <ObjectShape
+        object={objects.text}
+        transform={[1, 0, 0, 1, 0, 0]}
+        metrics={fakeMetrics}
+        interactive
+        onActivate={onActivate}
+      />,
+    );
+    const g = c.querySelector("g")!;
+    fireEvent.doubleClick(g);
+    fireEvent.keyDown(g, { key: "Enter" });
+    fireEvent.keyDown(g, { key: "a" });
+    expect(onActivate).toHaveBeenCalledTimes(2);
   });
 });

@@ -22,11 +22,11 @@ const asset = (id: string): ImageAsset => ({
 });
 
 describe("buildSavePlan", () => {
-  it("lists pages in output order with their rotation and objects", () => {
+  it("lists pages in output order with their rotation, objects and text edits", () => {
     const base = createDocument(3);
     const doc: EditorDocument = {
       pages: [
-        { ...base.pages[2], rotation: 1 },
+        { ...base.pages[2], rotation: 1, textEdits: { "4-5": "Edited" } },
         { ...base.pages[0], objects: [image("o1", "a")] },
       ],
     };
@@ -36,8 +36,18 @@ describe("buildSavePlan", () => {
     ]);
     const plan = buildSavePlan(doc, assets);
     expect(plan.pages).toEqual([
-      { sourceIndex: 2, rotation: 1, objects: [] },
-      { sourceIndex: 0, rotation: 0, objects: [image("o1", "a")] },
+      {
+        sourceIndex: 2,
+        rotation: 1,
+        objects: [],
+        textEdits: [{ runId: "4-5", text: "Edited" }],
+      },
+      {
+        sourceIndex: 0,
+        rotation: 0,
+        objects: [image("o1", "a")],
+        textEdits: [],
+      },
     ]);
     // only the image that is actually used is sent
     expect(plan.images).toEqual([

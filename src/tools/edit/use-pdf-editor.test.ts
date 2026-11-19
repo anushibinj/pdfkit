@@ -22,6 +22,7 @@ function fakeEngine(...answers: OpenResult[]) {
       height: 1,
       pixels: new ArrayBuffer(4),
     })),
+    textRuns: vi.fn(async () => ({ status: "text-runs", runs: [] })),
     save: vi.fn(async () => ({ status: "saved", data: new ArrayBuffer(1) })),
     close: vi.fn(async () => {}),
     dispose: vi.fn(),
@@ -187,13 +188,39 @@ describe("usePdfEditor", () => {
   });
 
   it("renders pages through the engine", async () => {
-    const signal = new AbortController().signal;
+    const options = {
+      signal: new AbortController().signal,
+      textEdits: [{ runId: "1", text: "x" }],
+    };
     const { engine, factory } = fakeEngine();
     const { result } = renderHook(() => usePdfEditor(factory));
     await act(async () => {
-      await result.current.renderPage(0, 1, 512, signal);
+      await result.current.renderPage(0, 1, 512, options);
     });
-    expect(engine.render).toHaveBeenCalledWith(0, 1, 512, signal);
+    expect(engine.render).toHaveBeenCalledWith(0, 1, 512, options);
+  });
+
+  it("asks for a page's lines once per file, and again after a failure", async () => {
+    const { engine, factory } = fakeEngine();
+    const { result } = renderHook(() => usePdfEditor(factory));
+    await act(() => result.current.openFile(pdf()));
+    await result.current.loadTextRuns(0);
+    await result.current.loadTextRuns(0);
+    expect(engine.textRuns).toHaveBeenCalledTimes(1);
+    // opening a file starts over
+    await act(() => result.current.openFile(pdf("b.pdf")));
+    await result.current.loadTextRuns(0);
+    expect(engine.textRuns).toHaveBeenCalledTimes(2);
+    // a failed answer is not kept
+    engine.textRuns.mockResolvedValueOnce({
+      status: "error",
+      reason: "failed",
+      message: "no",
+    } as never);
+    act(() => result.current.close());
+    expect((await result.current.loadTextRuns(1)).status).toBe("error");
+    expect((await result.current.loadTextRuns(1)).status).toBe("text-runs");
+    expect(engine.textRuns).toHaveBeenCalledTimes(4);
   });
 
   it("close resets everything and unmount disposes the engine", async () => {
@@ -207,6 +234,9 @@ describe("usePdfEditor", () => {
     expect(engine.dispose).toHaveBeenCalled();
     // after unmount, requests resolve with an error instead of throwing
     await expect(result.current.renderPage(0, 0, 1)).resolves.toMatchObject({
+      status: "error",
+    });
+    await expect(result.current.loadTextRuns(0)).resolves.toMatchObject({
       status: "error",
     });
     await expect(result.current.save()).resolves.toMatchObject({

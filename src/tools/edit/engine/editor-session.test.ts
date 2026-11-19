@@ -72,6 +72,36 @@ describe("EditorSession", () => {
     expect(() => session.render(0, 0, 100)).toThrow("No PDF is open");
   });
 
+  it("textRuns reads a page's lines and needs a valid page (requirePage)", () => {
+    const { api, runtime, session } = setup();
+    expect(() => session.textRuns(0)).toThrow("No PDF is open");
+    session.open(new Uint8Array(2), "");
+    expect(session.textRuns(1)).toEqual([]); // the fake page has no objects
+    expect(api.FPDFText_ClosePage).toHaveBeenCalledTimes(1);
+    expect(() => session.textRuns(2)).toThrow("There is no page 3");
+    session.close();
+    expect(runtime.leaks()).toEqual([]);
+  });
+
+  it("render applies text edits only when there are some", () => {
+    const { api, runtime, session } = setup();
+    session.open(new Uint8Array(2), "");
+    expect(session.render(0, 0, 10).textOutcomes).toEqual([]);
+    expect(api.FPDFText_LoadPage).not.toHaveBeenCalled();
+    // an edit for a line that does not exist is reported, not applied
+    const { textOutcomes } = session.render(0, 0, 10, [
+      { runId: "4", text: "x" },
+      { runId: "bad id", text: "y" }, // dropped by sanitising
+    ]);
+    expect(textOutcomes).toEqual([
+      { runId: "4", applied: false, written: "", substituteFont: null },
+    ]);
+    expect(api.FPDFPage_GenerateContent).not.toHaveBeenCalled();
+    expect(() => session.render(5, 0, 10)).toThrow("There is no page 6");
+    session.close();
+    expect(runtime.leaks()).toEqual([]);
+  });
+
   it("save works on a fresh copy and always closes it", () => {
     const { api, runtime, session } = setup();
     session.open(new Uint8Array(2), "pw");
@@ -82,6 +112,7 @@ describe("EditorSession", () => {
           sourceIndex: i,
           rotation: 0,
           objects: [],
+          textEdits: [],
         })),
         images: [],
       }),

@@ -154,6 +154,30 @@ describe("PdfiumDocument", () => {
     expect(() => doc.render(0, 1, 1, 0)).toThrow(RangeError);
   });
 
+  it("render lets prepare change the loaded page before drawing it", () => {
+    const { api, heap } = setup();
+    const doc = PdfiumDocument.open(api, heap, new Uint8Array(1), "");
+    api.FPDFBitmap_GetStride.mockReturnValue(4);
+    const order: string[] = [];
+    api.FPDF_LoadPage.mockReturnValue(77);
+    api.FPDF_RenderPageBitmap.mockImplementation(() => {
+      order.push("draw");
+    });
+    api.FPDF_ClosePage.mockImplementation(() => {
+      order.push("close");
+    });
+    doc.render(0, 1, 1, 0, (page) => order.push(`prepare ${page}`));
+    expect(order).toEqual(["prepare 77", "draw", "close"]);
+    // a failing prepare still closes the page and creates no bitmap
+    expect(() =>
+      doc.render(0, 1, 1, 0, () => {
+        throw new Error("bad edit");
+      }),
+    ).toThrow("bad edit");
+    expect(order.at(-1)).toBe("close");
+    expect(api.FPDFBitmap_Create).toHaveBeenCalledTimes(1);
+  });
+
   it("save copies the writer's bytes and always closes the writer", () => {
     const { api, runtime, heap } = setup();
     const doc = PdfiumDocument.open(api, heap, new Uint8Array(1), "");

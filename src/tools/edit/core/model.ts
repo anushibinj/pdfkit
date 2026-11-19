@@ -95,14 +95,6 @@ export interface HighlightObject extends ObjectFrame, BoxFields {
   color: Rgb;
 }
 
-/**
- * A white rectangle that also deletes the original page content under it
- * (text and image pixels) from the saved file. See `whiteout-writer.ts`.
- */
-export interface WhiteoutObject extends ObjectFrame, BoxFields {
-  kind: "whiteout";
-}
-
 /** A PNG or JPEG picture, such as a scanned signature. */
 export interface ImageObject extends ObjectFrame, BoxFields {
   kind: "image";
@@ -112,19 +104,13 @@ export interface ImageObject extends ObjectFrame, BoxFields {
 
 /** Anything the user can add to a page. */
 export type EditObject =
-  | TextObject
-  | InkObject
-  | RectObject
-  | HighlightObject
-  | WhiteoutObject
-  | ImageObject;
+  TextObject | InkObject | RectObject | HighlightObject | ImageObject;
 
 /** The `kind` discriminator of {@link EditObject}. */
 export type EditObjectKind = EditObject["kind"];
 
 /** The objects that are sized by a width and a height. */
-export type BoxObject =
-  RectObject | HighlightObject | WhiteoutObject | ImageObject;
+export type BoxObject = RectObject | HighlightObject | ImageObject;
 
 /** Image formats PDFium can embed directly. */
 export type ImageMime = "image/png" | "image/jpeg";
@@ -168,9 +154,37 @@ export interface EditorPage {
   rotation: QuarterTurns;
   /** Added objects, bottom-most first (later objects paint over earlier ones). */
   objects: EditObject[];
+  /**
+   * Changes to the page's own text, by line id (see `TextRun.id`): the new
+   * text of each edited line. An empty string deletes the line.
+   */
+  textEdits: Readonly<Record<string, string>>;
 }
 
-/** The undoable part of the editor: pages (order, rotation) and their objects. */
+/** New text for one line of the page's own text. */
+export interface TextEdit {
+  /** The line's id (its text objects' indices joined by "-"). */
+  runId: string;
+  /** The new text; empty deletes the line. */
+  text: string;
+}
+
+/** What happened when a text edit was written into the page. */
+export interface TextEditOutcome {
+  runId: string;
+  /** False when the line no longer exists, so nothing was changed. */
+  applied: boolean;
+  /** The text actually written (characters no font could show removed). */
+  written: string;
+  /**
+   * The standard font used instead of the original one, when the original
+   * (embedded subset) font lacks a typed character; `null` when the
+   * original font was kept.
+   */
+  substituteFont: string | null;
+}
+
+/** The undoable part of the editor: pages (order, rotation), objects and text edits. */
 export interface EditorDocument {
   pages: EditorPage[];
 }

@@ -22,8 +22,8 @@ import {
   documentReducer,
   type DocumentStatus,
 } from "./document-state";
-import { EditorEngine } from "./editor-engine";
-import type { RenderResult, SaveResult } from "./messages";
+import { EditorEngine, type RenderOptions } from "./editor-engine";
+import type { RenderResult, SaveResult, TextRunsResult } from "./messages";
 import { useImageAssets } from "./use-image-assets";
 
 /** Everything the editor UI needs, in one place. */
@@ -45,13 +45,21 @@ export interface PdfEditor {
   close(): void;
   /** Store an image so image objects can use it. */
   addImage(asset: ImageAsset): void;
-  /** Render a page of the original file (stable identity across renders). */
+  /**
+   * Render a page of the file, with text edits applied for this render
+   * (stable identity across renders).
+   */
   renderPage(
     pageIndex: number,
     rotation: QuarterTurns,
     width: number,
-    signal?: AbortSignal,
+    options?: RenderOptions,
   ): Promise<RenderResult>;
+  /**
+   * The editable lines of a page of the original file. Asked once per page
+   * and file; later calls share the answer (stable identity).
+   */
+  loadTextRuns(pageIndex: number): Promise<TextRunsResult>;
   /** Produce the edited file from the current document. */
   save(): Promise<SaveResult>;
 }
@@ -95,6 +103,10 @@ export function usePdfEditor(
   const factoryRef = useRef(createEngine);
   const pendingRef = useRef<{ name: string; data: ArrayBuffer } | null>(null);
   const openSeq = useRef(0);
+  // Lines per source page of the open file. They never change while the
+  // file is open (edits are applied on top), so one request per page is
+  // enough. Cleared whenever another file is opened or the file is closed.
+  const textRunsCache = useRef(new Map<number, Promise<TextRunsResult>>());
 
   useEffect(() => {
     const engine = factoryRef.current();
@@ -121,6 +133,7 @@ export function usePdfEditor(
       if (seq !== openSeq.current) return;
       if (result.status === "opened") {
         pendingRef.current = null;
+        textRunsCache.current.clear();
         clearImages();
         dispatch({ type: "load", pageCount: result.pages.length });
       }
@@ -156,6 +169,7 @@ export function usePdfEditor(
   const close = useCallback(() => {
     openSeq.current++;
     pendingRef.current = null;
+    textRunsCache.current.clear();
     void engineRef.current?.close();
     clearImages();
     dispatch({ type: "load", pageCount: 0 });
@@ -167,10 +181,29 @@ export function usePdfEditor(
       pageIndex: number,
       rotation: QuarterTurns,
       width: number,
-      signal?: AbortSignal,
+      options?: RenderOptions,
     ): Promise<RenderResult> =>
-      engineRef.current?.render(pageIndex, rotation, width, signal) ??
+      engineRef.current?.render(pageIndex, rotation, width, options) ??
       Promise.resolve(UNMOUNTED),
+    [],
+  );
+
+  const loadTextRuns = useCallback(
+    (pageIndex: number): Promise<TextRunsResult> => {
+      const engine = engineRef.current;
+      if (!engine) return Promise.resolve(UNMOUNTED);
+      const cache = textRunsCache.current;
+      let request = cache.get(pageIndex);
+      if (!request) {
+        request = engine.textRuns(pageIndex).then((result) => {
+          // A failure is not kept, so the next attempt asks again.
+          if (result.status !== "text-runs") cache.delete(pageIndex);
+          return result;
+        });
+        cache.set(pageIndex, request);
+      }
+      return request;
+    },
     [],
   );
 
@@ -200,6 +233,7 @@ export function usePdfEditor(
     close,
     addImage: images.add,
     renderPage,
+    loadTextRuns,
     save,
   };
 }

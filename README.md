@@ -16,16 +16,20 @@ Currently shipped tools:
   [ironpress](https://github.com/gastongouron/ironpress) HTML/CSS layout engine
   compiled to WASM. Paper size and margins come from the page settings, or from
   an `@page` rule in the CSS (which wins).
-- **PDF Editor** (`/tools/edit/`, beta): adds text, freehand drawings, boxes,
-  highlights, images (PNG/JPEG, such as a signature) and white-out to a PDF,
-  and rotates, reorders or deletes pages, using
+- **PDF Editor** (`/tools/edit/`, beta): changes the PDF's own text in place,
+  adds text, freehand drawings, boxes, highlights and images (PNG/JPEG, such
+  as a signature), and rotates, reorders or deletes pages, using
   [PDFium](https://pdfium.googlesource.com/pdfium/) compiled to WASM
   ([`@embedpdf/pdfium`](https://github.com/embedpdf/embed-pdf-viewer)).
-  White-out is a real redaction: the text and image pixels under the box are
-  deleted from the saved file. Password-protected PDFs open with their
-  password and stay protected after saving. Existing text cannot be edited in
-  place, and typed text is limited to the standard PDF fonts (WinAnsi:
-  English and Western European languages).
+  Editing a line rewrites its text objects in the file; nothing is painted
+  over the old text. The line keeps its own (often subset-embedded) font when
+  that font demonstrably has every typed character, and otherwise switches to
+  the closest standard font at the same position, size and colour. The
+  on-screen preview is rendered by the same code that saves, so it shows
+  exactly what the file will contain. Password-protected PDFs open with their
+  password and stay protected after saving. Text in scanned pages or inside
+  form XObjects cannot be edited, and new or substituted text is limited to
+  the standard PDF fonts (WinAnsi: English and Western European languages).
 
 Built with Next.js (App Router, static export), TypeScript (strict), Tailwind
 CSS, shadcn/ui, next-themes and Vitest. It is an installable, offline-capable PWA.
@@ -77,8 +81,8 @@ install behaviour with `pnpm build && pnpm preview` (http://localhost:5000).
 
 ## Environment
 
-| Variable               | Purpose                                                                                                                                      |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Variable               | Purpose                                                                                                                                                            |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `NEXT_PUBLIC_SITE_URL` | Public origin, e.g. `https://pdfkit.example.com`. Used for canonical URLs, Open Graph/Twitter image URLs, sitemap and robots. Defaults to `http://localhost:3000`. |
 
 ```bash
@@ -125,14 +129,21 @@ tool never download it, and the tool still works offline after its first use.
 
 ## Manual test checklist (PDF Editor)
 
-Sample files live in `fixtures/` (`user-password.pdf` has password `hunter2`).
+Sample files live in `fixtures/` (`user-password.pdf` has password `hunter2`;
+`text-chromium.pdf` is printed by Chromium with embedded subset fonts, see
+`scripts/make-text-fixture.mjs`).
 
 - [ ] Opening a PDF shows every page; pages far off screen render when
       scrolled to.
-- [ ] **Text:** click a page, type in "Text content"; font, size and colour
-      change the preview. Typing `₹` shows a toast and the character is removed.
-- [ ] **Draw, Box, Highlight, White-out:** drag on a page; each tool stays
-      active for the next shape. A click (no drag) makes a default-size box.
+- [ ] **Edit text** on `fixtures/text-chromium.pdf`: click "Total amount due
+      is 1250 dollars.", type `1520`, press Enter; the line keeps its font. Type
+      `Zoe` into "Contact: billing team"; it switches to Helvetica, stays red
+      and a notice says why. Esc cancels; emptying a line deletes it.
+- [ ] **Add text:** click a page and type right there; font, size and colour
+      in the panel change it. Typing `₹` shows a toast and the character is
+      removed. Double-click added text to type into it again.
+- [ ] **Draw, Box, Highlight:** drag on a page; each tool stays active for the
+      next shape. A click (no drag) makes a default-size box.
 - [ ] **Image:** pick a PNG with a transparent background, click a page; it is
       placed at 40% of the page width and the background stays transparent in
       the download.
@@ -141,7 +152,8 @@ Sample files live in `fixtures/` (`user-password.pdf` has password `hunter2`).
       Ctrl+Z / Ctrl+Shift+Z undo and redo.
 - [ ] Rotate, move and delete pages; the last page cannot be deleted.
 - [ ] **Download PDF** saves `<name>-edited.pdf`; in a PDF reader the added
-      text is selectable and text under white-out cannot be copied or found.
+      and edited text is selectable, and the old text of an edited line can no
+      longer be found or copied.
 - [ ] `user-password.pdf`: wrong password shows "Wrong password"; `hunter2`
       opens it; the download still asks for `hunter2`.
 - [ ] **Open another** with unsaved edits asks before discarding them; closing

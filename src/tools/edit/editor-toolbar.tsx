@@ -2,7 +2,6 @@
 
 import {
   Download,
-  Eraser,
   FolderOpen,
   Highlighter,
   ImagePlus,
@@ -10,6 +9,7 @@ import {
   Pencil,
   Redo2,
   Square,
+  TextCursorInput,
   Type,
   Undo2,
   type LucideIcon,
@@ -26,11 +26,11 @@ export const TOOLS: readonly {
   icon: LucideIcon;
 }[] = [
   { id: "select", label: "Select", icon: MousePointer2 },
-  { id: "text", label: "Text", icon: Type },
+  { id: "edit-text", label: "Edit text", icon: TextCursorInput },
+  { id: "text", label: "Add text", icon: Type },
   { id: "ink", label: "Draw", icon: Pencil },
   { id: "rect", label: "Box", icon: Square },
   { id: "highlight", label: "Highlight", icon: Highlighter },
-  { id: "whiteout", label: "White-out", icon: Eraser },
 ];
 
 interface EditorToolbarProps {
@@ -49,8 +49,9 @@ interface EditorToolbarProps {
 
 /**
  * The editor's main toolbar: pointer tools, then image insertion and
- * undo/redo, then opening another file and downloading the result. Everything but closing is
- * disabled while the edited file is being produced.
+ * undo/redo, then opening another file and downloading the result.
+ * Everything but closing is disabled while the edited file is being
+ * produced.
  *
  * Labels are hidden on narrow screens to save room, but every button keeps
  * an accessible name.

@@ -17,6 +17,7 @@ const rendered: EditorResult = {
   width: 1,
   height: 1,
   pixels: new ArrayBuffer(4),
+  textOutcomes: [],
 };
 
 /**
@@ -88,7 +89,39 @@ describe("EditorEngine", () => {
       pageIndex: 0,
       rotation: 1,
       width: 300,
+      textEdits: [],
     });
+  });
+
+  it("sends text edits with a render, and asks for a page's lines", async () => {
+    const runs: EditorResult = { status: "text-runs", runs: [] };
+    const { factory, workers } = fakeWorkers((req) =>
+      req.op === "render" ? rendered : req.op === "text-runs" ? runs : opened,
+    );
+    const engine = new EditorEngine(factory);
+    await engine.open(new ArrayBuffer(1));
+    const textEdits = [{ runId: "2", text: "New" }];
+    await engine.render(1, 0, 50, { textEdits });
+    expect(await engine.textRuns(1)).toEqual(runs);
+    expect(workers[0].requests.slice(1)).toEqual([
+      { op: "render", pageIndex: 1, rotation: 0, width: 50, textEdits },
+      { op: "text-runs", pageIndex: 1 },
+    ]);
+  });
+
+  it("re-opens a crashed engine before listing lines", async () => {
+    const { factory, workers } = fakeWorkers((req, n) =>
+      req.op === "open"
+        ? opened
+        : n === 0
+          ? { status: "error", reason: "crashed", message: "trap" }
+          : { status: "text-runs", runs: [] },
+    );
+    const engine = new EditorEngine(factory);
+    await engine.open(new ArrayBuffer(1));
+    expect((await engine.textRuns(0)).status).toBe("error");
+    expect((await engine.textRuns(0)).status).toBe("text-runs");
+    expect(workers[1].requests.map((r) => r.op)).toEqual(["open", "text-runs"]);
   });
 
   it("runs requests one after another (enqueue)", async () => {
@@ -172,8 +205,10 @@ describe("EditorEngine", () => {
     const engine = new EditorEngine(factory);
     const opening = engine.open(new ArrayBuffer(1));
     const stale = new AbortController();
-    const skipped = engine.render(0, 0, 10, stale.signal);
-    const wanted = engine.render(1, 0, 10, new AbortController().signal);
+    const skipped = engine.render(0, 0, 10, { signal: stale.signal });
+    const wanted = engine.render(1, 0, 10, {
+      signal: new AbortController().signal,
+    });
     stale.abort(); // the page scrolled away before its turn came
     await Promise.resolve();
     release();

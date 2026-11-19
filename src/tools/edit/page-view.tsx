@@ -1,14 +1,17 @@
 "use client";
 
 import { ArrowDown, ArrowUp, RotateCcw, RotateCw, Trash2 } from "lucide-react";
-import { useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import type { QuarterTurns } from "./core/model";
+import type { QuarterTurns, TextEdit, TextEditOutcome } from "./core/model";
 import { renderWidthFor } from "./core/render-width";
-import type { RenderResult } from "./messages";
+import type { RenderOptions } from "./editor-engine";
+import type { RenderResult, TextRunsResult } from "./messages";
 import { PageCanvas } from "./page-canvas";
 import { PageOverlay, type PageOverlayProps } from "./page-overlay";
 import { useElementWidth, useNearViewport } from "./use-element-observers";
+import { useTextRuns } from "./use-text-runs";
 
 interface PageControlsProps {
   /** 1-based position. */
@@ -98,7 +101,10 @@ export function PageControls({
   );
 }
 
-export interface PageViewProps extends Omit<PageOverlayProps, "cssWidth"> {
+export interface PageViewProps extends Omit<
+  PageOverlayProps,
+  "cssWidth" | "textRuns" | "editingRunId" | "onEditRun"
+> {
   pageCount: number;
   /** Blocks page operations, e.g. while saving. */
   disabled?: boolean;
@@ -106,30 +112,88 @@ export interface PageViewProps extends Omit<PageOverlayProps, "cssWidth"> {
     pageIndex: number,
     rotation: QuarterTurns,
     width: number,
-    signal?: AbortSignal,
+    options?: RenderOptions,
   ): Promise<RenderResult>;
+  /** Fetches the editable lines of a page of the original file. */
+  loadTextRuns(pageIndex: number): Promise<TextRunsResult>;
+  /** Told what happened to the page's text edits after each render. */
+  onTextOutcomes(
+    edits: readonly TextEdit[],
+    outcomes: readonly TextEditOutcome[],
+  ): void;
   onRotate(delta: 1 | -1): void;
   onMove(delta: 1 | -1): void;
   onDelete(): void;
 }
 
 /**
- * One page of the editor: its controls, the rendered original underneath
- * and the editable overlay on top.
+ * The text edits to render: every stored edit, except that the line being
+ * typed into is rendered empty. The inline field then shows the only copy
+ * of that line, instead of a field drawn over the old glyphs.
+ *
+ * @param stored The page's stored edits, by line id.
+ * @param editingRunId The line being edited, if any.
+ * @returns The edits, in a stable order.
+ */
+export function editsToRender(
+  stored: Readonly<Record<string, string>>,
+  editingRunId: string | null,
+): TextEdit[] {
+  const edits = Object.entries(stored)
+    .filter(([runId]) => runId !== editingRunId)
+    .map(([runId, text]) => ({ runId, text }));
+  if (editingRunId !== null) edits.push({ runId: editingRunId, text: "" });
+  return edits;
+}
+
+/**
+ * One page of the editor: its controls, the rendered page underneath and
+ * the editable overlay on top.
  *
  * The overlay SVG sits in normal flow and sizes the box (its `viewBox`
  * gives the page's aspect ratio); the canvas is stretched over the same
  * box. Both describe the same displayed page, so they line up at any width.
  *
+ * It also owns in-place editing of the page's own text: it loads the
+ * lines while the Edit text tool is on (and the page is near the screen),
+ * remembers which line is being typed into, and renders the page with the
+ * stored edits and that line hidden (see {@link editsToRender}).
+ *
  * @param props The page, its rendering and its editing callbacks.
  * @returns The page section.
  */
 export function PageView(props: PageViewProps) {
-  const { pageNumber, pageCount, page, renderPage } = props;
+  const { pageNumber, pageCount, page, renderPage, tool } = props;
   const boxRef = useRef<HTMLDivElement>(null);
   const near = useNearViewport(boxRef);
   const cssWidth = useElementWidth(boxRef);
   const ratio = typeof window === "undefined" ? 1 : window.devicePixelRatio;
+  const editingText = tool === "edit-text";
+  const { runs, error } = useTextRuns(
+    props.loadTextRuns,
+    page.sourceIndex,
+    editingText && near,
+  );
+  const [editingRunId, setEditingRunId] = useState<string | null>(null);
+  // Leaving the tool ends editing (the field has committed on blur by
+  // then). Reset during render, React's pattern for state that follows a
+  // prop, so coming back to the tool never reopens an old field.
+  const [wasEditingText, setWasEditingText] = useState(editingText);
+  if (wasEditingText !== editingText) {
+    setWasEditingText(editingText);
+    if (!editingText) setEditingRunId(null);
+  }
+  const activeRunId = editingText ? editingRunId : null;
+  const textEdits = useMemo(
+    () => editsToRender(page.textEdits, activeRunId),
+    [page.textEdits, activeRunId],
+  );
+
+  useEffect(() => {
+    if (error)
+      toast.error(`Could not read the text of page ${pageNumber}: ${error}`);
+  }, [error, pageNumber]);
+
   return (
     <section
       aria-label={`Page ${pageNumber} of ${pageCount}`}
@@ -152,10 +216,18 @@ export function PageView(props: PageViewProps) {
           sourceIndex={page.sourceIndex}
           rotation={page.rotation}
           width={renderWidthFor(cssWidth, ratio)}
+          textEdits={textEdits}
           active={near}
+          onTextOutcomes={props.onTextOutcomes}
           className="absolute inset-0 size-full"
         />
-        <PageOverlay {...props} cssWidth={cssWidth} />
+        <PageOverlay
+          {...props}
+          cssWidth={cssWidth}
+          textRuns={runs}
+          editingRunId={activeRunId}
+          onEditRun={setEditingRunId}
+        />
       </div>
     </section>
   );

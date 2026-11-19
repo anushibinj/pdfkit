@@ -1,7 +1,10 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { RenderOptions } from "./editor-engine";
 import type { RenderResult } from "./messages";
 import { PageCanvas, drawPixels } from "./page-canvas";
+
+const noEdits = [] as const;
 
 const putImageData = vi.fn();
 
@@ -27,11 +30,12 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const rendered = (w = 2, h = 1): RenderResult => ({
-  status: "rendered",
+const rendered = (w = 2, h = 1) => ({
+  status: "rendered" as const,
   width: w,
   height: h,
   pixels: new ArrayBuffer(w * h * 4),
+  textOutcomes: [],
 });
 
 describe("drawPixels", () => {
@@ -62,10 +66,14 @@ describe("PageCanvas", () => {
         sourceIndex={4}
         rotation={1}
         width={512}
+        textEdits={noEdits}
         active
       />,
     );
-    expect(renderPage).toHaveBeenCalledWith(4, 1, 512, expect.any(AbortSignal));
+    expect(renderPage).toHaveBeenCalledWith(4, 1, 512, {
+      signal: expect.any(AbortSignal),
+      textEdits: [],
+    });
     await waitFor(() => expect(putImageData).toHaveBeenCalled());
     const canvas = container.querySelector("canvas")!;
     expect([canvas.width, canvas.height]).toEqual([3, 2]);
@@ -80,6 +88,7 @@ describe("PageCanvas", () => {
         sourceIndex={0}
         rotation={0}
         width={512}
+        textEdits={noEdits}
         active={false}
       />,
     );
@@ -91,6 +100,7 @@ describe("PageCanvas", () => {
         sourceIndex={0}
         rotation={0}
         width={512}
+        textEdits={noEdits}
         active
       />,
     );
@@ -101,6 +111,7 @@ describe("PageCanvas", () => {
         sourceIndex={0}
         rotation={0}
         width={512}
+        textEdits={noEdits}
         active={false}
       />,
     );
@@ -119,6 +130,7 @@ describe("PageCanvas", () => {
         sourceIndex={0}
         rotation={0}
         width={512}
+        textEdits={noEdits}
         active
       />,
     );
@@ -128,6 +140,7 @@ describe("PageCanvas", () => {
         sourceIndex={0}
         rotation={1}
         width={512}
+        textEdits={noEdits}
         active
       />,
     );
@@ -141,8 +154,8 @@ describe("PageCanvas", () => {
   it("aborts its request when the inputs change or the page scrolls away", () => {
     const signals: AbortSignal[] = [];
     const renderPage = vi.fn(
-      (_i: number, _r: number, _w: number, signal?: AbortSignal) => {
-        if (signal) signals.push(signal);
+      (_i: number, _r: number, _w: number, options?: RenderOptions) => {
+        if (options?.signal) signals.push(options.signal);
         return new Promise<RenderResult>(() => {});
       },
     );
@@ -152,6 +165,7 @@ describe("PageCanvas", () => {
         sourceIndex={0}
         rotation={0}
         width={512}
+        textEdits={noEdits}
         active
       />,
     );
@@ -161,6 +175,7 @@ describe("PageCanvas", () => {
         sourceIndex={0}
         rotation={0}
         width={1024}
+        textEdits={noEdits}
         active
       />,
     );
@@ -172,10 +187,64 @@ describe("PageCanvas", () => {
         sourceIndex={0}
         rotation={0}
         width={1024}
+        textEdits={noEdits}
         active={false}
       />,
     );
     expect(signals[1].aborted).toBe(true);
+  });
+
+  it("renders text edits, reports their outcomes and keeps the old bitmap meanwhile", async () => {
+    const outcome = {
+      runId: "1",
+      applied: true,
+      written: "New",
+      substituteFont: "Helvetica",
+    };
+    let finish: (r: RenderResult) => void = () => {};
+    const renderPage = vi
+      .fn<
+        (
+          i: number,
+          r: number,
+          w: number,
+          o?: RenderOptions,
+        ) => Promise<RenderResult>
+      >()
+      .mockImplementationOnce(async () => rendered(3, 3))
+      .mockImplementationOnce(() => new Promise((r) => (finish = r)));
+    const onTextOutcomes = vi.fn();
+    const edits = [{ runId: "1", text: "New" }];
+    const view = (textEdits: { runId: string; text: string }[]) => (
+      <PageCanvas
+        renderPage={renderPage}
+        sourceIndex={0}
+        rotation={0}
+        width={512}
+        textEdits={textEdits}
+        active
+        onTextOutcomes={onTextOutcomes}
+      />
+    );
+    const { container, rerender } = render(view([]));
+    await waitFor(() =>
+      expect(container.querySelector("canvas")!.width).toBe(3),
+    );
+    rerender(view(edits));
+    expect(renderPage).toHaveBeenLastCalledWith(0, 0, 512, {
+      signal: expect.any(AbortSignal),
+      textEdits: edits,
+    });
+    // the previous page stays visible until the new one is ready
+    expect(container.querySelector("canvas")!.width).toBe(3);
+    await act(async () =>
+      finish({ ...rendered(5, 5), textOutcomes: [outcome] }),
+    );
+    expect(container.querySelector("canvas")!.width).toBe(5);
+    expect(onTextOutcomes).toHaveBeenLastCalledWith(edits, [outcome]);
+    // the same edits in a new array do not render again
+    rerender(view([{ runId: "1", text: "New" }]));
+    expect(renderPage).toHaveBeenCalledTimes(2);
   });
 
   it("shows render errors", async () => {
@@ -190,6 +259,7 @@ describe("PageCanvas", () => {
         sourceIndex={0}
         rotation={0}
         width={512}
+        textEdits={noEdits}
         active
       />,
     );

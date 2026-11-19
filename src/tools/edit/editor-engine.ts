@@ -1,6 +1,6 @@
 import { errorMessage } from "@/lib/errors";
 import { WorkerClient, type RequestOptions } from "@/lib/worker-client";
-import type { QuarterTurns } from "./core/model";
+import type { QuarterTurns, TextEdit } from "./core/model";
 import type { SavePlan } from "./core/save-plan";
 import type {
   EditorRequest,
@@ -9,7 +9,16 @@ import type {
   OpenResult,
   RenderResult,
   SaveResult,
+  TextRunsResult,
 } from "./messages";
+
+/** Extra inputs for {@link EditorEngine.render}. */
+export interface RenderOptions {
+  /** Aborted when the caller no longer needs the result. */
+  signal?: AbortSignal;
+  /** Changes to the page's own text, applied for this render only. */
+  textEdits?: TextEdit[];
+}
 
 /** The part of `WorkerClient` the engine needs (lets tests pass a fake). */
 export interface EditorWorkerClient {
@@ -101,7 +110,7 @@ export class EditorEngine {
   }
 
   /**
-   * Render a page of the unedited file.
+   * Render a page of the file, with the given text edits applied.
    *
    * Requests wait in the queue, so by the time a render reaches the front
    * the page may have scrolled away (fast scrolling through a long file
@@ -113,15 +122,16 @@ export class EditorEngine {
    * @param pageIndex Source page index.
    * @param rotation User quarter turns to add.
    * @param width Requested bitmap width in pixels.
-   * @param signal Aborted when the caller no longer needs the result.
+   * @param options Abort signal and text edits.
    * @returns The pixels, an error, or {@link CANCELLED}.
    */
   render(
     pageIndex: number,
     rotation: QuarterTurns,
     width: number,
-    signal?: AbortSignal,
+    options: RenderOptions = {},
   ): Promise<RenderResult> {
+    const { signal, textEdits = [] } = options;
     return this.enqueue(async () => {
       if (signal?.aborted) return CANCELLED;
       const failed = await this.reopenIfStale();
@@ -131,7 +141,25 @@ export class EditorEngine {
         pageIndex,
         rotation,
         width,
+        textEdits,
       })) as RenderResult;
+    });
+  }
+
+  /**
+   * List the editable lines of text on a page of the original file.
+   *
+   * @param pageIndex Source page index.
+   * @returns The lines, or an error.
+   */
+  textRuns(pageIndex: number): Promise<TextRunsResult> {
+    return this.enqueue(async () => {
+      const failed = await this.reopenIfStale();
+      if (failed) return failed;
+      return (await this.send({
+        op: "text-runs",
+        pageIndex,
+      })) as TextRunsResult;
     });
   }
 

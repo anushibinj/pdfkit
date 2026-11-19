@@ -70,4 +70,74 @@ describe("WasmHeap", () => {
       runtime.floats.get(i + 8),
     ]).toEqual([3, 4, 5]);
   });
+  it("readInts reads 32-bit integers", () => {
+    const runtime = new FakeRuntime();
+    const heap = new WasmHeap(runtime);
+    runtime.setValue(40, 255);
+    runtime.setValue(44, -3);
+    expect(heap.readInts(40, 3)).toEqual([255, -3, 0]);
+  });
+
+  it("readDoubles reads 8-byte floats", () => {
+    const runtime = new FakeRuntime();
+    const heap = new WasmHeap(runtime);
+    runtime.setValue(80, 1.5);
+    runtime.setValue(88, -2.25);
+    expect(heap.readDoubles(80, 2)).toEqual([1.5, -2.25]);
+  });
+
+  describe("readString", () => {
+    it("asks for the length, fills a block that size, decodes and frees it", () => {
+      const runtime = new FakeRuntime();
+      const heap = new WasmHeap(runtime);
+      const calls: [number, number][] = [];
+      const text = heap.readString((buffer, length) => {
+        calls.push([buffer, length]);
+        if (buffer) runtime.writeUtf16(buffer, "Héllo");
+        return 12; // 5 code units + terminator, 2 bytes each
+      }, "utf16");
+      expect(text).toBe("Héllo");
+      expect(calls[0]).toEqual([0, 0]);
+      expect(calls[1][1]).toBe(12);
+      expect(runtime.sizes.get(calls[1][0])).toBe(12);
+      expect(runtime.leaks()).toEqual([]);
+    });
+
+    it("decodes UTF-8", () => {
+      const runtime = new FakeRuntime();
+      const heap = new WasmHeap(runtime);
+      const bytes = new TextEncoder().encode("DejaVuSans-Bold\0");
+      const text = heap.readString((buffer) => {
+        if (buffer) runtime.HEAPU8.set(bytes, buffer);
+        return bytes.length;
+      }, "utf8");
+      expect(text).toBe("DejaVuSans-Bold");
+    });
+
+    it.each([
+      [0, "utf16"],
+      [2, "utf16"],
+      [1, "utf8"],
+    ] as const)(
+      "returns an empty string without allocating for length %i (%s)",
+      (length, encoding) => {
+        const runtime = new FakeRuntime();
+        const heap = new WasmHeap(runtime);
+        expect(heap.readString(() => length, encoding)).toBe("");
+        expect(runtime.allocated).toEqual([]);
+      },
+    );
+
+    it("frees the block when filling throws", () => {
+      const runtime = new FakeRuntime();
+      const heap = new WasmHeap(runtime);
+      expect(() =>
+        heap.readString((buffer) => {
+          if (buffer) throw new Error("boom");
+          return 10;
+        }, "utf8"),
+      ).toThrow("boom");
+      expect(runtime.leaks()).toEqual([]);
+    });
+  });
 });

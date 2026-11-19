@@ -176,13 +176,16 @@ describe("boxFromDrag", () => {
   it("uses the default size for a click", () => {
     const b = boxFromDrag(
       "b",
-      "whiteout",
+      "highlight",
       { x: 5, y: 5 },
       { x: 5 + CLICK_TOLERANCE - 1, y: 5 },
       flat,
       style,
     );
-    expect(b).toMatchObject({ kind: "whiteout", ...DEFAULT_BOX_SIZE.whiteout });
+    expect(b).toMatchObject({
+      kind: "highlight",
+      ...DEFAULT_BOX_SIZE.highlight,
+    });
   });
 
   it("colours highlights with the highlight colour", () => {

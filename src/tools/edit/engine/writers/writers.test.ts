@@ -6,18 +6,12 @@ import {
   type InkObject,
   type RectObject,
   type TextObject,
-  type WhiteoutObject,
 } from "../../core/model";
 import { fakeMetrics } from "../../test-utils/fake-metrics";
 import { fakePdfium } from "../../test-utils/fake-pdfium";
 import { FILL_MODE, ROUND } from "../pdfium-api";
 import { WasmHeap } from "../wasm-heap";
-import {
-  HighlightWriter,
-  RectWriter,
-  WhiteoutWriter,
-  userRect,
-} from "./box-writers";
+import { HighlightWriter, RectWriter } from "./box-writers";
 import { ImageWriter } from "./image-writer";
 import { InkWriter } from "./ink-writer";
 import { check, insertNewObject, type WriteContext } from "./object-writer";
@@ -182,20 +176,6 @@ describe("InkWriter", () => {
   });
 });
 
-describe("userRect", () => {
-  it("returns left, top, right, bottom in user space for any rotation", () => {
-    const box: WhiteoutObject = {
-      ...frame,
-      kind: "whiteout",
-      width: 30,
-      height: 10,
-    };
-    expect(userRect(box)).toEqual([100, 200, 130, 190]);
-    // turned a quarter: width runs up, height runs right
-    expect(userRect({ ...box, rotation: 1 })).toEqual([100, 230, 110, 200]);
-  });
-});
-
 describe("RectWriter", () => {
   it("outlines the box without filling it", () => {
     const { api, ctx } = setup();
@@ -247,44 +227,6 @@ describe("HighlightWriter", () => {
       expect.any(Number),
       "Multiply",
     );
-  });
-});
-
-describe("WhiteoutWriter", () => {
-  const box: WhiteoutObject = {
-    ...frame,
-    kind: "whiteout",
-    width: 30,
-    height: 10,
-  };
-
-  it("prepare redacts the box's user-space rectangle and frees it", () => {
-    const { api, runtime, ctx } = setup();
-    new WhiteoutWriter().prepare(box, ctx);
-    const rectPtr = api.EPDFText_RedactInRect.mock.calls[0][1];
-    expect(api.EPDFText_RedactInRect).toHaveBeenCalledWith(
-      PAGE,
-      rectPtr,
-      true,
-      false,
-    );
-    expect([0, 4, 8, 12].map((o) => runtime.getValue(rectPtr + o))).toEqual([
-      100, 200, 130, 190,
-    ]);
-    expect(runtime.leaks()).toEqual([]);
-  });
-
-  it("write paints the box opaque white", () => {
-    const { api, ctx } = setup();
-    new WhiteoutWriter().write(box, ctx);
-    expect(api.FPDFPageObj_SetFillColor).toHaveBeenCalledWith(
-      expect.any(Number),
-      255,
-      255,
-      255,
-      255,
-    );
-    expect(api.EPDFText_RedactInRect).not.toHaveBeenCalled();
   });
 });
 
@@ -346,21 +288,23 @@ describe("writer registry", () => {
       "ink",
       "rect",
       "text",
-      "whiteout",
     ]);
     expect(
-      writerFor(registry, { ...frame, kind: "whiteout", width: 1, height: 1 }),
-    ).toBe(registry.whiteout);
+      writerFor(registry, {
+        ...frame,
+        kind: "highlight",
+        width: 1,
+        height: 1,
+        color: red,
+      }),
+    ).toBe(registry.highlight);
   });
 
-  it("runs every prepare before any write", () => {
+  it("writes objects in list order, bottom-most first", () => {
     const { ctx } = setup();
     const order: string[] = [];
     const registry = createWriterRegistry(fakeMetrics);
-    registry.whiteout = {
-      prepare: (o) => order.push(`prepare ${o.id}`),
-      write: (o) => order.push(`write ${o.id}`),
-    };
+    registry.highlight = { write: (o) => order.push(`write ${o.id}`) };
     registry.rect = { write: (o) => order.push(`write ${o.id}`) };
     const objects: EditObject[] = [
       {
@@ -372,9 +316,9 @@ describe("writer registry", () => {
         color: red,
         strokeWidth: 1,
       },
-      { ...frame, id: "w", kind: "whiteout", width: 1, height: 1 },
+      { ...frame, id: "h", kind: "highlight", width: 1, height: 1, color: red },
     ];
     writePageObjects(registry, objects, ctx);
-    expect(order).toEqual(["prepare w", "write r", "write w"]);
+    expect(order).toEqual(["write r", "write h"]);
   });
 });

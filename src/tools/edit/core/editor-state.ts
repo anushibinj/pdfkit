@@ -47,6 +47,17 @@ export type EditorAction =
       coalesceKey?: string;
     }
   | { type: "remove-object"; pageKey: string; objectId: string }
+  /**
+   * Change a line of the page's own text. `original` is the line's text in
+   * the file: setting the text back to it removes the edit.
+   */
+  | {
+      type: "edit-text";
+      pageKey: string;
+      runId: string;
+      text: string;
+      original: string;
+    }
   | { type: "select"; selection: Selection | null }
   /** Turn a page by `delta` clockwise quarter turns (negative: anticlockwise). */
   | { type: "rotate-page"; pageKey: string; delta: number }
@@ -57,8 +68,8 @@ export type EditorAction =
   | { type: "redo" };
 
 /**
- * A document with the file's pages in their original order, unrotated and
- * without added objects.
+ * A document with the file's pages in their original order, unrotated,
+ * without added objects and with their text unchanged.
  *
  * @param pageCount Number of pages in the opened file.
  * @returns The initial document.
@@ -70,6 +81,7 @@ export function createDocument(pageCount: number): EditorDocument {
       sourceIndex: i,
       rotation: 0,
       objects: [],
+      textEdits: {},
     })),
   };
 }
@@ -210,6 +222,23 @@ export function editorReducer(
             : page,
         ),
       );
+
+    case "edit-text":
+      return changePage(state, action.pageKey, (page) => {
+        const current = page.textEdits[action.runId];
+        if (action.text === action.original) {
+          // Back to the file's text: drop the edit instead of storing a no-op.
+          if (current === undefined) return page;
+          const rest = { ...page.textEdits };
+          delete rest[action.runId];
+          return { ...page, textEdits: rest };
+        }
+        if (current === action.text) return page;
+        return {
+          ...page,
+          textEdits: { ...page.textEdits, [action.runId]: action.text },
+        };
+      });
 
     case "select": {
       const same =

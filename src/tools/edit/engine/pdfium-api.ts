@@ -3,7 +3,7 @@
  * editor uses.
  *
  * Declared here instead of importing the library's full type so that:
- * - the engine depends on a small, explicit surface (about 45 of the ~500
+ * - the engine depends on a small, explicit surface (about 70 of the ~500
  *   exported functions), and tests can fake exactly that surface;
  * - this module never pulls in the 4.6 MB WebAssembly binary.
  * `load-pdfium.ts` checks at compile time that the real module satisfies
@@ -26,6 +26,10 @@ export interface PdfiumRuntime {
     free(ptr: number): void;
   };
   stringToUTF16(text: string, outPtr: number, maxBytesToWrite: number): void;
+  /** Read a zero-terminated UTF-16LE string. */
+  UTF16ToString(ptr: number): string;
+  /** Read a zero-terminated UTF-8 string. */
+  UTF8ToString(ptr: number): string;
   setValue(ptr: number, value: number, type: string): void;
   /** Returns a bigint only for 64-bit integer types ("i64"). */
   getValue(ptr: number, type: string): number | bigint;
@@ -63,6 +67,14 @@ export interface PdfiumApi {
   FPDFPage_SetRotation(page: number, rotation: number): void;
   FPDFPage_GenerateContent(page: number): boolean;
   FPDFPage_InsertObject(page: number, object: number): void;
+  FPDFPage_InsertObjectAtIndex(
+    page: number,
+    object: number,
+    index: number,
+  ): boolean;
+  FPDFPage_RemoveObject(page: number, object: number): boolean;
+  FPDFPage_CountObjects(page: number): number;
+  FPDFPage_GetObject(page: number, index: number): number;
   FPDFPage_Delete(doc: number, index: number): void;
 
   FPDFBitmap_Create(width: number, height: number, alpha: number): number;
@@ -137,11 +149,69 @@ export interface PdfiumApi {
   ): void;
   FPDFPageObj_Destroy(object: number): void;
 
-  EPDFText_RedactInRect(
-    page: number,
-    rectPtr: number,
-    recurseForms: boolean,
-    drawBlackBoxes: boolean,
+  /** Reading existing objects (in-place text editing). */
+  FPDFPageObj_GetType(object: number): number;
+  FPDFPageObj_GetMatrix(object: number, matrixPtr: number): boolean;
+  FPDFPageObj_SetMatrix(object: number, matrixPtr: number): boolean;
+  FPDFPageObj_GetBounds(
+    object: number,
+    leftPtr: number,
+    bottomPtr: number,
+    rightPtr: number,
+    topPtr: number,
+  ): boolean;
+  FPDFPageObj_GetFillColor(
+    object: number,
+    rPtr: number,
+    gPtr: number,
+    bPtr: number,
+    aPtr: number,
+  ): boolean;
+  FPDFPageObj_GetStrokeColor(
+    object: number,
+    rPtr: number,
+    gPtr: number,
+    bPtr: number,
+    aPtr: number,
+  ): boolean;
+  FPDFPageObj_GetStrokeWidth(object: number, widthPtr: number): boolean;
+  FPDFTextObj_GetText(
+    textObject: number,
+    textPage: number,
+    bufferPtr: number,
+    byteLength: number,
+  ): number;
+  FPDFTextObj_GetFont(textObject: number): number;
+  FPDFTextObj_GetFontSize(textObject: number, sizePtr: number): boolean;
+  FPDFTextObj_GetTextRenderMode(textObject: number): number;
+  FPDFTextObj_SetTextRenderMode(textObject: number, mode: number): boolean;
+  FPDFFont_GetBaseFontName(
+    font: number,
+    bufferPtr: number,
+    byteLength: number,
+  ): number;
+  FPDFFont_GetFamilyName(
+    font: number,
+    bufferPtr: number,
+    byteLength: number,
+  ): number;
+  FPDFFont_GetFlags(font: number): number;
+  FPDFFont_GetWeight(font: number): number;
+  FPDFFont_GetItalicAngle(font: number, anglePtr: number): boolean;
+  FPDFFont_GetIsEmbedded(font: number): number;
+
+  /** The text page: PDFium's character-level view of a page's text. */
+  FPDFText_LoadPage(page: number): number;
+  FPDFText_ClosePage(textPage: number): void;
+  FPDFText_CountChars(textPage: number): number;
+  FPDFText_GetUnicode(textPage: number, index: number): number;
+  FPDFText_IsGenerated(textPage: number, index: number): number;
+  FPDFText_GetTextObject(textPage: number, index: number): number;
+  FPDFText_GetCharOrigin(
+    textPage: number,
+    index: number,
+    xPtr: number,
+    yPtr: number,
   ): boolean;
 
   PDFiumExt_OpenFileWriter(): number;
@@ -177,3 +247,6 @@ export const RENDER_FLAGS = FPDF_ANNOT | FPDF_REVERSE_BYTE_ORDER;
 export const FILL_MODE = { NONE: 0, ALTERNATE: 1, WINDING: 2 } as const;
 /** `FPDFPageObj_SetLineCap` / `SetLineJoin` value for rounded ends and corners. */
 export const ROUND = 1;
+
+/** `FPDFPageObj_GetType` value of a text object. */
+export const PAGE_OBJECT_TEXT = 1;

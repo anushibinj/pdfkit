@@ -42,8 +42,8 @@ describe("createDocument", () => {
   it("lists the file's pages in order, unrotated and empty", () => {
     expect(createDocument(2)).toEqual({
       pages: [
-        { key: "p0", sourceIndex: 0, rotation: 0, objects: [] },
-        { key: "p1", sourceIndex: 1, rotation: 0, objects: [] },
+        { key: "p0", sourceIndex: 0, rotation: 0, objects: [], textEdits: {} },
+        { key: "p1", sourceIndex: 1, rotation: 0, objects: [], textEdits: {} },
       ],
     });
   });
@@ -150,6 +150,39 @@ describe("editorReducer", () => {
     );
     expect(doc(s).pages[0].objects).toEqual([]);
     expect(s.selection).toBeNull();
+  });
+
+  it("edit-text: stores a line's new text as one undo step", () => {
+    const edit = {
+      type: "edit-text",
+      pageKey: "p1",
+      runId: "3-4",
+      text: "Total 1520",
+      original: "Total 1250",
+    } as const;
+    let s = run(loaded(), edit);
+    expect(doc(s).pages[1].textEdits).toEqual({ "3-4": "Total 1520" });
+    expect(s.history.past).toHaveLength(1);
+    // the same text again changes nothing
+    expect(editorReducer(s, edit)).toBe(s);
+    s = editorReducer(s, { ...edit, text: "" });
+    expect(doc(s).pages[1].textEdits).toEqual({ "3-4": "" }); // deletes the line
+    s = editorReducer(s, { type: "undo" });
+    expect(doc(s).pages[1].textEdits).toEqual({ "3-4": "Total 1520" });
+  });
+
+  it("edit-text: setting the original text back removes the edit", () => {
+    const base = {
+      type: "edit-text",
+      pageKey: "p0",
+      runId: "1",
+      original: "A",
+    } as const;
+    let s = run(loaded(), { ...base, text: "B" });
+    s = editorReducer(s, { ...base, text: "A" });
+    expect(doc(s).pages[0].textEdits).toEqual({});
+    // and with nothing stored, the original text is a no-op
+    expect(editorReducer(s, { ...base, text: "A" })).toBe(s);
   });
 
   it("select: sets and clears the selection without touching history", () => {

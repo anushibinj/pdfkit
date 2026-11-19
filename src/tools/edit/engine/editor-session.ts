@@ -1,10 +1,13 @@
-import type { PageInfo, QuarterTurns } from "../core/model";
+import type { PageInfo, QuarterTurns, TextEditOutcome } from "../core/model";
 import { addTurns, viewSize, type Size } from "../core/page-geometry";
-import { sanitizeSavePlan } from "../core/sanitize-plan";
+import { sanitizeSavePlan, sanitizeTextEdits } from "../core/sanitize-plan";
 import type { FontMetricsSource } from "../core/text-layout";
+import { groupFragments, type TextRun } from "../core/text-runs";
 import { applySavePlan } from "./apply-plan";
+import { PdfiumPageText } from "./page-text";
 import type { PdfiumApi } from "./pdfium-api";
 import { PdfiumDocument, type RenderedPage } from "./pdfium-document";
+import { applyTextEdits } from "./text-edits";
 import { WasmHeap } from "./wasm-heap";
 import { createWriterRegistry, type WriterRegistry } from "./writers/registry";
 
@@ -42,12 +45,19 @@ export function fitRenderSize(view: Size, requestedWidth: number): Size {
   return { width: w, height: h };
 }
 
+/** A rendered page and what happened to each text edit shown on it. */
+export interface PageRender extends RenderedPage {
+  textOutcomes: TextEditOutcome[];
+}
+
 /**
  * The worker's state for one opened PDF.
  *
  * It keeps two things:
- * - a "view" document, never edited, used to render pages for the screen;
- *   the user's edits are drawn over those renders by the browser;
+ * - a "view" document, never saved, used to render pages for the screen.
+ *   Text edits are applied to a page only while it is loaded for one
+ *   render (so the preview is exactly what saving produces) and dropped
+ *   when it closes; added objects are drawn over the render by the browser;
  * - the original file bytes and password, so that saving can open a fresh
  *   copy, apply every edit to it, save it and throw it away. Saving twice
  *   therefore never applies an edit twice, and the view stays pristine.
@@ -101,23 +111,70 @@ export class EditorSession {
   }
 
   /**
-   * Render one page of the unedited document.
+   * List the editable lines of text on a page, as the original file has
+   * them.
+   *
+   * @param pageIndex Source page index.
+   * @returns The lines, in content order.
+   * @throws When nothing is open or the index is out of range.
+   */
+  textRuns(pageIndex: number): TextRun[] {
+    const view = this.requireView();
+    this.requirePage(pageIndex);
+    return view.withPage(pageIndex, (page) =>
+      groupFragments(
+        new PdfiumPageText(this.api, this.heap, view.handle, page).read()
+          .fragments,
+      ),
+    );
+  }
+
+  /**
+   * Render one page, with text edits applied for this render only.
+   *
+   * The edits run through the same code as saving (`applyTextEdits`), on
+   * the page loaded for this render, so the preview shows exactly the
+   * fonts and characters the saved file will have. They are not written
+   * back: the page is closed without regenerating its content.
    *
    * @param pageIndex Source page index.
    * @param turns Clockwise quarter turns the user added.
    * @param width Requested bitmap width in pixels.
-   * @returns RGBA pixels (size from {@link fitRenderSize}).
+   * @param rawTextEdits Text edits for this page (untrusted: sanitised).
+   * @returns RGBA pixels (size from {@link fitRenderSize}) and one outcome
+   *   per text edit.
    * @throws When nothing is open or the index is out of range.
    */
-  render(pageIndex: number, turns: QuarterTurns, width: number): RenderedPage {
+  render(
+    pageIndex: number,
+    turns: QuarterTurns,
+    width: number,
+    rawTextEdits: unknown = [],
+  ): PageRender {
     const view = this.requireView();
-    const info = this.pages[pageIndex];
-    if (!info) throw new Error(`There is no page ${pageIndex + 1}.`);
+    const info = this.requirePage(pageIndex);
+    const edits = sanitizeTextEdits(rawTextEdits);
     const size = fitRenderSize(
       viewSize(info.box, addTurns(info.rotation, turns)),
       width,
     );
-    return view.render(pageIndex, size.width, size.height, turns);
+    let textOutcomes: TextEditOutcome[] = [];
+    const rendered = view.render(
+      pageIndex,
+      size.width,
+      size.height,
+      turns,
+      edits.length === 0
+        ? undefined
+        : (page) => {
+            textOutcomes = applyTextEdits(
+              new PdfiumPageText(this.api, this.heap, view.handle, page),
+              edits,
+              this.metrics,
+            );
+          },
+    );
+    return { ...rendered, textOutcomes };
   }
 
   /**
@@ -146,6 +203,7 @@ export class EditorSession {
         api: this.api,
         heap: this.heap,
         writers: this.writers,
+        metrics: this.metrics,
       });
       return doc.save();
     } finally {
@@ -159,6 +217,17 @@ export class EditorSession {
     this.view = null;
     this.source = null;
     this.pages = [];
+  }
+
+  /**
+   * @param pageIndex Source page index.
+   * @returns The page's box and rotation.
+   * @throws When the index is out of range.
+   */
+  private requirePage(pageIndex: number): PageInfo {
+    const info = this.pages[pageIndex];
+    if (!info) throw new Error(`There is no page ${pageIndex + 1}.`);
+    return info;
   }
 
   /**

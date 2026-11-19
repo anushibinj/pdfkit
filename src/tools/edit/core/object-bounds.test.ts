@@ -1,17 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { fakeMetrics } from "../test-utils/fake-metrics";
-import type { InkObject, TextObject, WhiteoutObject } from "./model";
+import type { HighlightObject, InkObject, TextObject } from "./model";
 import { localBounds } from "./object-bounds";
 
 const frame = { id: "o", x: 0, y: 0, rotation: 0 } as const;
 
 describe("localBounds", () => {
   it("uses width and height for boxes", () => {
-    const box: WhiteoutObject = {
+    const box: HighlightObject = {
       ...frame,
-      kind: "whiteout",
+      kind: "highlight",
       width: 40,
       height: 15,
+      color: { r: 255, g: 255, b: 0 },
     };
     expect(localBounds(box, fakeMetrics)).toEqual({
       x: 0,

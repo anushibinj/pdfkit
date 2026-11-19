@@ -38,8 +38,6 @@ function setup(overrides: Partial<ObjectPropertiesProps> = {}) {
     pendingImageName: null,
     onCancelImage: vi.fn(),
     metrics: fakeMetrics,
-    focusText: false,
-    onTextFocused: vi.fn(),
     ...overrides,
   };
   render(<ObjectProperties {...props} />);
@@ -102,8 +100,6 @@ describe("TextContentField", () => {
       <TextContentField
         object={text as never}
         metrics={fakeMetrics}
-        autoFocus={false}
-        onFocused={vi.fn()}
         onChange={onChange}
       />,
     );
@@ -125,21 +121,6 @@ describe("TextContentField", () => {
       target: { value: "fine" },
     });
     expect(toast.warning).not.toHaveBeenCalled();
-  });
-
-  it("focuses and selects the text once when asked", () => {
-    const onFocused = vi.fn();
-    render(
-      <TextContentField
-        object={text as never}
-        metrics={fakeMetrics}
-        autoFocus
-        onFocused={onFocused}
-        onChange={vi.fn()}
-      />,
-    );
-    expect(screen.getByLabelText("Text content")).toHaveFocus();
-    expect(onFocused).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -238,11 +219,10 @@ describe("ObjectProperties", () => {
     );
   });
 
-  it("offers Delete for any selection, with the white-out explanation", async () => {
+  it("offers Delete for any selection", async () => {
     const props = setup({
-      selected: { ...frame, kind: "whiteout", width: 5, height: 5 },
+      selected: { ...frame, kind: "image", width: 5, height: 5, imageId: "i" },
     });
-    expect(screen.getByText(TOOL_HINTS.whiteout)).toBeInTheDocument();
     expect(screen.queryByLabelText("Colour")).toBeNull();
     await userEvent
       .setup()

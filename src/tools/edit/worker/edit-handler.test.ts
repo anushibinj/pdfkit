@@ -14,6 +14,13 @@ const info = {
   rotation: 0 as const,
 };
 
+const outcome = {
+  runId: "1",
+  applied: true,
+  written: "x",
+  substituteFont: null,
+};
+
 function fakeSession(overrides: Partial<Session> = {}): Session {
   return {
     open: vi.fn(() => [info]),
@@ -21,7 +28,9 @@ function fakeSession(overrides: Partial<Session> = {}): Session {
       width: 1,
       height: 1,
       pixels: new Uint8Array([1, 2, 3, 4]),
+      textOutcomes: [outcome],
     })),
+    textRuns: vi.fn(() => []),
     save: vi.fn(() => new Uint8Array([37, 80])),
     close: vi.fn(),
     ...overrides,
@@ -122,14 +131,47 @@ describe("handleRequest", () => {
       rotation: 9 as never,
       width: 50,
     });
-    expect(session.render).toHaveBeenCalledWith(0, 0, 50);
+    expect(session.render).toHaveBeenCalledWith(0, 0, 50, []);
     expect(out.result).toMatchObject({
       status: "rendered",
       width: 1,
       height: 1,
+      textOutcomes: [outcome],
     });
     if (out.result.status !== "rendered") throw new Error("unreachable");
     expect(out.transfer).toEqual([out.result.pixels]);
+  });
+
+  it("render passes text edits on for the session to check", () => {
+    const session = fakeSession();
+    const textEdits = [{ runId: "1", text: "x" }];
+    handleRequest(session, {
+      op: "render",
+      pageIndex: 2,
+      rotation: 1,
+      width: 50,
+      textEdits,
+    });
+    expect(session.render).toHaveBeenCalledWith(2, 1, 50, textEdits);
+  });
+
+  it("text-runs returns the page's lines", () => {
+    const run = {
+      id: "0",
+      indices: [0],
+      text: "Hi",
+      box: { left: 0, bottom: 0, right: 10, top: 10 },
+      baseline: [1, 0, 0, 1, 0, 2] as const,
+      width: 10,
+      fontSize: 10,
+      style: { family: "sans" as const, bold: false, italic: false },
+      color: { r: 0, g: 0, b: 0 },
+    };
+    const session = fakeSession({ textRuns: vi.fn(() => [run]) });
+    expect(handleRequest(session, { op: "text-runs", pageIndex: 3 })).toEqual({
+      result: { status: "text-runs", runs: [run] },
+    });
+    expect(session.textRuns).toHaveBeenCalledWith(3);
   });
 
   it("save transfers the new file", () => {

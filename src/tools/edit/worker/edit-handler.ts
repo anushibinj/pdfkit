@@ -4,14 +4,21 @@ import type { HandlerContext, HandlerResult } from "@/lib/worker-protocol";
 import type { PageInfo, QuarterTurns } from "../core/model";
 import { isQuarterTurns } from "../core/page-geometry";
 import { InvalidPlanError } from "../core/sanitize-plan";
-import type { RenderedPage } from "../engine/pdfium-document";
+import type { TextRun } from "../core/text-runs";
+import type { PageRender } from "../engine/editor-session";
 import { PdfOpenError } from "../engine/pdfium-document";
 import type { EditorRequest, EditorResult, ErrorResult } from "../messages";
 
 /** What the handler needs from the worker's session (`EditorSession`). */
 export interface Session {
   open(bytes: Uint8Array, password: string): PageInfo[];
-  render(pageIndex: number, turns: QuarterTurns, width: number): RenderedPage;
+  render(
+    pageIndex: number,
+    turns: QuarterTurns,
+    width: number,
+    textEdits: unknown,
+  ): PageRender;
+  textRuns(pageIndex: number): TextRun[];
   save(plan: unknown): Uint8Array;
   close(): void;
 }
@@ -63,7 +70,8 @@ export function toErrorResult(err: unknown): ErrorResult {
  *
  * Inputs are re-checked here because a message can carry anything: an
  * unknown rotation becomes 0, a missing password becomes "" (none). The
- * save plan is checked by the session itself (`sanitizeSavePlan`).
+ * save plan and text edits are checked by the session itself
+ * (`sanitizeSavePlan`, `sanitizeTextEdits`).
  *
  * For "open", a password error is split in two so the UI can phrase it
  * right: no password given means "this file needs one", a given password
@@ -107,7 +115,12 @@ export function handleRequest(
     }
     case "render": {
       const turns = isQuarterTurns(request.rotation) ? request.rotation : 0;
-      const page = session.render(request.pageIndex, turns, request.width);
+      const page = session.render(
+        request.pageIndex,
+        turns,
+        request.width,
+        request.textEdits ?? [],
+      );
       const pixels = toTransferableBuffer(page.pixels);
       return {
         result: {
@@ -115,10 +128,18 @@ export function handleRequest(
           width: page.width,
           height: page.height,
           pixels,
+          textOutcomes: page.textOutcomes,
         },
         transfer: [pixels],
       };
     }
+    case "text-runs":
+      return {
+        result: {
+          status: "text-runs",
+          runs: session.textRuns(request.pageIndex),
+        },
+      };
     case "save": {
       const data = toTransferableBuffer(session.save(request.plan));
       return { result: { status: "saved", data }, transfer: [data] };

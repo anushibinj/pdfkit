@@ -63,15 +63,15 @@ export const tools: ToolDefinition[] = [
   {
     slug: "edit",
     name: "PDF Editor",
-    tagline: "Add text, drawings, images and white-out to a PDF, locally.",
+    tagline: "Edit PDF text in place, add drawings and images, locally.",
     description:
-      "Free PDF editor that runs in your browser. Add text, drawings, highlights, images and white-out, and rotate, reorder or delete pages. Nothing is uploaded.",
+      "Free PDF editor in your browser. Change existing text in place, add text, drawings, highlights and images, and rotate or reorder pages. Nothing is uploaded.",
     keywords: [
       "pdf editor",
+      "edit pdf text",
       "edit pdf online",
       "add text to pdf",
       "sign pdf",
-      "white out pdf",
       "rotate pdf pages",
       "private pdf editor",
     ],

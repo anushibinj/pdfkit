@@ -34,8 +34,8 @@ describe("EditorToolbar", () => {
         String(t.id === "ink"),
       );
     }
-    await user.click(screen.getByRole("button", { name: "White-out" }));
-    expect(props.onToolChange).toHaveBeenCalledWith("whiteout");
+    await user.click(screen.getByRole("button", { name: "Edit text" }));
+    expect(props.onToolChange).toHaveBeenCalledWith("edit-text");
   });
 
   it("wires undo, redo, download and open-another", async () => {
@@ -70,7 +70,7 @@ describe("EditorToolbar", () => {
   it("locks editing while saving but still lets the user leave", () => {
     setup({ saving: true });
     expect(screen.getByRole("button", { name: /Saving/ })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Text" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Add text" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Undo" })).toBeDisabled();
     expect(screen.getByRole("button", { name: /Open another/ })).toBeEnabled();
   });

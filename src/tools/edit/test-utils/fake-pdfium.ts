@@ -49,6 +49,39 @@ export class FakeRuntime implements PdfiumRuntime {
     return text.length * 2;
   };
 
+  /** Decodes real bytes from `HEAPU8` (UTF-16LE up to a 0 code unit). */
+  UTF16ToString = (ptr: number) => {
+    let text = "";
+    for (let o = ptr; o + 1 < this.HEAPU8.length; o += 2) {
+      const unit = this.HEAPU8[o] | (this.HEAPU8[o + 1] << 8);
+      if (unit === 0) break;
+      text += String.fromCharCode(unit);
+    }
+    return text;
+  };
+
+  /** Decodes real bytes from `HEAPU8` (UTF-8 up to a 0 byte). */
+  UTF8ToString = (ptr: number) => {
+    const end = this.HEAPU8.indexOf(0, ptr);
+    return new TextDecoder().decode(
+      this.HEAPU8.subarray(ptr, end < 0 ? undefined : end),
+    );
+  };
+
+  /**
+   * Write a string the way PDFium would, for `UTF16ToString` to read.
+   *
+   * @param ptr Where to write.
+   * @param text The text, written as UTF-16LE plus a 0 terminator.
+   */
+  writeUtf16(ptr: number, text: string): void {
+    for (let i = 0; i <= text.length; i++) {
+      const unit = i < text.length ? text.charCodeAt(i) : 0;
+      this.HEAPU8[ptr + i * 2] = unit & 0xff;
+      this.HEAPU8[ptr + i * 2 + 1] = unit >> 8;
+    }
+  }
+
   setValue = (ptr: number, value: number) => {
     this.floats.set(ptr, value);
   };
@@ -102,6 +135,10 @@ export function fakePdfium(runtime = new FakeRuntime()): {
     FPDFPage_SetRotation: none,
     FPDFPage_GenerateContent: ok,
     FPDFPage_InsertObject: none,
+    FPDFPage_InsertObjectAtIndex: ok,
+    FPDFPage_RemoveObject: ok,
+    FPDFPage_CountObjects: () => 0,
+    FPDFPage_GetObject: () => 0,
     FPDFPage_Delete: none,
     FPDFBitmap_Create: nextHandle,
     FPDFBitmap_FillRect: ok,
@@ -125,7 +162,31 @@ export function fakePdfium(runtime = new FakeRuntime()): {
     FPDFPageObj_SetBlendMode: none,
     FPDFPageObj_Transform: none,
     FPDFPageObj_Destroy: none,
-    EPDFText_RedactInRect: ok,
+    FPDFPageObj_GetType: () => 0,
+    FPDFPageObj_GetMatrix: ok,
+    FPDFPageObj_SetMatrix: ok,
+    FPDFPageObj_GetBounds: ok,
+    FPDFPageObj_GetFillColor: ok,
+    FPDFPageObj_GetStrokeColor: ok,
+    FPDFPageObj_GetStrokeWidth: ok,
+    FPDFTextObj_GetText: () => 0,
+    FPDFTextObj_GetFont: nextHandle,
+    FPDFTextObj_GetFontSize: ok,
+    FPDFTextObj_GetTextRenderMode: () => 0,
+    FPDFTextObj_SetTextRenderMode: ok,
+    FPDFFont_GetBaseFontName: () => 0,
+    FPDFFont_GetFamilyName: () => 0,
+    FPDFFont_GetFlags: () => 0,
+    FPDFFont_GetWeight: () => 400,
+    FPDFFont_GetItalicAngle: ok,
+    FPDFFont_GetIsEmbedded: () => 0,
+    FPDFText_LoadPage: nextHandle,
+    FPDFText_ClosePage: none,
+    FPDFText_CountChars: () => 0,
+    FPDFText_GetUnicode: () => 0,
+    FPDFText_IsGenerated: () => 0,
+    FPDFText_GetTextObject: () => 0,
+    FPDFText_GetCharOrigin: ok,
     PDFiumExt_OpenFileWriter: nextHandle,
     PDFiumExt_SaveAsCopy: () => 1,
     PDFiumExt_GetFileWriterSize: () => 0,

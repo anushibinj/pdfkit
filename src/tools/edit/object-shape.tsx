@@ -42,8 +42,6 @@ export function describeObject(object: EditObject): string {
       return "Box";
     case "highlight":
       return "Highlight";
-    case "whiteout":
-      return "White-out";
     case "image":
       return "Image";
   }
@@ -59,11 +57,15 @@ interface ObjectShapeProps {
   selected?: boolean;
   /** Makes the object focusable and clickable (select tool only). */
   interactive?: boolean;
+  /** Draw only the outline and hit area (an inline editor shows the body). */
+  hideBody?: boolean;
   /** Size of the resize handle in points (keeps it finger-sized on screen). */
   handleSize?: number;
   onPointerDown?: (event: ReactPointerEvent<SVGGElement>) => void;
   onHandlePointerDown?: (event: ReactPointerEvent<SVGRectElement>) => void;
   onFocus?: () => void;
+  /** Double-click or Enter: open the object for editing (text only). */
+  onActivate?: () => void;
 }
 
 /**
@@ -141,22 +143,6 @@ function ObjectBody({
           className="mix-blend-multiply"
         />
       );
-    case "whiteout":
-      return (
-        <>
-          <rect width={object.width} height={object.height} fill="#ffffff" />
-          {/* Screen-only hint so a white box on white paper can be found. */}
-          <rect
-            width={object.width}
-            height={object.height}
-            fill="none"
-            stroke="#94a3b8"
-            strokeDasharray="4 3"
-            vectorEffect="non-scaling-stroke"
-            data-preview-only=""
-          />
-        </>
-      );
     case "image":
       return imageUrl ? (
         <image
@@ -175,6 +161,8 @@ function ObjectBody({
  * One edit object on the page overlay: its body, an invisible hit area over
  * its bounds (so thin strokes and text are easy to grab), and, when
  * selected, a dashed outline plus a resize handle for boxes and images.
+ * When interactive, a double-click or Enter calls `onActivate` (text
+ * objects use it to open their inline editor).
  *
  * @param props See {@link ObjectShapeProps}.
  * @returns An SVG group.
@@ -186,10 +174,12 @@ export function ObjectShape({
   imageUrl,
   selected = false,
   interactive = false,
+  hideBody = false,
   handleSize = 10,
   onPointerDown,
   onHandlePointerDown,
   onFocus,
+  onActivate,
 }: ObjectShapeProps) {
   const b = localBounds(object, metrics);
   const resizable = object.kind !== "text" && object.kind !== "ink";
@@ -203,13 +193,26 @@ export function ObjectShape({
       aria-pressed={interactive ? selected : undefined}
       onPointerDown={interactive ? onPointerDown : undefined}
       onFocus={interactive ? onFocus : undefined}
+      onDoubleClick={interactive ? onActivate : undefined}
+      onKeyDown={
+        interactive && onActivate
+          ? (e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                onActivate();
+              }
+            }
+          : undefined
+      }
       className={cn(
         interactive
           ? "cursor-move touch-none outline-none"
           : "pointer-events-none",
       )}
     >
-      <ObjectBody object={object} metrics={metrics} imageUrl={imageUrl} />
+      {!hideBody && (
+        <ObjectBody object={object} metrics={metrics} imageUrl={imageUrl} />
+      )}
       <rect
         x={b.x}
         y={b.y}

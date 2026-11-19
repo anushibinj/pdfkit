@@ -4,9 +4,10 @@ import type {
   ImageAsset,
   ImageMime,
   QuarterTurns,
+  TextEdit,
 } from "./model";
 
-/** One output page: which source page, how far to turn it, what to add. */
+/** One output page: which source page, how to turn it, what to add or change. */
 export interface SavePage {
   /** Index of the page in the opened file. */
   sourceIndex: number;
@@ -14,6 +15,8 @@ export interface SavePage {
   rotation: QuarterTurns;
   /** Objects to draw, bottom-most first. */
   objects: EditObject[];
+  /** New text for lines of the page's own text. */
+  textEdits: TextEdit[];
 }
 
 /** Image bytes referenced by image objects in the plan. */
@@ -56,6 +59,10 @@ export function buildSavePlan(
       sourceIndex: page.sourceIndex,
       rotation: page.rotation,
       objects: page.objects,
+      textEdits: Object.entries(page.textEdits).map(([runId, text]) => ({
+        runId,
+        text,
+      })),
     };
   });
   const images = [...used].map((id) => {

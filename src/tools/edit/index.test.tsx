@@ -8,7 +8,8 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { OpenResult, SaveResult } from "./messages";
+import type { TextRun } from "./core/text-runs";
+import type { OpenResult, RenderResult, SaveResult } from "./messages";
 import { makePng } from "./test-utils/images";
 
 // The worker boundary is the only fake: the real hook, reducers and
@@ -16,6 +17,7 @@ import { makePng } from "./test-utils/images";
 const engine = vi.hoisted(() => ({
   open: vi.fn(),
   render: vi.fn(),
+  textRuns: vi.fn(),
   save: vi.fn(),
   close: vi.fn(async () => {}),
   dispose: vi.fn(),
@@ -24,6 +26,7 @@ vi.mock("./editor-engine", () => ({
   EditorEngine: class {
     open = engine.open;
     render = engine.render;
+    textRuns = engine.textRuns;
     save = engine.save;
     close = engine.close;
     dispose = engine.dispose;
@@ -40,6 +43,18 @@ const page = {
   box: { left: 0, bottom: 0, right: 600, top: 400 },
   rotation: 0 as const,
 };
+/** One line of the file's own text, at view (50, 50) to (150, 60). */
+const line: TextRun = {
+  id: "0-1",
+  indices: [0, 1],
+  text: "Total 1250",
+  box: { left: 50, bottom: 340, right: 150, top: 350 },
+  baseline: [1, 0, 0, 1, 50, 342],
+  width: 100,
+  fontSize: 10,
+  style: { family: "sans", bold: false, italic: false },
+  color: { r: 0, g: 0, b: 0 },
+};
 const opened = (pages = 2): OpenResult => ({
   status: "opened",
   pages: Array(pages).fill(page),
@@ -49,6 +64,9 @@ beforeEach(() => {
   vi.clearAllMocks();
   engine.open.mockResolvedValue(opened());
   engine.render.mockReturnValue(new Promise(() => {})); // pages stay "loading"
+  engine.textRuns.mockResolvedValue({ status: "text-runs", runs: [line] });
+  // jsdom has no canvas; say so quietly instead of logging an error
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
   engine.save.mockResolvedValue({
     status: "saved",
     data: new ArrayBuffer(4),
@@ -88,7 +106,9 @@ describe("EditTool", () => {
   it("starts with the beta note and a PDF drop area", () => {
     const { container } = render(<EditTool />);
     expect(screen.getByRole("note")).toHaveTextContent(/Beta/);
-    expect(screen.getByRole("note")).toHaveTextContent(/White-out deletes/);
+    expect(screen.getByRole("note")).toHaveTextContent(
+      /Change the PDF's own text in place with Edit text/,
+    );
     expect(screen.getByText("Drop a PDF here")).toBeInTheDocument();
     expect(fileInput(container)).not.toBeNull();
   });
@@ -121,12 +141,10 @@ describe("EditTool", () => {
       screen.getByRole("region", { name: "Page 2 of 2" }),
     ).toBeInTheDocument();
     expect(screen.queryByText("Drop a PDF here")).toBeNull();
-    expect(engine.render).toHaveBeenCalledWith(
-      0,
-      0,
-      expect.any(Number),
-      expect.any(AbortSignal),
-    );
+    expect(engine.render).toHaveBeenCalledWith(0, 0, expect.any(Number), {
+      signal: expect.any(AbortSignal),
+      textEdits: [],
+    });
   });
 
   it("asks for a password and opens the file with it", async () => {
@@ -161,14 +179,14 @@ describe("EditTool", () => {
     expect(screen.getByText("Drop a PDF here")).toBeInTheDocument();
   });
 
-  it("adds text with the Text tool and edits it in the panel", async () => {
+  it("adds text with the Add text tool and types it on the page", async () => {
     const { user } = await openDocument(1);
-    await user.click(screen.getByRole("button", { name: "Text" }));
-    fireEvent.pointerDown(
-      screen.getByLabelText("Page 1 editing area"),
-      at(50, 60),
-    );
-    const field = await screen.findByLabelText("Text content");
+    await user.click(screen.getByRole("button", { name: "Add text" }));
+    const overlay = screen.getByLabelText("Page 1 editing area");
+    fireEvent.pointerDown(overlay, at(50, 60));
+    const field = await screen.findByRole("textbox", {
+      name: "Text on the page",
+    });
     expect(field).toHaveValue("Text");
     expect(field).toHaveFocus();
     // back to the select tool, with the new text selected
@@ -177,33 +195,119 @@ describe("EditTool", () => {
       "true",
     );
     fireEvent.change(field, { target: { value: "Signed by Ask" } });
-    expect(screen.getByLabelText("Page 1 editing area")).toHaveTextContent(
-      "Signed by Ask",
+    // the panel shows the same text
+    expect(screen.getByLabelText("Text content")).toHaveValue("Signed by Ask");
+    act(() => field.blur());
+    expect(
+      screen.queryByRole("textbox", { name: "Text on the page" }),
+    ).toBeNull();
+    expect(overlay).toHaveTextContent("Signed by Ask");
+  });
+
+  it("drops new text that was left empty", async () => {
+    const { user } = await openDocument(1);
+    await user.click(screen.getByRole("button", { name: "Add text" }));
+    const overlay = screen.getByLabelText("Page 1 editing area");
+    fireEvent.pointerDown(overlay, at(50, 60));
+    const field = await screen.findByRole("textbox", {
+      name: "Text on the page",
+    });
+    fireEvent.change(field, { target: { value: "  " } });
+    act(() => field.blur());
+    expect(overlay.querySelector("[data-object-id]")).toBeNull();
+  });
+
+  it("changes the PDF's own text in place with Edit text", async () => {
+    const outcome = {
+      runId: "0-1",
+      applied: true,
+      written: "Total Zed",
+      substituteFont: "Helvetica",
+    };
+    engine.render.mockImplementation(
+      async (
+        _i: number,
+        _r: number,
+        _w: number,
+        o: { textEdits: { runId: string; text: string }[] },
+      ): Promise<RenderResult> => ({
+        status: "rendered",
+        width: 1,
+        height: 1,
+        pixels: new ArrayBuffer(4),
+        textOutcomes: o.textEdits.some((e) => e.text === "Total Zed")
+          ? [outcome]
+          : [],
+      }),
     );
+    const { user } = await openDocument(1);
+    await user.click(screen.getByRole("button", { name: "Edit text" }));
+    expect(engine.textRuns).toHaveBeenCalledWith(0);
+    fireEvent.pointerDown(
+      await screen.findByRole("button", { name: "Edit text: Total 1250" }),
+      at(60, 55),
+    );
+    const field = await screen.findByRole("textbox", {
+      name: "Edit text: Total 1250",
+    });
+    // while typing, the page is rendered without the line
+    expect(engine.render).toHaveBeenLastCalledWith(0, 0, expect.any(Number), {
+      signal: expect.any(AbortSignal),
+      textEdits: [{ runId: "0-1", text: "" }],
+    });
+    fireEvent.change(field, { target: { value: "Total Zed" } });
+    fireEvent.keyDown(field, { key: "Enter" });
+    await waitFor(() =>
+      expect(engine.render).toHaveBeenLastCalledWith(0, 0, expect.any(Number), {
+        signal: expect.any(AbortSignal),
+        textEdits: [{ runId: "0-1", text: "Total Zed" }],
+      }),
+    );
+    // the substitute font is explained once
+    await waitFor(() =>
+      expect(toast.info).toHaveBeenCalledWith(
+        expect.stringContaining("is written in Helvetica"),
+      ),
+    );
+    // undo restores the original line
+    fireEvent.keyDown(window, { key: "z", ctrlKey: true });
+    await waitFor(() =>
+      expect(engine.render).toHaveBeenLastCalledWith(0, 0, expect.any(Number), {
+        signal: expect.any(AbortSignal),
+        textEdits: [],
+      }),
+    );
+    fireEvent.keyDown(window, { key: "y", ctrlKey: true });
+    await user.click(screen.getByRole("button", { name: /Download PDF/ }));
+    await waitFor(() => expect(engine.save).toHaveBeenCalled());
+    expect(engine.save.mock.calls[0][0].pages[0].textEdits).toEqual([
+      { runId: "0-1", text: "Total Zed" },
+    ]);
+    expect(toast.info).toHaveBeenCalledTimes(1);
   });
 
   it("keeps a drawing tool active and shows its style after each box", async () => {
     const { user } = await openDocument(1);
-    await user.click(screen.getByRole("button", { name: "White-out" }));
+    await user.click(screen.getByRole("button", { name: "Highlight" }));
     const overlay = screen.getByLabelText("Page 1 editing area");
     fireEvent.pointerDown(overlay, at(10, 10));
     fireEvent.pointerUp(overlay, at(110, 40));
     fireEvent.pointerDown(overlay, at(10, 100));
     fireEvent.pointerUp(overlay, at(110, 140));
-    expect(screen.getByRole("button", { name: "White-out" })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: "Highlight" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
-    expect(overlay.querySelectorAll("[data-preview-only]")).toHaveLength(2);
+    expect(overlay.querySelectorAll("rect[fill-opacity]")).toHaveLength(2);
     expect(screen.queryByRole("button", { name: /^Delete$/ })).toBeNull();
   });
 
   it("deletes the selection with the keyboard and undoes it", async () => {
     const { user } = await openDocument(1);
-    await user.click(screen.getByRole("button", { name: "Text" }));
+    await user.click(screen.getByRole("button", { name: "Add text" }));
     const overlay = screen.getByLabelText("Page 1 editing area");
     fireEvent.pointerDown(overlay, at(50, 60));
-    await screen.findByLabelText("Text content");
+    await screen.findByLabelText("Text on the page");
     act(() => (document.activeElement as HTMLElement).blur());
     fireEvent.keyDown(window, { key: "Delete" });
     expect(overlay.querySelector("text")).toBeNull();
@@ -302,7 +406,9 @@ describe("EditTool", () => {
     expect(name).toBe("report-edited.pdf");
     expect((blob as Blob).type).toBe("application/pdf");
     const plan = engine.save.mock.calls[0][0];
-    expect(plan.pages).toEqual([{ sourceIndex: 0, rotation: 0, objects: [] }]);
+    expect(plan.pages).toEqual([
+      { sourceIndex: 0, rotation: 0, objects: [], textEdits: [] },
+    ]);
   });
 
   it("reports a failed save", async () => {

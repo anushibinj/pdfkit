@@ -1,6 +1,6 @@
 import type { EditObject, EditObjectKind } from "../../core/model";
 import type { FontMetricsSource } from "../../core/text-layout";
-import { HighlightWriter, RectWriter, WhiteoutWriter } from "./box-writers";
+import { HighlightWriter, RectWriter } from "./box-writers";
 import { ImageWriter } from "./image-writer";
 import { InkWriter } from "./ink-writer";
 import type { ObjectWriter, WriteContext } from "./object-writer";
@@ -26,7 +26,6 @@ export function createWriterRegistry(
     ink: new InkWriter(),
     rect: new RectWriter(),
     highlight: new HighlightWriter(),
-    whiteout: new WhiteoutWriter(),
     image: new ImageWriter(),
   };
 }
@@ -47,9 +46,7 @@ export function writerFor(
 }
 
 /**
- * Draw a page's objects in two passes: every `prepare` first, then every
- * `write`, both in list order (bottom-most first). See `ObjectWriter` for
- * why the passes are separate.
+ * Draw a page's objects in list order (bottom-most first).
  *
  * @param registry All writers.
  * @param objects The page's objects.
@@ -60,6 +57,5 @@ export function writePageObjects(
   objects: readonly EditObject[],
   ctx: WriteContext,
 ): void {
-  for (const o of objects) writerFor(registry, o).prepare?.(o, ctx);
   for (const o of objects) writerFor(registry, o).write(o, ctx);
 }

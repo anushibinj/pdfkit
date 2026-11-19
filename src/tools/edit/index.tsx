@@ -20,9 +20,12 @@ import type {
   EditorDocument,
   ImageAsset,
   Point,
+  TextEdit,
+  TextEditOutcome,
 } from "./core/model";
 import { addTurns } from "./core/page-geometry";
 import { StandardFontMetricsSource } from "./core/standard-font-metrics";
+import { describeTextOutcome } from "./core/text-edit-notices";
 import { DiscardDialog } from "./discard-dialog";
 import { EditorToolbar } from "./editor-toolbar";
 import { ObjectProperties } from "./object-properties";
@@ -40,13 +43,13 @@ const DRAWING_TOOLS: ReadonlySet<EditObject["kind"]> = new Set([
   "ink",
   "rect",
   "highlight",
-  "whiteout",
 ]);
 
 /**
- * PDF editor: open a PDF, add text, drawings, boxes, highlights, images and
- * white-out, rotate, reorder or delete pages, then download the result.
- * Everything runs in this tab; the PDF engine lives in a Web Worker.
+ * PDF editor: open a PDF, change its text in place, add text, drawings,
+ * boxes, highlights and images, rotate, reorder or delete pages, then
+ * download the result. Everything runs in this tab; the PDF engine lives in
+ * a Web Worker.
  */
 export default function EditTool() {
   const pdf = usePdfEditor();
@@ -58,11 +61,17 @@ export default function EditTool() {
     asset: ImageAsset;
     name: string;
   } | null>(null);
-  const [focusText, setFocusText] = useState(false);
+  // The added text object open for typing on the page, if any.
+  const [editingObject, setEditingObject] = useState<{
+    pageKey: string;
+    objectId: string;
+  } | null>(null);
   const [confirmClose, setConfirmClose] = useState(false);
   const [savedDoc, setSavedDoc] = useState<EditorDocument | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const idRef = useRef(0);
+  // Text edit notices already shown, so a re-render does not repeat them.
+  const noticesShown = useRef(new Set<string>());
 
   const doc = editor.history.present;
   const ready = status.kind === "ready" ? status : null;
@@ -77,8 +86,9 @@ export default function EditTool() {
   const resetUi = () => {
     setTool("select");
     setPendingImage(null);
-    setFocusText(false);
+    setEditingObject(null);
     setSavedDoc(null);
+    noticesShown.current.clear();
   };
 
   const openFiles = async (files: File[]) => {
@@ -149,9 +159,50 @@ export default function EditTool() {
   const addObject = (pageKey: string, object: EditObject) => {
     const keepDrawing = DRAWING_TOOLS.has(object.kind);
     dispatch({ type: "add-object", pageKey, object, select: !keepDrawing });
-    if (object.kind === "text") setFocusText(true);
+    // New text opens for typing right where it was placed.
+    if (object.kind === "text")
+      setEditingObject({ pageKey, objectId: object.id });
     if (object.kind === "image") setPendingImage(null);
     if (!keepDrawing) setTool("select");
+  };
+
+  /**
+   * Start or stop typing into an added text object on a page. Stopping on
+   * a text that is empty (or only spaces) deletes the object: an empty text
+   * box would be invisible on the page and dropped when saving anyway.
+   */
+  const editObject = (pageKey: string, objectId: string | null) => {
+    if (objectId !== null) {
+      setEditingObject({ pageKey, objectId });
+      return;
+    }
+    if (editingObject?.pageKey === pageKey) {
+      const object = findObject(doc, editingObject);
+      if (object?.kind === "text" && object.text.trim() === "")
+        dispatch({ type: "remove-object", ...editingObject });
+      setEditingObject(null);
+    }
+  };
+
+  /**
+   * Tell the user, once per change, when an edit of the PDF's own text did
+   * not come out exactly as typed (another font, or characters left out).
+   */
+  const reportTextOutcomes = (
+    pageKey: string,
+    edits: readonly TextEdit[],
+    outcomes: readonly TextEditOutcome[],
+  ) => {
+    const sent = new Map(edits.map((e) => [e.runId, e]));
+    for (const outcome of outcomes) {
+      const edit = sent.get(outcome.runId);
+      if (!edit) continue;
+      const message = describeTextOutcome(edit, outcome);
+      const key = `${pageKey}|${edit.runId}|${edit.text}`;
+      if (!message || noticesShown.current.has(key)) continue;
+      noticesShown.current.add(key);
+      toast.info(message);
+    }
   };
 
   const updateSelected = (patch: ObjectPatch, coalesceKey?: string) => {
@@ -196,6 +247,7 @@ export default function EditTool() {
     },
     remove: removeSelected,
     nudge,
+    // Inline fields handle Escape themselves (and stop it reaching here).
     escape: () => {
       if (pendingImage) setPendingImage(null);
       else if (editor.selection) dispatch({ type: "select", selection: null });
@@ -216,18 +268,22 @@ export default function EditTool() {
         <AlertDescription className="text-yellow-900 dark:text-yellow-200">
           <ul className="list-disc space-y-1 pl-4">
             <li>
-              Add text, drawings, boxes, highlights, pictures (such as a
-              signature) and white-out; rotate, reorder or delete pages.
+              Change the PDF&apos;s own text in place with Edit text: click a
+              line and type. The line keeps its font when the file&apos;s font
+              has every character you type; otherwise it switches to the closest
+              standard font (Helvetica, Times or Courier) in the same place,
+              size and colour.
             </li>
             <li>
-              Existing text cannot be edited in place yet. To change it, cover
-              it with white-out and type over it. White-out deletes the text and
-              pictures under it from the saved file, not just hides them.
+              Add text, drawings, boxes, highlights and pictures (such as a
+              signature); rotate, reorder or delete pages.
             </li>
             <li>
-              Text uses the standard PDF fonts, which cover English and other
-              Western European languages. Other scripts (such as Devanagari,
-              Chinese or Arabic) and emoji cannot be typed yet.
+              Text in scanned pages (pictures of text) and in some reused page
+              parts cannot be edited. New and substituted text uses the standard
+              PDF fonts, which cover English and other Western European
+              languages, not other scripts (such as Devanagari, Chinese or
+              Arabic) or emoji.
             </li>
             <li>Editing a digitally signed PDF invalidates its signatures.</li>
           </ul>
@@ -306,8 +362,6 @@ export default function EditTool() {
               pendingImageName={pendingImage?.name ?? null}
               onCancelImage={() => setPendingImage(null)}
               metrics={metrics}
-              focusText={focusText}
-              onTextFocused={() => setFocusText(false)}
             />
           </div>
 
@@ -334,13 +388,33 @@ export default function EditTool() {
                   pendingImage={pendingImage?.asset ?? null}
                   newId={newId}
                   onAdd={(object) => addObject(page.key, object)}
-                  onUpdate={(objectId, patch) =>
+                  onUpdate={(objectId, patch, coalesceKey) =>
                     dispatch({
                       type: "update-object",
                       pageKey: page.key,
                       objectId,
                       patch,
+                      coalesceKey,
                     })
+                  }
+                  editingObjectId={
+                    editingObject?.pageKey === page.key
+                      ? editingObject.objectId
+                      : null
+                  }
+                  onEditObject={(objectId) => editObject(page.key, objectId)}
+                  loadTextRuns={pdf.loadTextRuns}
+                  onTextEdit={(runId, text, original) =>
+                    dispatch({
+                      type: "edit-text",
+                      pageKey: page.key,
+                      runId,
+                      text,
+                      original,
+                    })
+                  }
+                  onTextOutcomes={(edits, outcomes) =>
+                    reportTextOutcomes(page.key, edits, outcomes)
                   }
                   onSelect={(objectId) =>
                     dispatch({

@@ -24,10 +24,16 @@ import { viewSize, viewToUser } from "./page-geometry";
 
 /** Tools that react to pointer input on a page. */
 export type DrawingTool =
-  "select" | "text" | "ink" | "rect" | "highlight" | "whiteout";
+  | "select"
+  /** Click a line of the PDF's own text to change it in place. */
+  | "edit-text"
+  | "text"
+  | "ink"
+  | "rect"
+  | "highlight";
 
 /** Box kinds drawn by dragging a rectangle. */
-export type BoxTool = "rect" | "highlight" | "whiteout";
+export type BoxTool = "rect" | "highlight";
 
 /** Style applied to newly created objects. */
 export interface ToolStyle {
@@ -72,7 +78,6 @@ export const DEFAULT_BOX_SIZE: Record<
 > = {
   rect: { width: 120, height: 60 },
   highlight: { width: 120, height: 18 },
-  whiteout: { width: 120, height: 24 },
 };
 /** Default width of a placed image, as a share of the displayed page width. */
 export const IMAGE_WIDTH_SHARE = 0.4;
@@ -305,8 +310,6 @@ export function boxFromDrag(
       };
     case "highlight":
       return { ...frame, kind: "highlight", color: style.highlightColor };
-    case "whiteout":
-      return { ...frame, kind: "whiteout" };
   }
 }
 

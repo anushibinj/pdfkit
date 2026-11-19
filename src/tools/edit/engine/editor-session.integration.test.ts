@@ -22,14 +22,14 @@ import {
   updateGesture,
   type GesturePage,
 } from "../core/gestures";
-import type { EditObject, PageInfo } from "../core/model";
+import type { EditObject, PageInfo, TextEdit } from "../core/model";
 import { localBounds } from "../core/object-bounds";
 import { uprightFrameAt } from "../core/object-frame";
 import { addTurns, userToView, viewSize } from "../core/page-geometry";
-import type { SavePlan } from "../core/save-plan";
+import type { SavePage, SavePlan } from "../core/save-plan";
 import { InvalidPlanError } from "../core/sanitize-plan";
 import { StandardFontMetricsSource } from "../core/standard-font-metrics";
-import { lineWidth } from "../core/text-layout";
+import type { TextRun } from "../core/text-runs";
 import { GREEN_JPEG, makePng } from "../test-utils/images";
 import {
   extractText,
@@ -40,9 +40,7 @@ import {
 } from "../test-utils/pdfium-node";
 import { EditorSession, MAX_RENDER_WIDTH } from "./editor-session";
 import type { PdfiumApi } from "./pdfium-api";
-import { PdfOpenError, PdfiumDocument } from "./pdfium-document";
-import { WasmHeap } from "./wasm-heap";
-import { WhiteoutWriter } from "./writers/box-writers";
+import { PdfOpenError } from "./pdfium-document";
 
 let api: PdfiumApi;
 let full: FullPdfium;
@@ -108,9 +106,9 @@ function saveOnFirstPage(
   s.open(fixture, "");
   const out = s.save({
     pages: [
-      { sourceIndex: 0, rotation: 0, objects },
-      { sourceIndex: 1, rotation: 0, objects: [] },
-      { sourceIndex: 2, rotation: 0, objects: [] },
+      { sourceIndex: 0, rotation: 0, objects, textEdits: [] },
+      { sourceIndex: 1, rotation: 0, objects: [], textEdits: [] },
+      { sourceIndex: 2, rotation: 0, objects: [], textEdits: [] },
     ],
     images,
   });
@@ -308,126 +306,13 @@ describe("EditorSession with the real PDFium build", () => {
     ).toThrow("could not be read");
   });
 
-  it("white-out deletes only the covered word and keeps text placed on top", () => {
-    // "ORIGINAL LINE" starts at user (200, 300); on the rotated page it runs
-    // down the screen at view x 245..275, from view y 100.
-    const helvetica = metrics.metrics("sans");
-    const wordEnd = 100 + lineWidth("ORIGINAL", helvetica, 24);
-    const whiteout = boxFromDrag(
-      "w",
-      "whiteout",
-      { x: 238, y: 96 },
-      { x: 278, y: wordEnd + 2 },
-      page1,
-      style,
-    );
-    const replacement = {
-      ...createTextObject("n", { x: 40, y: 400 }, page1, style),
-      text: "NEW",
-    };
-    const out = saveOnFirstPage([whiteout, replacement]);
-    const text = extractText(full, out)[0];
-    expect(text).not.toContain("ORIGINAL");
-    expect(text).toContain("LINE");
-    expect(text).toContain("NEW");
-  });
-
-  it("white-out rewrites image pixels under it, not just covers them", async () => {
-    const doc = await PDFDocument.create();
-    const grey = await doc.embedPng(
-      makePng(60, 40, () => [128, 128, 128, 255]),
-    );
-    doc
-      .addPage([600, 400])
-      .drawImage(grey, { x: 0, y: 0, width: 600, height: 400 });
-    const s = session();
-    const [info] = s.open(await doc.save(), "");
-    const page = { box: info.box, turns: info.rotation };
-    const out = s.save({
-      pages: [
-        {
-          sourceIndex: 0,
-          rotation: 0,
-          objects: [
-            boxFromDrag(
-              "w",
-              "whiteout",
-              { x: 0, y: 0 },
-              { x: 100, y: 100 },
-              page,
-              style,
-            ),
-          ],
-        },
-      ],
-      images: [],
-    });
-    s.close();
-    // Inspect the image object's own pixels, not the rendered page.
-    const { pdfium } = full;
-    const ptr = pdfium.wasmExports.malloc(out.length);
-    pdfium.HEAPU8.set(out, ptr);
-    const d = full.FPDF_LoadMemDocument(ptr, out.length, "");
-    const p = full.FPDF_LoadPage(d, 0);
-    let checked = false;
-    for (let i = 0; i < full.FPDFPage_CountObjects(p); i++) {
-      const obj = full.FPDFPage_GetObject(p, i);
-      if (full.FPDFPageObj_GetType(obj) !== 3) continue; // 3 = image
-      const bmp = full.FPDFImageObj_GetBitmap(obj);
-      const stride = full.FPDFBitmap_GetStride(bmp);
-      const bpp = full.FPDFBitmap_GetFormat(bmp) === 2 ? 3 : 4;
-      const at = (x: number, y: number) =>
-        pdfium.HEAPU8[full.FPDFBitmap_GetBuffer(bmp) + y * stride + x * bpp];
-      // image pixel (5, 5) is under the box (page 0..100 x 0..100), (50, 30) is not
-      expect(at(5, 5)).toBe(255);
-      expect(at(50, 30)).toBe(128);
-      full.FPDFBitmap_Destroy(bmp);
-      checked = true;
-    }
-    expect(checked).toBe(true);
-    full.FPDF_ClosePage(p);
-    full.FPDF_CloseDocument(d);
-    pdfium.wasmExports.free(ptr);
-  });
-
-  it("white-out's redaction alone also clears vector drawings under it", async () => {
-    // Only the prepare pass (no white box painted): what remains is what the
-    // redaction itself left in the file.
-    const heap = new WasmHeap(api.pdfium);
-    const doc = PdfiumDocument.open(api, heap, fixture, "");
-    const writer = new WhiteoutWriter();
-    // view 340..395 x 5..55 covers the black square
-    const box = boxFromDrag(
-      "w",
-      "whiteout",
-      { x: 340, y: 5 },
-      { x: 395, y: 55 },
-      page1,
-      style,
-    );
-    if (box.kind !== "whiteout") throw new Error("unreachable");
-    doc.withPage(0, (page) => {
-      writer.prepare(box, {
-        api,
-        heap,
-        doc: doc.handle,
-        page,
-        images: new Map(),
-      });
-      api.FPDFPage_GenerateContent(page);
-    });
-    const out = doc.save();
-    doc.close();
-    expect(pixelAt(render(out, 0), 370, 30)).toEqual([255, 255, 255]);
-  });
-
   it("rotates, deletes and reorders pages", () => {
     const s = session();
     s.open(fixture, "");
     const out = s.save({
       pages: [
-        { sourceIndex: 2, rotation: 1, objects: [] },
-        { sourceIndex: 0, rotation: 3, objects: [] },
+        { sourceIndex: 2, rotation: 1, objects: [], textEdits: [] },
+        { sourceIndex: 0, rotation: 3, objects: [], textEdits: [] },
       ],
       images: [],
     });
@@ -455,8 +340,8 @@ describe("EditorSession with the real PDFium build", () => {
     };
     const out = s.save({
       pages: [
-        { sourceIndex: 0, rotation: 0, objects: [] },
-        { sourceIndex: 2, rotation: 0, objects: [label] },
+        { sourceIndex: 0, rotation: 0, objects: [], textEdits: [] },
+        { sourceIndex: 2, rotation: 0, objects: [label], textEdits: [] },
       ],
       images: [],
     });
@@ -491,6 +376,7 @@ describe("EditorSession with the real PDFium build", () => {
                 },
               ]
             : [],
+        textEdits: [],
       })),
       images: [],
     };
@@ -506,7 +392,7 @@ describe("EditorSession with the real PDFium build", () => {
     s.open(fixture, "");
     expect(() =>
       s.save({
-        pages: [{ sourceIndex: 5, rotation: 0, objects: [] }],
+        pages: [{ sourceIndex: 5, rotation: 0, objects: [], textEdits: [] }],
         images: [],
       }),
     ).toThrow(InvalidPlanError);
@@ -535,6 +421,7 @@ describe("EditorSession with the real PDFium build", () => {
               text: "EDITED",
             },
           ],
+          textEdits: [],
         },
       ],
       images: [],
@@ -559,5 +446,249 @@ describe("EditorSession with the real PDFium build", () => {
     expect(() => session().open(new Uint8Array([1, 2, 3, 4]), "")).toThrow(
       expect.objectContaining({ reason: "format" }),
     );
+  });
+});
+
+describe("in-place text editing with the real PDFium build", () => {
+  /** Chromium output: embedded subset fonts (see make-text-fixture.mjs). */
+  let chromium: Uint8Array;
+  beforeAll(() => {
+    chromium = new Uint8Array(readFileSync(fixturePath("text-chromium.pdf")));
+  });
+
+  /** The lines of page `index` of `bytes`. */
+  function runsOf(bytes: Uint8Array, index = 0): TextRun[] {
+    const s = session();
+    s.open(bytes, "");
+    const runs = s.textRuns(index);
+    s.close();
+    return runs;
+  }
+
+  /** The line whose text starts with `start`. */
+  function runStarting(runs: TextRun[], start: string): TextRun {
+    const run = runs.find((r) => r.text.startsWith(start));
+    if (!run) throw new Error(`no line starting with ${start}`);
+    return run;
+  }
+
+  /** Apply `edits` to page 1 of `bytes` and save; other pages untouched. */
+  function saveEdits(bytes: Uint8Array, edits: TextEdit[]) {
+    const s = session();
+    const pages = s.open(bytes, "");
+    const plan: SavePage[] = pages.map((_, i) => ({
+      sourceIndex: i,
+      rotation: 0,
+      objects: [],
+      textEdits: i === 0 ? edits : [],
+    }));
+    const out = s.save({ pages: plan, images: [] });
+    s.close();
+    return out;
+  }
+
+  /** Base font names of the text objects that draw `text` on page 1. */
+  function fontsDrawing(bytes: Uint8Array, text: string): string[] {
+    const { pdfium } = full;
+    const ptr = pdfium.wasmExports.malloc(bytes.length);
+    pdfium.HEAPU8.set(bytes, ptr);
+    const doc = full.FPDF_LoadMemDocument(ptr, bytes.length, "");
+    const page = full.FPDF_LoadPage(doc, 0);
+    const textPage = full.FPDFText_LoadPage(page);
+    const names: string[] = [];
+    for (let i = 0; i < full.FPDFPage_CountObjects(page); i++) {
+      const obj = full.FPDFPage_GetObject(page, i);
+      if (full.FPDFPageObj_GetType(obj) !== 1) continue;
+      const n = full.FPDFTextObj_GetText(obj, textPage, 0, 0);
+      const buf = pdfium.wasmExports.malloc(n);
+      full.FPDFTextObj_GetText(obj, textPage, buf, n);
+      const objText = pdfium.UTF16ToString(buf);
+      pdfium.wasmExports.free(buf);
+      if (!objText.includes(text)) continue;
+      const font = full.FPDFTextObj_GetFont(obj);
+      const len = full.FPDFFont_GetBaseFontName(font, 0, 0);
+      const nameBuf = pdfium.wasmExports.malloc(len);
+      full.FPDFFont_GetBaseFontName(font, nameBuf, len);
+      names.push(pdfium.UTF8ToString(nameBuf));
+      pdfium.wasmExports.free(nameBuf);
+    }
+    full.FPDFText_ClosePage(textPage);
+    full.FPDF_ClosePage(page);
+    full.FPDF_CloseDocument(doc);
+    pdfium.wasmExports.free(ptr);
+    return names;
+  }
+
+  it("lists the lines of a Chromium page, merging split fragments", () => {
+    const runs = runsOf(chromium);
+    expect(runs.map((r) => r.text)).toEqual([
+      "Quarterly Report",
+      "Total amount due is 1250 dollars.",
+      "Please pay by ",
+      "Friday ",
+      " at the latest.",
+      "Contact: billing team",
+      "fluffy office",
+    ]);
+    const total = runStarting(runs, "Total");
+    expect(total.indices).toHaveLength(2); // "T" + "otal amount ..."
+    expect(total.fontSize).toBeCloseTo(10.5); // 14 px
+    expect(runStarting(runs, "Friday").style).toEqual({
+      family: "sans",
+      bold: true,
+      italic: false,
+    });
+    expect(runStarting(runs, "Quarterly").style.family).toBe("serif");
+    expect(runStarting(runs, "Contact").color).toEqual({ r: 192, g: 0, b: 0 });
+  });
+
+  it("keeps the embedded font when it has every character", () => {
+    const total = runStarting(runsOf(chromium), "Total");
+    const out = saveEdits(chromium, [
+      { runId: total.id, text: "Total amount due is 1520 dollars." },
+    ]);
+    expect(extractText(full, out)[0]).toContain(
+      "Total amount due is 1520 dollars.",
+    );
+    expect(extractText(full, out)[0]).not.toContain("1250");
+    expect(fontsDrawing(out, "1520")).toEqual(["BAAAAA+DejaVuSans"]);
+    // still where it was: same baseline, same size
+    const after = runStarting(runsOf(out), "Total");
+    expect(after.baseline).toEqual(total.baseline);
+    expect(after.fontSize).toBeCloseTo(total.fontSize);
+  });
+
+  it("switches to the closest standard font when the subset lacks a glyph", () => {
+    const runs = runsOf(chromium);
+    const contact = runStarting(runs, "Contact");
+    const friday = runStarting(runs, "Friday");
+    const out = saveEdits(chromium, [
+      { runId: contact.id, text: "Contact: Zoe Quinn" }, // Z, Q not in subset
+      { runId: friday.id, text: "Monday" },
+    ]);
+    const text = extractText(full, out)[0];
+    expect(text).toContain("Contact: Zoe Quinn");
+    expect(text).toContain("Monday");
+    expect(fontsDrawing(out, "Zoe")).toEqual(["Helvetica"]);
+    expect(fontsDrawing(out, "Monday")).toEqual(["Helvetica-Bold"]);
+    // same place, size and colour as the line it replaced
+    const after = runStarting(runsOf(out), "Contact");
+    expect(after.baseline).toEqual(contact.baseline);
+    expect(after.fontSize).toBeCloseTo(contact.fontSize);
+    expect(after.color).toEqual({ r: 192, g: 0, b: 0 });
+  });
+
+  it("does not trust letters the page only drew inside ligatures", () => {
+    // DejaVu Serif drew "f" and "l" only as parts of "fl" and "ff" glyphs.
+    const line = runStarting(runsOf(chromium), "fluffy");
+    const s = session();
+    s.open(chromium, "");
+    const { textOutcomes } = s.render(0, 0, 500, [
+      { runId: line.id, text: "full" },
+    ]);
+    s.close();
+    expect(textOutcomes).toEqual([
+      {
+        runId: line.id,
+        applied: true,
+        written: "full",
+        substituteFont: "Times-Roman",
+      },
+    ]);
+    const out = saveEdits(chromium, [{ runId: line.id, text: "full" }]);
+    expect(fontsDrawing(out, "full")).toEqual(["Times-Roman"]);
+  });
+
+  it("previews exactly what saving produces, and forgets it afterwards", () => {
+    const runs = runsOf(chromium);
+    const edits = [
+      { runId: runStarting(runs, "Total").id, text: "Total due: 1520" },
+      { runId: runStarting(runs, "Contact").id, text: "Ask Quinn" },
+    ];
+    const s = session();
+    const [info] = s.open(chromium, "");
+    const width = viewSize(info.box, info.rotation).width;
+    const original = s.render(0, 0, width);
+    const preview = s.render(0, 0, width, edits);
+    const again = s.render(0, 0, width);
+    const saved = s.save({
+      pages: [{ sourceIndex: 0, rotation: 0, objects: [], textEdits: edits }],
+      images: [],
+    });
+    s.close();
+    expect(preview.textOutcomes.map((o) => o.substituteFont)).toEqual([
+      null,
+      "Helvetica",
+    ]);
+    expect(
+      Buffer.from(preview.pixels).equals(Buffer.from(original.pixels)),
+    ).toBe(false);
+    // closing the previewed page threw the edits away
+    expect(Buffer.from(again.pixels).equals(Buffer.from(original.pixels))).toBe(
+      true,
+    );
+    // the saved file renders pixel for pixel like the preview
+    const reopened = session();
+    reopened.open(saved, "");
+    const fromFile = reopened.render(0, 0, width);
+    reopened.close();
+    expect(
+      Buffer.from(fromFile.pixels).equals(Buffer.from(preview.pixels)),
+    ).toBe(true);
+  });
+
+  it("deletes a line whose text is emptied and ignores unknown lines", () => {
+    const runs = runsOf(chromium);
+    const out = saveEdits(chromium, [
+      { runId: runStarting(runs, "Quarterly").id, text: "" },
+      { runId: "999", text: "nothing to change" },
+    ]);
+    const text = extractText(full, out)[0];
+    expect(text).not.toContain("Quarterly");
+    expect(text).toContain("Total amount due is 1250 dollars.");
+    expect(text).not.toContain("nothing to change");
+  });
+
+  it("edits a non-embedded standard font on a rotated, offset page", () => {
+    const line = runStarting(runsOf(fixture), "ORIGINAL");
+    const out = saveEdits(fixture, [{ runId: line.id, text: "EDITED 42" }]);
+    const text = extractText(full, out);
+    expect(text[0]).toContain("EDITED 42");
+    expect(text[0]).not.toContain("ORIGINAL");
+    expect(text[1]).toContain("SECOND"); // other pages untouched
+    // Helvetica is not embedded, so any WinAnsi character is fine
+    expect(fontsDrawing(out, "EDITED")).toEqual(["Helvetica"]);
+    // and it renders where the original line was
+    const img = render(out, 0);
+    let dark = 0;
+    for (let y = 100; y < 160; y++)
+      for (let x = 245; x < 275; x++) if (isDark(pixelAt(img, x, y))) dark++;
+    expect(dark).toBeGreaterThan(30);
+  });
+
+  it("keeps text edits and added objects together on one page", () => {
+    const line = runStarting(runsOf(fixture), "ORIGINAL");
+    const s = session();
+    s.open(fixture, "");
+    const added = {
+      ...createTextObject("n", { x: 40, y: 400 }, page1, style),
+      text: "ADDED",
+    };
+    const out = s.save({
+      pages: [
+        {
+          sourceIndex: 0,
+          rotation: 0,
+          objects: [added],
+          textEdits: [{ runId: line.id, text: "CHANGED" }],
+        },
+      ],
+      images: [],
+    });
+    s.close();
+    const text = extractText(full, out)[0];
+    expect(text).toContain("CHANGED");
+    expect(text).toContain("ADDED");
+    expect(text).not.toContain("ORIGINAL");
   });
 });

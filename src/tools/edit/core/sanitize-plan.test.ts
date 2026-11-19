@@ -3,6 +3,7 @@ import { fakeMetrics } from "../test-utils/fake-metrics";
 import {
   FONT_SIZE_LIMITS,
   MAX_COORDINATE,
+  MAX_TEXT_LENGTH,
   MAX_INK_POINTS,
   STROKE_WIDTH_LIMITS,
 } from "./model";
@@ -19,6 +20,7 @@ import {
   sanitizeImages,
   sanitizeObject,
   sanitizeSavePlan,
+  sanitizeTextEdits,
 } from "./sanitize-plan";
 
 const ctx = { metrics: fakeMetrics, imageIds: new Set(["img"]) };
@@ -167,15 +169,11 @@ describe("sanitizeObject", () => {
       kind: "highlight",
     });
     expect(
-      sanitizeObject({ ...frame, kind: "whiteout", width: 5, height: 6 }, ctx),
-    ).toEqual({
-      ...frame,
-      kind: "whiteout",
-      width: 5,
-      height: 6,
-    });
+      sanitizeObject({ ...frame, kind: "highlight", width: 0, height: 6 }, ctx),
+    ).toBeNull();
+    // White-out no longer exists: old plans that still carry it are dropped.
     expect(
-      sanitizeObject({ ...frame, kind: "whiteout", width: 0, height: 6 }, ctx),
+      sanitizeObject({ ...frame, kind: "whiteout", width: 5, height: 6 }, ctx),
     ).toBeNull();
   });
 
@@ -190,7 +188,7 @@ describe("sanitizeObject", () => {
   it("normalises the frame", () => {
     expect(
       sanitizeObject(
-        { kind: "whiteout", x: 1, y: 2, rotation: 7, width: 1, height: 1 },
+        { kind: "rect", x: 1, y: 2, rotation: 7, width: 1, height: 1 },
         ctx,
       ),
     ).toMatchObject({ id: "", rotation: 0 });
@@ -227,6 +225,45 @@ describe("sanitizeImages", () => {
   });
 });
 
+describe("sanitizeTextEdits", () => {
+  it("keeps well-formed edits on one line, the last edit per line winning", () => {
+    expect(
+      sanitizeTextEdits([
+        { runId: "3-4", text: "Total\r\n1520\tdollars" },
+        { runId: "7", text: "old" },
+        { runId: "7", text: "" },
+      ]),
+    ).toEqual([
+      { runId: "3-4", text: "Total 1520 dollars" },
+      { runId: "7", text: "" },
+    ]);
+  });
+
+  it("keeps characters the engine may still be able to write", () => {
+    // Filtering is font-specific, so it happens in the engine.
+    expect(sanitizeTextEdits([{ runId: "1", text: "₹ 500" }])).toEqual([
+      { runId: "1", text: "₹ 500" },
+    ]);
+  });
+
+  it.each([
+    [[{ runId: "a", text: "x" }]],
+    [[{ runId: "1-", text: "x" }]],
+    [[{ runId: "1", text: 5 }]],
+    [[null]],
+    ["nope"],
+  ])("drops %j", (raw) => {
+    expect(sanitizeTextEdits(raw)).toEqual([]);
+  });
+
+  it("cuts very long text", () => {
+    const [edit] = sanitizeTextEdits([
+      { runId: "1", text: "x".repeat(MAX_TEXT_LENGTH + 9) },
+    ]);
+    expect(edit.text).toHaveLength(MAX_TEXT_LENGTH);
+  });
+});
+
 describe("sanitizeSavePlan", () => {
   it("returns a clean plan", () => {
     const image = png();
@@ -240,6 +277,7 @@ describe("sanitizeSavePlan", () => {
               { ...frame, kind: "image", imageId: "img", width: 1, height: 1 },
               { kind: "bad" },
             ],
+            textEdits: [{ runId: "2-3", text: "New" }, { runId: "x" }],
           },
           { sourceIndex: 0, rotation: "x", objects: "nope" },
         ],
@@ -255,8 +293,9 @@ describe("sanitizeSavePlan", () => {
         objects: [
           { ...frame, kind: "image", imageId: "img", width: 1, height: 1 },
         ],
+        textEdits: [{ runId: "2-3", text: "New" }],
       },
-      { sourceIndex: 0, rotation: 0, objects: [] },
+      { sourceIndex: 0, rotation: 0, objects: [], textEdits: [] },
     ]);
     expect(plan.images).toEqual([image]);
   });

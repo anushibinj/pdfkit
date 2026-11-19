@@ -16,24 +16,8 @@ export interface WriteContext {
   images: ReadonlyMap<string, SaveImage>;
 }
 
-/**
- * Adds one kind of {@link EditObject} to a PDF page.
- *
- * A page is written in two passes (see `writePageObjects`):
- * 1. `prepare` for every object, in order. It may change the page's
- *    original content, for example delete what lies under a white-out box.
- * 2. `write` for every object, in order, which draws it on top.
- * Splitting the passes means a white-out never deletes objects the user
- * placed on the page, only what was already in the file.
- */
+/** Adds one kind of {@link EditObject} to a PDF page. */
 export interface ObjectWriter<T extends EditObject> {
-  /**
-   * Optional first pass, run before any object on the page is drawn.
-   *
-   * @param object The object.
-   * @param ctx The page being edited.
-   */
-  prepare?(object: T, ctx: WriteContext): void;
   /**
    * Draw the object on the page.
    *

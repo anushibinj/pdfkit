@@ -128,6 +128,62 @@ export class WasmHeap {
   }
 
   /**
+   * Read 32-bit signed integers written by PDFium, e.g. colour channels.
+   *
+   * @param ptr Start address.
+   * @param count How many integers.
+   * @returns The values.
+   */
+  readInts(ptr: number, count: number): number[] {
+    return Array.from({ length: count }, (_, i) =>
+      Number(this.runtime.getValue(ptr + i * 4, "i32")),
+    );
+  }
+
+  /**
+   * Read 64-bit floats (C `double`) written by PDFium, e.g. a character's
+   * origin.
+   *
+   * @param ptr Start address.
+   * @param count How many doubles.
+   * @returns The values.
+   */
+  readDoubles(ptr: number, count: number): number[] {
+    return Array.from({ length: count }, (_, i) =>
+      Number(this.runtime.getValue(ptr + i * 8, "double")),
+    );
+  }
+
+  /**
+   * Read a string through PDFium's two-call convention.
+   *
+   * Functions like `FPDFFont_GetBaseFontName` or `FPDFTextObj_GetText` take
+   * a buffer and its length in bytes, and return the length they need
+   * (terminator included). Called with no buffer they only report that
+   * length. So: ask for the length, allocate it, call again to fill it,
+   * then decode the bytes and free them.
+   *
+   * @param fill Calls PDFium with (buffer, byteLength) and returns the
+   *   required length in bytes; 0 means "no string".
+   * @param encoding How PDFium encodes this string.
+   * @returns The decoded string ("" when PDFium has none).
+   */
+  readString(
+    fill: (buffer: number, byteLength: number) => number,
+    encoding: "utf8" | "utf16",
+  ): string {
+    const length = fill(0, 0);
+    // A UTF-16 terminator alone is 2 bytes, a UTF-8 one is 1.
+    if (length <= (encoding === "utf16" ? 2 : 1)) return "";
+    return this.using(this.alloc(length), (buffer) => {
+      fill(buffer, length);
+      return encoding === "utf16"
+        ? this.runtime.UTF16ToString(buffer)
+        : this.runtime.UTF8ToString(buffer);
+    });
+  }
+
+  /**
    * Read 32-bit floats written by PDFium.
    *
    * @param ptr Start address.

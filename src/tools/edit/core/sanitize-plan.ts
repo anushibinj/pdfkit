@@ -12,6 +12,7 @@ import {
   type ObjectFrame,
   type Point,
   type Rgb,
+  type TextEdit,
 } from "./model";
 import { isQuarterTurns } from "./page-geometry";
 import type { SaveImage, SavePage, SavePlan } from "./save-plan";
@@ -227,10 +228,6 @@ const SANITIZERS: Record<EditObjectKind, KindSanitizer> = {
       color: readColor(raw.color, BLACK),
     };
   },
-  whiteout(raw, frame) {
-    const box = readBox(raw);
-    return box ? { ...frame, ...box, kind: "whiteout" } : null;
-  },
   image(raw, frame, ctx) {
     const box = readBox(raw);
     const imageId = raw.imageId;
@@ -296,6 +293,40 @@ export function sanitizeImages(value: unknown): SaveImage[] {
   return images;
 }
 
+/** Line ids are object indices joined by "-", such as "3" or "3-4-5". */
+const RUN_ID = /^\d+(?:-\d+)*$/;
+
+/**
+ * Validate a list of text edits from an untrusted message.
+ *
+ * Entries need a well-formed line id and string text. The text is put on
+ * one line (a PDF text line cannot hold a line break: breaks and tabs become
+ * spaces) and cut to {@link MAX_TEXT_LENGTH}. If a line is edited twice, the
+ * last edit wins. Characters are not filtered here: which ones can be
+ * written depends on the line's original font, which only the engine knows.
+ *
+ * @param value Anything.
+ * @returns The valid edits.
+ */
+export function sanitizeTextEdits(value: unknown): TextEdit[] {
+  if (!Array.isArray(value)) return [];
+  const byRun = new Map<string, string>();
+  for (const raw of value) {
+    if (
+      !isRecord(raw) ||
+      typeof raw.runId !== "string" ||
+      !RUN_ID.test(raw.runId)
+    )
+      continue;
+    if (typeof raw.text !== "string") continue;
+    byRun.set(
+      raw.runId,
+      raw.text.replace(/[\r\n\t]+/g, " ").slice(0, MAX_TEXT_LENGTH),
+    );
+  }
+  return [...byRun].map(([runId, text]) => ({ runId, text }));
+}
+
 /**
  * Turn an untrusted save request into a valid {@link SavePlan}.
  *
@@ -305,9 +336,10 @@ export function sanitizeImages(value: unknown): SaveImage[] {
  *   {@link InvalidPlanError}: every entry needs a whole-number source index
  *   within the file, with no repeats, and at least one page must remain.
  *   Guessing here could silently delete or duplicate pages.
- * - Objects and images are cleaned up individually (see
- *   {@link sanitizeObject}): numbers are clamped, unwritable characters are
- *   removed and unusable objects are dropped.
+ * - Objects, images and text edits are cleaned up individually (see
+ *   {@link sanitizeObject} and {@link sanitizeTextEdits}): numbers are
+ *   clamped, unwritable characters are removed and unusable entries are
+ *   dropped.
  *
  * @param raw The request's plan.
  * @param pageCount Number of pages in the opened file.
@@ -356,6 +388,7 @@ export function sanitizeSavePlan(
       sourceIndex: source,
       rotation: isQuarterTurns(p.rotation) ? p.rotation : 0,
       objects,
+      textEdits: sanitizeTextEdits(p.textEdits),
     };
   });
   return { pages, images };

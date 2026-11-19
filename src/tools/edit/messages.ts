@@ -1,12 +1,29 @@
 /** Messages between the PDF editor UI and its Web Worker. */
-import type { PageInfo, QuarterTurns } from "./core/model";
+import type {
+  PageInfo,
+  QuarterTurns,
+  TextEdit,
+  TextEditOutcome,
+} from "./core/model";
 import type { SavePlan } from "./core/save-plan";
+import type { TextRun } from "./core/text-runs";
 
 export type EditorRequest =
   /** Open a file (replacing any open one). `data` is transferred. */
   | { op: "open"; data: ArrayBuffer; password?: string }
-  /** Render a page of the unedited file, `width` pixels wide. */
-  | { op: "render"; pageIndex: number; rotation: QuarterTurns; width: number }
+  /**
+   * Render a page `width` pixels wide, with `textEdits` applied to the
+   * page's own text for this render only.
+   */
+  | {
+      op: "render";
+      pageIndex: number;
+      rotation: QuarterTurns;
+      width: number;
+      textEdits?: TextEdit[];
+    }
+  /** List the editable lines of text on a page of the original file. */
+  | { op: "text-runs"; pageIndex: number }
   /** Apply the plan to a fresh copy of the file and return the result. */
   | { op: "save"; plan: SavePlan }
   /** Close the file and free its memory. */
@@ -41,8 +58,13 @@ export type RenderResult =
       height: number;
       /** RGBA pixels, rows top to bottom (transferred). */
       pixels: ArrayBuffer;
+      /** What happened to each text edit, in request order. */
+      textOutcomes: TextEditOutcome[];
     }
   | ErrorResult;
+
+export type TextRunsResult =
+  { status: "text-runs"; runs: TextRun[] } | ErrorResult;
 
 export type SaveResult =
   | {
@@ -58,6 +80,7 @@ export type CloseResult = { status: "closed" };
 export interface ResultFor {
   open: OpenResult;
   render: RenderResult;
+  "text-runs": TextRunsResult;
   save: SaveResult;
   close: CloseResult;
 }
