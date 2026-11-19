@@ -1,5 +1,6 @@
 // Copies the WebAssembly engines into public/wasm so they are served from our
 // own origin (never a CDN). Runs automatically before `dev` and `build`.
+import { existsSync, readFileSync } from "node:fs";
 import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
@@ -10,14 +11,15 @@ await mkdir(out, { recursive: true });
 
 /**
  * One entry per engine: which npm package, which of its files to serve, and
- * where its licence goes. Licences get distinct names because several engines
- * share the directory.
+ * where its licences go. A file is either a name (copied as is) or
+ * `{ from, to }` (a path inside the package, served under another name).
+ * Licences get distinct names because several engines share the directory.
  */
 const engines = [
   {
     pkg: "@jspawn/qpdf-wasm",
     files: ["qpdf.mjs", "qpdf.js", "browser.js", "qpdf.wasm"],
-    license: "LICENSE.txt",
+    licenses: [{ from: "LICENSE", to: "LICENSE.txt" }],
     notice: (version) =>
       `qpdf compiled to WebAssembly: @jspawn/qpdf-wasm ${version} (Apache-2.0).\n` +
       "qpdf itself is Copyright Jay Berkenbilt and is licensed under the Apache License 2.0.\n" +
@@ -26,20 +28,74 @@ const engines = [
   {
     pkg: "ironpress",
     files: ["ironpress.js", "ironpress_bg.wasm"],
-    license: "LICENSE-ironpress.txt",
+    licenses: [{ from: "LICENSE", to: "LICENSE-ironpress.txt" }],
     notice: (version) =>
       `HTML/CSS to PDF layout: ironpress ${version} (MIT), Copyright (c) 2026 Gaston Gouron.\n` +
       "https://github.com/gastongouron/ironpress\n",
   },
+  {
+    pkg: "@embedpdf/pdfium",
+    // The browser build of the JavaScript glue, renamed so the worker can
+    // import /wasm/pdfium.js; it finds pdfium.wasm next to itself.
+    files: [
+      { from: "dist/index.browser.js", to: "pdfium.js" },
+      { from: "dist/pdfium.wasm", to: "pdfium.wasm" },
+    ],
+    licenses: [
+      { from: "LICENSE", to: "LICENSE-embedpdf-pdfium.txt" },
+      { from: "LICENSE.pdfium", to: "LICENSE-pdfium.txt" },
+    ],
+    notice: (version) =>
+      `PDF rendering and editing: PDFium, Copyright The PDFium Authors (BSD-3-Clause and Apache-2.0,\n` +
+      `see LICENSE-pdfium.txt), compiled to WebAssembly by @embedpdf/pdfium ${version} (MIT),\n` +
+      "Copyright (c) 2024 CloudPDF, Ji Chang (see LICENSE-embedpdf-pdfium.txt).\n" +
+      "https://pdfium.googlesource.com/pdfium/  https://github.com/embedpdf/embed-pdf-viewer\n",
+  },
 ];
 
-const notices = [];
-for (const { pkg, files, license, notice } of engines) {
-  const pkgDir = path.dirname(require.resolve(`${pkg}/package.json`));
-  for (const file of files) {
-    await copyFile(path.join(pkgDir, file), path.join(out, file));
+/**
+ * Find a package's root directory.
+ *
+ * `require.resolve("<pkg>/package.json")` is the simple way, but packages
+ * with an `exports` map that does not list package.json refuse it
+ * (ERR_PACKAGE_PATH_NOT_EXPORTED). Then resolve the package's main entry
+ * and walk up to the directory whose package.json has the package's name.
+ *
+ * @param {string} pkg Package name.
+ * @returns {string} Absolute path of the package root.
+ */
+function packageDir(pkg) {
+  try {
+    return path.dirname(require.resolve(`${pkg}/package.json`));
+  } catch {
+    let dir = path.dirname(require.resolve(pkg));
+    for (;;) {
+      const manifest = path.join(dir, "package.json");
+      if (
+        existsSync(manifest) &&
+        JSON.parse(readFileSync(manifest, "utf8")).name === pkg
+      ) {
+        return dir;
+      }
+      const parent = path.dirname(dir);
+      if (parent === dir)
+        throw new Error(`Cannot find the package directory of ${pkg}`);
+      dir = parent;
+    }
   }
-  await copyFile(path.join(pkgDir, "LICENSE"), path.join(out, license));
+}
+
+const notices = [];
+for (const { pkg, files, licenses, notice } of engines) {
+  const pkgDir = packageDir(pkg);
+  for (const file of files) {
+    const { from, to } =
+      typeof file === "string" ? { from: file, to: file } : file;
+    await copyFile(path.join(pkgDir, from), path.join(out, to));
+  }
+  for (const { from, to } of licenses) {
+    await copyFile(path.join(pkgDir, from), path.join(out, to));
+  }
   const { version } = JSON.parse(
     await readFile(path.join(pkgDir, "package.json"), "utf8"),
   );
