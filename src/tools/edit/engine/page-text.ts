@@ -16,6 +16,10 @@ import { check } from "./writers/object-writer";
 const EDITABLE_RENDER_MODES = new Set([0, 1, 2]);
 /** Render mode 1 strokes the outlines only: its colour is the stroke's. */
 const STROKE_ONLY = 1;
+/** Where probes start, in user space: far below and left of any page. */
+const PROBE_ORIGIN = -100_000;
+/** Minimum distance between two probes' origins along each axis. */
+const PROBE_GAP = 1_000;
 
 /**
  * Reads and changes the text objects of one loaded page through PDFium.
@@ -28,7 +32,7 @@ const STROKE_ONLY = 1;
  * Ownership: the page owns its objects. An object removed with
  * `FPDFPage_RemoveObject` belongs to the caller, and is destroyed right
  * away. A new object is destroyed only if inserting it fails; once inserted
- * the page owns it and destroying it would free it twice.
+ * the page owns it until it is removed again (probes are).
  *
  * Nothing here calls `FPDFPage_GenerateContent`: on a page loaded only to
  * render a preview, the changes are dropped when the page closes, and the
@@ -125,8 +129,7 @@ export class PdfiumPageText implements TextSurface {
   replace(index: number, fontName: string, text: string): void {
     const { api, heap } = this;
     const original = this.object(index);
-    const fragment = this.snapshot?.fragments.find((f) => f.index === index);
-    if (!fragment) throw new Error(`Text object ${index} was not read`);
+    const fragment = this.fragment(index);
     const created = api.FPDFPageObj_NewTextObj(
       this.doc,
       fontName,
@@ -173,25 +176,84 @@ export class PdfiumPageText implements TextSurface {
   }
 
   /**
-   * Read objects' text as PDFium extracts it now. A new text page is built
-   * because one built before the changes describes the old objects.
+   * Find out what PDFium makes of texts written in fragments' fonts,
+   * leaving the page as it was.
    *
-   * @param indices Objects to read, by index from {@link read}.
-   * @returns Their text ("" for an object no longer on the page).
+   * For each request, a temporary text object is created in the
+   * fragment's own font (`FPDFPageObj_CreateTextObj` takes the font
+   * handle, embedded subset included) and size, given the text with
+   * `FPDFText_SetText` (the same encoding step an in-place edit uses), and
+   * added to the page. One text page is then built and each temporary
+   * object's text read back. The temporary objects are always removed and
+   * freed again, even if something fails.
+   *
+   * Placement matters: PDFium's text extraction drops a text object that
+   * repeats another one at the same position (it treats it as a fake-bold
+   * double print; verified: a probe identical to a line on the page read
+   * back empty). So each probe keeps the fragment's orientation and scale
+   * but sits far outside the page, on its own diagonal slot, spaced by
+   * more than the text can be long, so no two probes and no real text
+   * share a place.
+   *
+   * @param requests Fragment indices from {@link read}, with texts.
+   * @returns The extracted text per fragment index.
    */
-  readBack(indices: readonly number[]): Map<number, string> {
-    const { api } = this;
-    const textPage = api.FPDFText_LoadPage(this.page);
-    if (!textPage) throw new Error("Could not read the text of this page");
+  probe(
+    requests: readonly { index: number; text: string }[],
+  ): Map<number, string> {
+    const { api, heap } = this;
+    const created: { index: number; object: number }[] = [];
     try {
-      return new Map(
-        indices.map((index) => {
-          const object = this.objects.get(index);
-          return [index, object ? this.objectText(object, textPage) : ""];
-        }),
-      );
+      let offset = PROBE_ORIGIN;
+      for (const { index, text } of requests) {
+        const fragment = this.fragment(index);
+        const font = api.FPDFTextObj_GetFont(this.object(index));
+        const object = api.FPDFPageObj_CreateTextObj(
+          this.doc,
+          font,
+          fragment.fontSize,
+        );
+        if (!object) throw new Error("PDFium could not create a text object");
+        try {
+          heap.using(heap.utf16(text), (ptr) =>
+            check(api.FPDFText_SetText(object, ptr), "write the text"),
+          );
+          const [a, b, c, d] = fragment.matrix;
+          heap.using(heap.floats([a, b, c, d, offset, offset]), (matrix) =>
+            check(api.FPDFPageObj_SetMatrix(object, matrix), "place the text"),
+          );
+        } catch (err) {
+          api.FPDFPageObj_Destroy(object);
+          throw err;
+        }
+        api.FPDFPage_InsertObject(this.page, object);
+        created.push({ index, object });
+        // Next slot: beyond the longest this text can be (two ems per
+        // character, in user space, whatever the orientation).
+        const em =
+          fragment.fontSize *
+          fragment.matrix.slice(0, 4).reduce((sum, v) => sum + Math.abs(v), 0);
+        offset -= PROBE_GAP + 2 * em * (text.length + 1);
+      }
+      const textPage = api.FPDFText_LoadPage(this.page);
+      if (!textPage) throw new Error("Could not read the text of this page");
+      try {
+        return new Map(
+          created.map(({ index, object }) => [
+            index,
+            this.objectText(object, textPage),
+          ]),
+        );
+      } finally {
+        api.FPDFText_ClosePage(textPage);
+      }
     } finally {
-      api.FPDFText_ClosePage(textPage);
+      for (const { object } of created) {
+        // Removing hands the object back to us, so it can be freed. If PDFium
+        // refused, the page still owns it: freeing it would free it twice.
+        check(api.FPDFPage_RemoveObject(this.page, object), "remove a probe");
+        api.FPDFPageObj_Destroy(object);
+      }
     }
   }
 
@@ -401,6 +463,17 @@ export class PdfiumPageText implements TextSurface {
       if (this.api.FPDFPage_GetObject(this.page, i) === object) return i;
     }
     throw new Error("The text object is no longer on the page");
+  }
+
+  /**
+   * @param index An index from {@link read}.
+   * @returns The fragment read under that index.
+   * @throws When nothing was read under it.
+   */
+  private fragment(index: number): TextFragment {
+    const fragment = this.snapshot?.fragments.find((f) => f.index === index);
+    if (!fragment) throw new Error(`Text object ${index} was not read`);
+    return fragment;
   }
 
   /**

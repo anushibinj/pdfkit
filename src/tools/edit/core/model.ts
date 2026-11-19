@@ -169,11 +169,22 @@ export interface TextEdit {
   text: string;
 }
 
+/**
+ * Why a text edit left the line unchanged:
+ * - "line-not-found": the line is not on the page (any more);
+ * - "no-font": neither the line's own font nor any standard font can write
+ *   a single typed character (e.g. Hebrew or Devanagari), so writing would
+ *   only erase the line.
+ */
+export type TextEditFailure = "line-not-found" | "no-font";
+
 /** What happened when a text edit was written into the page. */
 export interface TextEditOutcome {
   runId: string;
-  /** False when the line no longer exists, so nothing was changed. */
+  /** False when nothing was changed; `failure` says why. */
   applied: boolean;
+  /** Why nothing was changed, or `null` when the edit was applied. */
+  failure: TextEditFailure | null;
   /** The text actually written (characters no font could show removed). */
   written: string;
   /**

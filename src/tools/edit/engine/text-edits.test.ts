@@ -35,8 +35,8 @@ function fragment(index: number, text: string, x: number): TextFragment {
 
 /**
  * An in-memory page. Objects are kept by index; `dropped` lists characters
- * the "font" silently loses when written in place, to imitate a subset
- * font without that glyph.
+ * the line's font silently loses (a subset font without that glyph), both
+ * when writing in place and when probing.
  */
 class FakeSurface implements TextSurface {
   readonly texts = new Map<number, string>();
@@ -48,6 +48,10 @@ class FakeSurface implements TextSurface {
     for (const f of snapshot.fragments) this.texts.set(f.index, f.text);
   }
 
+  private drop(text: string): string {
+    return [...text].filter((c) => !this.dropped.has(c)).join("");
+  }
+
   read(): PageTextSnapshot {
     this.log.push("read");
     return this.snapshot;
@@ -55,10 +59,7 @@ class FakeSurface implements TextSurface {
 
   setText(index: number, text: string): void {
     this.log.push(`set ${index}`);
-    this.texts.set(
-      index,
-      [...text].filter((c) => !this.dropped.has(c)).join(""),
-    );
+    this.texts.set(index, this.drop(text));
   }
 
   replace(index: number, fontName: string, text: string): void {
@@ -73,9 +74,11 @@ class FakeSurface implements TextSurface {
     if (!this.texts.delete(index)) throw new Error(`no object ${index}`);
   }
 
-  readBack(indices: readonly number[]): Map<number, string> {
-    this.log.push(`readBack ${indices.join(",")}`);
-    return new Map(indices.map((i) => [i, this.texts.get(i) ?? ""]));
+  probe(
+    requests: readonly { index: number; text: string }[],
+  ): Map<number, string> {
+    this.log.push(`probe ${requests.map((r) => r.index).join(",")}`);
+    return new Map(requests.map((r) => [r.index, this.drop(r.text)]));
   }
 }
 
@@ -99,32 +102,33 @@ describe("sameGlyphs", () => {
 });
 
 describe("applyTextEdits", () => {
+  const kept = (runId: string, written: string) => ({
+    runId,
+    applied: true,
+    failure: null,
+    written,
+    substituteFont: null,
+  });
+
   it("does nothing, not even reading, without edits", () => {
     const s = page();
     expect(applyTextEdits(s, [], fakeMetrics)).toEqual([]);
     expect(s.log).toEqual([]);
   });
 
-  it("rewrites a line in its own font when the font has every character", () => {
+  it("rewrites a line in its own font once a probe confirms every character", () => {
     const s = page();
     const out = applyTextEdits(
       s,
       [{ runId: "2-3", text: "Total due 1520" }],
       fakeMetrics,
     );
-    expect(out).toEqual([
-      {
-        runId: "2-3",
-        applied: true,
-        written: "Total due 1520",
-        substituteFont: null,
-      },
-    ]);
+    expect(out).toEqual([kept("2-3", "Total due 1520")]);
     // the whole line goes into the first fragment; the rest is removed
     expect(s.texts.get(2)).toBe("Total due 1520");
     expect(s.texts.has(3)).toBe(false);
     expect(s.fonts.size).toBe(0);
-    expect(s.log).toEqual(["read", "set 2", "remove 3", "readBack 2"]);
+    expect(s.log).toEqual(["read", "probe 2", "set 2", "remove 3"]);
   });
 
   it("uses the closest standard font when the font lacks a character", () => {
@@ -137,15 +141,16 @@ describe("applyTextEdits", () => {
     expect(out).toEqual({
       runId: "2-3",
       applied: true,
+      failure: null,
       written: "Total due 1300",
       substituteFont: "Times-Bold", // bold serif, like DejaVu Serif Bold
     });
     expect(s.fonts.get(2)).toBe("Times-Bold");
     expect(s.texts.has(3)).toBe(false);
-    expect(s.log).not.toContain("set 2");
+    expect(s.log).toEqual(["read", "replace 2", "remove 3"]);
   });
 
-  it("falls back when the read-back shows a character went missing", () => {
+  it("falls back when the probe shows a character would go missing", () => {
     const s = page();
     s.dropped = new Set(["0"]); // e.g. "0" only ever drawn inside a ligature
     const [out] = applyTextEdits(
@@ -155,13 +160,8 @@ describe("applyTextEdits", () => {
     );
     expect(out.substituteFont).toBe("Times-Bold");
     expect(s.texts.get(2)).toBe("Total due 1520");
-    expect(s.log).toEqual([
-      "read",
-      "set 2",
-      "remove 3",
-      "readBack 2",
-      "replace 2",
-    ]);
+    // the line itself was never written in its own font
+    expect(s.log).toEqual(["read", "probe 2", "replace 2", "remove 3"]);
   });
 
   it("leaves out characters even the standard font cannot write", () => {
@@ -175,28 +175,54 @@ describe("applyTextEdits", () => {
     expect(s.texts.get(5)).toBe("Pay 50");
   });
 
-  it("removes the line when the fallback has nothing left to write", () => {
+  it("leaves a line exactly as it was when no font can write the text", () => {
     const s = page();
     const [out] = applyTextEdits(
       s,
       [{ runId: "2-3", text: "₹₹" }],
       fakeMetrics,
     );
-    expect(out).toMatchObject({ applied: true, written: "" });
-    expect(s.texts.has(2)).toBe(false);
-    expect(s.texts.has(3)).toBe(false);
+    expect(out).toEqual({
+      runId: "2-3",
+      applied: false,
+      failure: "no-font",
+      written: "",
+      substituteFont: null,
+    });
+    expect(s.texts.get(2)).toBe("Total");
+    expect(s.texts.get(3)).toBe("due 1250");
+    expect(s.log).toEqual(["read"]);
+  });
+
+  it("also after a failed probe: the original was not touched", () => {
+    // The subset seems to have ₹ (it drew one) but would drop it anyway.
+    const s = new FakeSurface({
+      fragments: [fragment(2, "₹ 5", 0)],
+      observed: new Map([[7, new Set("₹ 5")]]),
+    });
+    s.dropped = new Set(["₹"]);
+    const [out] = applyTextEdits(s, [{ runId: "2", text: "₹₹" }], fakeMetrics);
+    expect(out.failure).toBe("no-font");
+    expect(s.texts.get(2)).toBe("₹ 5");
+    expect(s.log).toEqual(["read", "probe 2"]);
   });
 
   it("deletes a line whose new text is empty", () => {
     const s = page();
     const [out] = applyTextEdits(s, [{ runId: "2-3", text: " " }], fakeMetrics);
-    expect(out).toEqual({
-      runId: "2-3",
-      applied: true,
-      written: "",
-      substituteFont: null,
-    });
+    expect(out).toEqual(kept("2-3", ""));
     expect([...s.texts.keys()]).toEqual([5]);
+  });
+
+  it("changes nothing when the text is the line's own", () => {
+    const s = page();
+    const [out] = applyTextEdits(
+      s,
+      [{ runId: "5", text: "Contact" }],
+      fakeMetrics,
+    );
+    expect(out).toEqual(kept("5", "Contact"));
+    expect(s.log).toEqual(["read"]);
   });
 
   it("reports an unknown line as not applied and changes nothing", () => {
@@ -205,27 +231,26 @@ describe("applyTextEdits", () => {
     expect(out).toEqual({
       runId: "2",
       applied: false,
+      failure: "line-not-found",
       written: "",
       substituteFont: null,
     });
     expect(s.texts.get(2)).toBe("Total");
   });
 
-  it("applies several edits with one read-back, and a repeated id once", () => {
+  it("probes several edits at once, and applies a repeated id once", () => {
     const s = page();
     const out = applyTextEdits(
       s,
       [
         { runId: "5", text: "old" },
-        { runId: "2-3", text: "Total due 1250" },
-        { runId: "5", text: "Contact" },
+        { runId: "2-3", text: "Total due 1250 1" },
+        { runId: "5", text: "Contact 2" },
       ],
       fakeMetrics,
     );
     expect(out.map((o) => o.runId)).toEqual(["5", "2-3"]);
-    expect(s.texts.get(5)).toBe("Contact");
-    expect(s.log.filter((l) => l.startsWith("readBack"))).toEqual([
-      "readBack 5,2",
-    ]);
+    expect(s.texts.get(5)).toBe("Contact 2");
+    expect(s.log.filter((l) => l.startsWith("probe"))).toEqual(["probe 5,2"]);
   });
 });

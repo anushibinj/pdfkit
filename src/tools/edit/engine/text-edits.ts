@@ -33,10 +33,17 @@ export interface TextSurface {
   /** Delete a text object from the page. */
   remove(index: number): void;
   /**
-   * Read the text of objects as PDFium now understands them, after
-   * changes. Used to catch characters a font silently dropped.
+   * Find out what PDFium would make of texts written in the fonts of some
+   * fragments, without changing them: each text is written into a
+   * temporary object in that fragment's font, read back through PDFium's
+   * text extraction, and the temporary objects are removed again. Used to
+   * catch characters a font would silently drop.
+   *
+   * @returns The extracted text per fragment index.
    */
-  readBack(indices: readonly number[]): Map<number, string>;
+  probe(
+    requests: readonly { index: number; text: string }[],
+  ): Map<number, string>;
 }
 
 /**
@@ -56,11 +63,14 @@ export function sameGlyphs(a: string, b: string): boolean {
  * and deleting the others.
  *
  * Characters the standard font cannot encode (outside WinAnsi) are left out
- * and the outcome reports the text that was really written.
+ * and the outcome reports the text that was really written. If that leaves
+ * nothing visible to write, the line is left exactly as it is instead:
+ * writing would only erase it, which the user did not ask for (deleting is
+ * done by emptying the line, handled before this is reached).
  *
  * @param surface The page.
  * @param run The line.
- * @param text The new text.
+ * @param text The new text (not blank).
  * @param metrics Standard font metrics.
  * @returns The outcome.
  */
@@ -72,14 +82,25 @@ function writeWithStandardFont(
 ): TextEditOutcome {
   const fontName = standardFontFor(run.style);
   const written = stripUnsupported(text, run.style.family, metrics).text;
-  const [first, ...rest] = run.indices;
   if (written.trim() === "") {
-    run.indices.forEach((i) => surface.remove(i));
-  } else {
-    surface.replace(first, fontName, written);
-    rest.forEach((i) => surface.remove(i));
+    return {
+      runId: run.id,
+      applied: false,
+      failure: "no-font",
+      written: "",
+      substituteFont: null,
+    };
   }
-  return { runId: run.id, applied: true, written, substituteFont: fontName };
+  const [first, ...rest] = run.indices;
+  surface.replace(first, fontName, written);
+  rest.forEach((i) => surface.remove(i));
+  return {
+    runId: run.id,
+    applied: true,
+    failure: null,
+    written,
+    substituteFont: fontName,
+  };
 }
 
 /**
@@ -94,20 +115,24 @@ function writeWithStandardFont(
  * 1. Find the line by id. Ids are the object indices of the line's
  *    fragments, so an id from an older reading of a different page simply
  *    does not match and the edit is reported as not applied.
- * 2. Empty text deletes the line.
+ * 2. Empty text deletes the line; unchanged text changes nothing.
  * 3. If the line's font demonstrably has every new character
- *    (`originalFontCanWrite`), the first fragment gets the whole new text
- *    and the other fragments are removed. The line still starts where it
- *    did, in the same font.
- * 4. Otherwise the standard font replaces it straight away.
+ *    (`originalFontCanWrite`), the line becomes a candidate for keeping
+ *    its font. Otherwise the standard font replaces it straight away.
  *
- * Then every line edited in its own font is read back through PDFium's text
- * extraction. A font can lack a glyph even when the check in step 3 passed
- * (for instance a character the page only ever drew as part of a
- * ligature); PDFium then silently writes nothing for it. If the read-back
- * text differs, that line is redone in the standard font. All read-backs
- * happen in one pass because building PDFium's text page is the costly
- * part.
+ * Candidates are then checked with `TextSurface.probe`: the new text is
+ * written in the line's font into a temporary object and read back through
+ * PDFium's text extraction. A font can lack a glyph even when step 3
+ * passed (for instance a character the page only ever drew as part of a
+ * ligature); PDFium then silently writes nothing for it, and the read-back
+ * text differs. Only after that check is the line itself touched:
+ * - same text: the first fragment gets the whole new text (keeping its
+ *   font, size, spacing and place) and the other fragments are removed;
+ * - different: the standard font replaces the line.
+ * If even the standard font can write none of the text, the line is left
+ * exactly as it was and the outcome says so. Checking before changing is
+ * what makes that possible. All probes share one read-back because
+ * building PDFium's text page is the costly part.
  *
  * @param surface The loaded page.
  * @param edits The new texts by line id (already sanitised). If an id
@@ -129,7 +154,14 @@ export function applyTextEdits(
     groupFragments(snapshot.fragments).map((r) => [r.id, r]),
   );
   const outcomes = new Map<string, TextEditOutcome>();
-  const toVerify: { run: TextRun; text: string }[] = [];
+  const candidates: { run: TextRun; text: string }[] = [];
+  const keptFont = (runId: string, written: string): TextEditOutcome => ({
+    runId,
+    applied: true,
+    failure: null,
+    written,
+    substituteFont: null,
+  });
 
   const latest = new Map(edits.map((e) => [e.runId, e.text]));
   for (const [runId, text] of latest) {
@@ -138,51 +170,40 @@ export function applyTextEdits(
       outcomes.set(runId, {
         runId,
         applied: false,
+        failure: "line-not-found",
         written: "",
         substituteFont: null,
       });
-      continue;
-    }
-    if (text.trim() === "") {
+    } else if (text.trim() === "") {
       run.indices.forEach((i) => surface.remove(i));
-      outcomes.set(runId, {
-        runId,
-        applied: true,
-        written: "",
-        substituteFont: null,
-      });
-      continue;
-    }
-    const first = fragments.get(run.indices[0])!;
-    const observed = snapshot.observed.get(first.fontKey) ?? new Set<string>();
-    if (originalFontCanWrite(text, first.font, observed, metrics)) {
-      surface.setText(first.index, text);
-      run.indices.slice(1).forEach((i) => surface.remove(i));
-      toVerify.push({ run, text });
-      outcomes.set(runId, {
-        runId,
-        applied: true,
-        written: text,
-        substituteFont: null,
-      });
+      outcomes.set(runId, keptFont(runId, ""));
+    } else if (text === run.text) {
+      outcomes.set(runId, keptFont(runId, text));
     } else {
-      outcomes.set(runId, writeWithStandardFont(surface, run, text, metrics));
+      const first = fragments.get(run.indices[0])!;
+      const observed = snapshot.observed.get(first.fontKey) ?? new Set();
+      if (originalFontCanWrite(text, first.font, observed, metrics)) {
+        candidates.push({ run, text });
+      } else {
+        outcomes.set(runId, writeWithStandardFont(surface, run, text, metrics));
+      }
     }
   }
 
-  if (toVerify.length > 0) {
-    const readBack = surface.readBack(toVerify.map((v) => v.run.indices[0]));
-    for (const { run, text } of toVerify) {
-      if (!sameGlyphs(readBack.get(run.indices[0]) ?? "", text)) {
-        // Only the first fragment is left: the others were removed above.
+  if (candidates.length > 0) {
+    const probed = surface.probe(
+      candidates.map(({ run, text }) => ({ index: run.indices[0], text })),
+    );
+    for (const { run, text } of candidates) {
+      const [first, ...rest] = run.indices;
+      if (sameGlyphs(probed.get(first) ?? "", text)) {
+        surface.setText(first, text);
+        rest.forEach((i) => surface.remove(i));
+        outcomes.set(run.id, keptFont(run.id, text));
+      } else {
         outcomes.set(
           run.id,
-          writeWithStandardFont(
-            surface,
-            { ...run, indices: [run.indices[0]] },
-            text,
-            metrics,
-          ),
+          writeWithStandardFont(surface, run, text, metrics),
         );
       }
     }

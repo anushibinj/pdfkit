@@ -91,6 +91,11 @@ export interface PdfiumApi {
   FPDFBitmap_Destroy(bitmap: number): void;
 
   FPDFPageObj_NewTextObj(doc: number, font: string, fontSize: number): number;
+  FPDFPageObj_CreateTextObj(
+    doc: number,
+    font: number,
+    fontSize: number,
+  ): number;
   FPDFText_SetText(textObject: number, utf16Ptr: number): boolean;
   FPDFPageObj_CreateNewPath(x: number, y: number): number;
   FPDFPageObj_CreateNewRect(

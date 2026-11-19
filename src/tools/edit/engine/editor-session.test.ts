@@ -94,7 +94,13 @@ describe("EditorSession", () => {
       { runId: "bad id", text: "y" }, // dropped by sanitising
     ]);
     expect(textOutcomes).toEqual([
-      { runId: "4", applied: false, written: "", substituteFont: null },
+      {
+        runId: "4",
+        applied: false,
+        failure: "line-not-found",
+        written: "",
+        substituteFont: null,
+      },
     ]);
     expect(api.FPDFPage_GenerateContent).not.toHaveBeenCalled();
     expect(() => session.render(5, 0, 10)).toThrow("There is no page 6");

@@ -221,6 +221,7 @@ describe("EditTool", () => {
     const outcome = {
       runId: "0-1",
       applied: true,
+      failure: null,
       written: "Total Zed",
       substituteFont: "Helvetica",
     };

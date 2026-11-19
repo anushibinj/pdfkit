@@ -146,6 +146,7 @@ export function fakePdfium(runtime = new FakeRuntime()): {
     FPDFBitmap_GetStride: () => 0,
     FPDFBitmap_Destroy: none,
     FPDFPageObj_NewTextObj: nextHandle,
+    FPDFPageObj_CreateTextObj: nextHandle,
     FPDFText_SetText: ok,
     FPDFPageObj_CreateNewPath: nextHandle,
     FPDFPageObj_CreateNewRect: nextHandle,

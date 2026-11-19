@@ -198,6 +198,7 @@ describe("PageCanvas", () => {
     const outcome = {
       runId: "1",
       applied: true,
+      failure: null,
       written: "New",
       substituteFont: "Helvetica",
     };

@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { describeTextOutcome, shortQuote } from "./text-edit-notices";
 
-const done = { runId: "1", applied: true, substituteFont: null };
+const done = {
+  runId: "1",
+  applied: true,
+  failure: null,
+  substituteFont: null,
+};
 
 describe("shortQuote", () => {
   it("trims and shortens long text", () => {
@@ -44,8 +49,31 @@ describe("describeTextOutcome", () => {
     expect(
       describeTextOutcome(
         { runId: "9", text: "New" },
-        { runId: "9", applied: false, written: "", substituteFont: null },
+        {
+          runId: "9",
+          applied: false,
+          failure: "line-not-found",
+          written: "",
+          substituteFont: null,
+        },
       ),
     ).toBe("Could not change “New”: that line was not found on the page.");
+  });
+
+  it("explains a line left alone because no font has the characters", () => {
+    expect(
+      describeTextOutcome(
+        { runId: "1", text: "שלום" },
+        {
+          runId: "1",
+          applied: false,
+          failure: "no-font",
+          written: "",
+          substituteFont: null,
+        },
+      ),
+    ).toBe(
+      "Could not change the line to “שלום”: neither the PDF's font for it nor the standard fonts have these characters. The line was left as it was.",
+    );
   });
 });

@@ -14,7 +14,9 @@ export function shortQuote(text: string): string {
 /**
  * Explain an edit's outcome to the user when it is not simply "done".
  *
- * - Not applied: the line was not found (the page changed under it).
+ * - Not applied because the line was not found (the page changed under
+ *   it), or because no font at hand can write any of the typed characters
+ *   (the line is then left as it was).
  * - A standard font was used: the file's font for that line does not have
  *   all the typed characters, so the line looks different from its
  *   neighbours. Characters even that font cannot write are listed.
@@ -27,6 +29,9 @@ export function describeTextOutcome(
   edit: TextEdit,
   outcome: TextEditOutcome,
 ): string | null {
+  if (outcome.failure === "no-font") {
+    return `Could not change the line to “${shortQuote(edit.text)}”: neither the PDF's font for it nor the standard fonts have these characters. The line was left as it was.`;
+  }
   if (!outcome.applied) {
     return `Could not change “${shortQuote(edit.text)}”: that line was not found on the page.`;
   }

@@ -17,6 +17,7 @@ const info = {
 const outcome = {
   runId: "1",
   applied: true,
+  failure: null,
   written: "x",
   substituteFont: null,
 };

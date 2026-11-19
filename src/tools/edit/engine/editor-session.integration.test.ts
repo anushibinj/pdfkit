@@ -591,6 +591,7 @@ describe("in-place text editing with the real PDFium build", () => {
       {
         runId: line.id,
         applied: true,
+        failure: null,
         written: "full",
         substituteFont: "Times-Roman",
       },
@@ -635,6 +636,49 @@ describe("in-place text editing with the real PDFium build", () => {
     expect(
       Buffer.from(fromFile.pixels).equals(Buffer.from(preview.pixels)),
     ).toBe(true);
+  });
+
+  it("leaves a line exactly as it was when no font can write the new text", () => {
+    const line = runStarting(runsOf(chromium), "Contact");
+    const s = session();
+    s.open(chromium, "");
+    expect(s.textRuns(0)).toHaveLength(7);
+    const { textOutcomes } = s.render(0, 0, 500, [
+      { runId: line.id, text: "संपर्क" }, // Devanagari: in no font here
+    ]);
+    const saved = s.save({
+      pages: [
+        {
+          sourceIndex: 0,
+          rotation: 0,
+          objects: [],
+          textEdits: [{ runId: line.id, text: "संपर्क" }],
+        },
+      ],
+      images: [],
+    });
+    s.close();
+    expect(textOutcomes).toEqual([
+      {
+        runId: line.id,
+        applied: false,
+        failure: "no-font",
+        written: "",
+        substituteFont: null,
+      },
+    ]);
+    expect(extractText(full, saved)[0]).toContain("Contact: billing team");
+    expect(fontsDrawing(saved, "Contact")).toEqual(["BAAAAA+DejaVuSans"]);
+  });
+
+  it("keeps the font when the new text only repeats the line's first fragment", () => {
+    // "T" + "otal amount ...": a probe identical to the "T" object at the
+    // same place would be dropped by PDFium's extraction; probes sit off
+    // the page so this still keeps the font.
+    const total = runStarting(runsOf(chromium), "Total");
+    const out = saveEdits(chromium, [{ runId: total.id, text: "T" }]);
+    expect(fontsDrawing(out, "T")).toContain("BAAAAA+DejaVuSans");
+    expect(extractText(full, out)[0]).not.toContain("amount");
   });
 
   it("deletes a line whose text is emptied and ignores unknown lines", () => {

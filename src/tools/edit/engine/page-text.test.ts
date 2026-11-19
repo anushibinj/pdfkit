@@ -201,7 +201,7 @@ describe("PdfiumPageText.read (readFragment, readChars, describeFont, objectText
   });
 });
 
-describe("PdfiumPageText changes (setText, remove, replace, copyPaint, currentPosition, readBack)", () => {
+describe("PdfiumPageText changes (setText, remove, replace, copyPaint, currentPosition, fragment, probe)", () => {
   it("setText encodes the text for the object and frees the buffer", () => {
     const { api, runtime, text } = setup();
     text.read();
@@ -309,26 +309,85 @@ describe("PdfiumPageText changes (setText, remove, replace, copyPaint, currentPo
     );
   });
 
-  it("readBack reads through a new text page and closes it", () => {
-    const { api, text } = setup();
+  it("probe writes each text in the fragment's font, off the page, and reads it back", () => {
+    const { api, runtime, text, objects } = setup();
     text.read();
-    text.remove(0);
+    const probes: number[] = [];
+    api.FPDFPageObj_CreateTextObj.mockImplementation(() => {
+      probes.push(900 + probes.length);
+      return probes[probes.length - 1];
+    });
+    api.FPDFPage_InsertObject.mockImplementation((_p, o) => {
+      objects().push(o);
+    });
     api.FPDFText_LoadPage.mockReturnValue(33);
-    expect(text.readBack([0])).toEqual(new Map([[0, ""]]));
+    api.FPDFTextObj_GetText.mockImplementation((o, _tp, buf) => {
+      const value = o === 900 ? "Hit" : "Hat";
+      if (buf) runtime.writeUtf16(buf, value);
+      return (value.length + 1) * 2;
+    });
+    const out = text.probe([
+      { index: 0, text: "Hit" },
+      { index: 0, text: "Hat" },
+    ]);
+    expect(out).toEqual(new Map([[0, "Hat"]])); // same index: last wins
+    // created in the fragment's own font and size
+    expect(api.FPDFPageObj_CreateTextObj).toHaveBeenCalledWith(DOC, FONT, 12);
+    // same orientation and scale as the line, far outside the page, and
+    // the second probe further out than the first
+    const [, m1] = api.FPDFPageObj_SetMatrix.mock.calls[0];
+    const [, m2] = api.FPDFPageObj_SetMatrix.mock.calls[1];
+    const values = (ptr: number) =>
+      [0, 1, 2, 3, 4, 5].map((i) => runtime.getValue(ptr + i * 4));
+    expect(values(m1)).toEqual([2, 0, 0, 2, -100_000, -100_000]);
+    expect(values(m2)[4]).toBeLessThan(-100_000 - 1_000);
+    // both removed and freed again; the page is as it was
+    expect(objects()).toEqual([TEXT_OBJ, PATH_OBJ, HIDDEN_OBJ]);
+    expect(api.FPDFPageObj_Destroy.mock.calls).toEqual([[900], [901]]);
     expect(api.FPDFText_ClosePage).toHaveBeenLastCalledWith(33);
-    api.FPDFText_LoadPage.mockReturnValue(0);
-    expect(() => text.readBack([0])).toThrow("Could not read the text");
+    expect(runtime.leaks()).toEqual([]);
   });
 
-  it("readBack returns what PDFium extracts now", () => {
+  it("probe cleans up when reading back fails", () => {
+    const { api, text, objects } = setup();
+    text.read();
+    api.FPDFPageObj_CreateTextObj.mockReturnValue(900);
+    api.FPDFPage_InsertObject.mockImplementation((_p, o) => {
+      objects().push(o);
+    });
+    api.FPDFText_LoadPage.mockReturnValue(0);
+    expect(() => text.probe([{ index: 0, text: "x" }])).toThrow(
+      "Could not read the text",
+    );
+    expect(objects()).not.toContain(900);
+    expect(api.FPDFPageObj_Destroy).toHaveBeenCalledWith(900);
+  });
+
+  it("probe frees an object it could not set up, and never inserts it", () => {
     const { api, runtime, text } = setup();
     text.read();
-    // "Hit" plus a terminator is 8 bytes of UTF-16
-    api.FPDFTextObj_GetText.mockImplementation((_o, _tp, buf) => {
-      if (buf) runtime.writeUtf16(buf, "Hit");
-      return 8;
-    });
-    expect(text.readBack([0]).get(0)).toBe("Hit");
+    api.FPDFPageObj_CreateTextObj.mockReturnValue(900);
+    api.FPDFText_SetText.mockReturnValue(false);
+    expect(() => text.probe([{ index: 0, text: "x" }])).toThrow(
+      "write the text",
+    );
+    expect(api.FPDFPage_InsertObject).not.toHaveBeenCalled();
+    expect(api.FPDFPageObj_Destroy.mock.calls).toEqual([[900]]);
     expect(runtime.leaks()).toEqual([]);
+    api.FPDFPageObj_CreateTextObj.mockReturnValue(0);
+    expect(() => text.probe([{ index: 0, text: "x" }])).toThrow(
+      "could not create a text object",
+    );
+  });
+
+  it("probe does not free a probe the page refused to give back", () => {
+    const { api, text } = setup();
+    text.read();
+    api.FPDFPageObj_CreateTextObj.mockReturnValue(900);
+    api.FPDFPage_RemoveObject.mockReturnValue(false);
+    expect(() => text.probe([{ index: 0, text: "x" }])).toThrow(
+      "remove a probe",
+    );
+    expect(api.FPDFPageObj_Destroy).not.toHaveBeenCalled();
   });
 });
