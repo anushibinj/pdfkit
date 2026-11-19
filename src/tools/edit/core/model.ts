@@ -1,0 +1,194 @@
+/**
+ * The PDF editor's data model. Plain, JSON-serialisable types shared by the
+ * UI, the pure core and the worker, so an edit can cross the thread boundary
+ * as-is.
+ *
+ * Coordinates: every object lives in the **PDF user space of its page**
+ * (points, 1/72 inch, y axis pointing up), not in screen pixels. That keeps an
+ * object glued to the paper when the page is rotated or shown at another zoom
+ * level, and it is the space PDFium writes in. See `page-geometry.ts` and
+ * `object-frame.ts` for the conversions to and from the screen.
+ */
+
+/** An sRGB colour with 8-bit channels (0-255). */
+export interface Rgb {
+  r: number;
+  g: number;
+  b: number;
+}
+
+/** A number of 90 degree turns. */
+export type QuarterTurns = 0 | 1 | 2 | 3;
+
+/** A point or vector in a 2D coordinate space. */
+export interface Point {
+  x: number;
+  y: number;
+}
+
+/**
+ * Text font families. Each maps to one of the PDF "standard 14" fonts, which
+ * every PDF reader has built in, so nothing needs to be embedded.
+ */
+export type FontFamily = "sans" | "serif" | "mono";
+
+/**
+ * Where an object sits on its page and which way it faces.
+ *
+ * Each object has its own local coordinate system ("local space"): `u` grows
+ * to the right and `v` grows downwards, exactly like reading the object
+ * upright. `(x, y)` is the user-space position of the local origin (the
+ * object's top-left corner as it is read), and `rotation` is how many quarter
+ * turns, counter-clockwise in user space, the local axes are turned.
+ */
+export interface ObjectFrame {
+  /** Unique within the document; used by the UI only. */
+  id: string;
+  /** User-space x of the local origin, in points. */
+  x: number;
+  /** User-space y of the local origin, in points. */
+  y: number;
+  /** Counter-clockwise quarter turns of the local axes in user space. */
+  rotation: QuarterTurns;
+}
+
+/** One or more lines of text in a standard font. */
+export interface TextObject extends ObjectFrame {
+  kind: "text";
+  /** The text; "\n" separates lines. Only WinAnsi characters are allowed. */
+  text: string;
+  font: FontFamily;
+  /** Font size in points. */
+  fontSize: number;
+  color: Rgb;
+}
+
+/** A freehand pen stroke. */
+export interface InkObject extends ObjectFrame {
+  kind: "ink";
+  /** Stroke vertices in local space, in drawing order. */
+  points: Point[];
+  color: Rgb;
+  /** Pen width in points. */
+  strokeWidth: number;
+}
+
+/** Fields shared by the objects that occupy a rectangle in local space. */
+interface BoxFields {
+  /** Width of the box in local space, in points. */
+  width: number;
+  /** Height of the box in local space, in points. */
+  height: number;
+}
+
+/** An outlined rectangle. */
+export interface RectObject extends ObjectFrame, BoxFields {
+  kind: "rect";
+  color: Rgb;
+  /** Outline width in points. */
+  strokeWidth: number;
+}
+
+/** A translucent marker rectangle, blended like a highlighter pen. */
+export interface HighlightObject extends ObjectFrame, BoxFields {
+  kind: "highlight";
+  color: Rgb;
+}
+
+/**
+ * A white rectangle that also deletes the original page content under it
+ * (text and image pixels) from the saved file. See `whiteout-writer.ts`.
+ */
+export interface WhiteoutObject extends ObjectFrame, BoxFields {
+  kind: "whiteout";
+}
+
+/** A PNG or JPEG picture, such as a scanned signature. */
+export interface ImageObject extends ObjectFrame, BoxFields {
+  kind: "image";
+  /** Key into the document's image assets. */
+  imageId: string;
+}
+
+/** Anything the user can add to a page. */
+export type EditObject =
+  | TextObject
+  | InkObject
+  | RectObject
+  | HighlightObject
+  | WhiteoutObject
+  | ImageObject;
+
+/** The `kind` discriminator of {@link EditObject}. */
+export type EditObjectKind = EditObject["kind"];
+
+/** The objects that are sized by a width and a height. */
+export type BoxObject =
+  RectObject | HighlightObject | WhiteoutObject | ImageObject;
+
+/** Image formats PDFium can embed directly. */
+export type ImageMime = "image/png" | "image/jpeg";
+
+/** The bytes behind an {@link ImageObject}. Kept outside undo history. */
+export interface ImageAsset {
+  id: string;
+  mime: ImageMime;
+  /** The original file bytes (PNG or JPEG). */
+  bytes: ArrayBuffer;
+  /** Intrinsic size in pixels, used for the aspect ratio. */
+  pixelWidth: number;
+  pixelHeight: number;
+}
+
+/**
+ * The page's visible area in user space (PDFium's page bounding box: the
+ * CropBox clipped to the MediaBox). It does not have to start at (0, 0).
+ */
+export interface PageBox {
+  left: number;
+  bottom: number;
+  right: number;
+  top: number;
+}
+
+/** What the worker reports about one page of the opened file. */
+export interface PageInfo {
+  box: PageBox;
+  /** The page's own /Rotate, as clockwise quarter turns. */
+  rotation: QuarterTurns;
+}
+
+/** One page in the editor, in output order. */
+export interface EditorPage {
+  /** Stable React key, independent of the page's position. */
+  key: string;
+  /** Index of this page in the opened file. */
+  sourceIndex: number;
+  /** Clockwise quarter turns the user added on top of the page's /Rotate. */
+  rotation: QuarterTurns;
+  /** Added objects, bottom-most first (later objects paint over earlier ones). */
+  objects: EditObject[];
+}
+
+/** The undoable part of the editor: pages (order, rotation) and their objects. */
+export interface EditorDocument {
+  pages: EditorPage[];
+}
+
+/** Allowed font sizes, in points. */
+export const FONT_SIZE_LIMITS = { min: 4, max: 144 } as const;
+
+/** Allowed pen and outline widths, in points. */
+export const STROKE_WIDTH_LIMITS = { min: 0.5, max: 24 } as const;
+
+/** Longest text a single text object may hold, in UTF-16 code units. */
+export const MAX_TEXT_LENGTH = 5000;
+
+/** Most vertices a single ink stroke may hold. */
+export const MAX_INK_POINTS = 5000;
+
+/** Largest coordinate magnitude accepted, in points (about 35 metres). */
+export const MAX_COORDINATE = 100_000;
+
+/** Opacity of highlight rectangles. */
+export const HIGHLIGHT_OPACITY = 0.4;
