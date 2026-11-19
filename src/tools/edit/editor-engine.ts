@@ -36,6 +36,13 @@ export function createEditorWorkerClient(): EditorWorkerClient {
   );
 }
 
+/** Result of a render skipped because its caller aborted it while queued. */
+export const CANCELLED: ErrorResult = {
+  status: "error",
+  reason: "failed",
+  message: "Rendering was cancelled.",
+};
+
 /** Result returned for every request after {@link EditorEngine.dispose}. */
 const DISPOSED: ErrorResult = {
   status: "error",
@@ -96,17 +103,27 @@ export class EditorEngine {
   /**
    * Render a page of the unedited file.
    *
+   * Requests wait in the queue, so by the time a render reaches the front
+   * the page may have scrolled away (fast scrolling through a long file
+   * queues many). A render whose `signal` was aborted by then is skipped
+   * instead of keeping the worker busy for a bitmap nobody will show. A
+   * render already sent to the worker cannot be stopped; its result is
+   * simply ignored by the caller.
+   *
    * @param pageIndex Source page index.
    * @param rotation User quarter turns to add.
    * @param width Requested bitmap width in pixels.
-   * @returns The pixels or an error.
+   * @param signal Aborted when the caller no longer needs the result.
+   * @returns The pixels, an error, or {@link CANCELLED}.
    */
   render(
     pageIndex: number,
     rotation: QuarterTurns,
     width: number,
+    signal?: AbortSignal,
   ): Promise<RenderResult> {
     return this.enqueue(async () => {
+      if (signal?.aborted) return CANCELLED;
       const failed = await this.reopenIfStale();
       if (failed) return failed;
       return (await this.send({

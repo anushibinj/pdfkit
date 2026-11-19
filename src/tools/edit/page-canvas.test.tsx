@@ -65,7 +65,7 @@ describe("PageCanvas", () => {
         active
       />,
     );
-    expect(renderPage).toHaveBeenCalledWith(4, 1, 512);
+    expect(renderPage).toHaveBeenCalledWith(4, 1, 512, expect.any(AbortSignal));
     await waitFor(() => expect(putImageData).toHaveBeenCalled());
     const canvas = container.querySelector("canvas")!;
     expect([canvas.width, canvas.height]).toEqual([3, 2]);
@@ -136,6 +136,46 @@ describe("PageCanvas", () => {
     );
     await act(async () => finishFirst(rendered(9, 9)));
     expect(container.querySelector("canvas")!.width).toBe(4);
+  });
+
+  it("aborts its request when the inputs change or the page scrolls away", () => {
+    const signals: AbortSignal[] = [];
+    const renderPage = vi.fn(
+      (_i: number, _r: number, _w: number, signal?: AbortSignal) => {
+        if (signal) signals.push(signal);
+        return new Promise<RenderResult>(() => {});
+      },
+    );
+    const { rerender } = render(
+      <PageCanvas
+        renderPage={renderPage}
+        sourceIndex={0}
+        rotation={0}
+        width={512}
+        active
+      />,
+    );
+    rerender(
+      <PageCanvas
+        renderPage={renderPage}
+        sourceIndex={0}
+        rotation={0}
+        width={1024}
+        active
+      />,
+    );
+    expect(signals[0].aborted).toBe(true);
+    expect(signals[1].aborted).toBe(false);
+    rerender(
+      <PageCanvas
+        renderPage={renderPage}
+        sourceIndex={0}
+        rotation={0}
+        width={1024}
+        active={false}
+      />,
+    );
+    expect(signals[1].aborted).toBe(true);
   });
 
   it("shows render errors", async () => {

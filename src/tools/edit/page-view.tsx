@@ -106,6 +106,7 @@ export interface PageViewProps extends Omit<PageOverlayProps, "cssWidth"> {
     pageIndex: number,
     rotation: QuarterTurns,
     width: number,
+    signal?: AbortSignal,
   ): Promise<RenderResult>;
   onRotate(delta: 1 | -1): void;
   onMove(delta: 1 | -1): void;

@@ -119,8 +119,8 @@ service worker precache are all derived from `src/tools/registry.ts`.
 
 The service worker precaches every file in `out/` except those listed in
 `ON_FIRST_USE` in `scripts/build-sw.mjs`. The ironpress binary (~15 MB, ~6 MB
-gzipped) and the PDFium binary (~4.6 MB, ~2 MB gzipped) are on that list: each
-is cached the first time its tool loads it, so visitors who never use that
+gzipped) and PDFium (binary ~4.6 MB, ~2 MB gzipped, plus its JavaScript glue)
+are on that list: each is cached the first time its tool loads it, so visitors who never use that
 tool never download it, and the tool still works offline after its first use.
 
 ## Manual test checklist (PDF Editor)

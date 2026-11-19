@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  CANCELLED,
   EditorEngine,
   createEditorWorkerClient,
   type EditorWorkerClient,
@@ -155,6 +156,31 @@ describe("EditorEngine", () => {
     );
     expect((await engine.save({ pages: [], images: [] })).status).toBe("saved");
     expect(workers).toHaveLength(2);
+  });
+
+  it("skips a render that was aborted while it waited in the queue", async () => {
+    let release: () => void = () => {};
+    const sent: string[] = [];
+    const factory = () => ({
+      request: async (req: EditorRequest) => {
+        sent.push(req.op);
+        if (req.op === "open") await new Promise<void>((r) => (release = r));
+        return req.op === "open" ? opened : rendered;
+      },
+      terminate: () => {},
+    });
+    const engine = new EditorEngine(factory);
+    const opening = engine.open(new ArrayBuffer(1));
+    const stale = new AbortController();
+    const skipped = engine.render(0, 0, 10, stale.signal);
+    const wanted = engine.render(1, 0, 10, new AbortController().signal);
+    stale.abort(); // the page scrolled away before its turn came
+    await Promise.resolve();
+    release();
+    await opening;
+    expect(await skipped).toBe(CANCELLED);
+    expect(await wanted).toEqual(rendered);
+    expect(sent).toEqual(["open", "render"]); // only the wanted render reached the worker
   });
 
   it("keeps the worker after an ordinary failure", async () => {

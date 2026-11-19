@@ -92,7 +92,7 @@ describe("PageView", () => {
       screen.getByRole("region", { name: "Page 1 of 2" }),
     ).toBeInTheDocument();
     // source page 3, user turns 1, minimum render width (width unknown in jsdom)
-    expect(renderPage).toHaveBeenCalledWith(3, 1, 512);
+    expect(renderPage).toHaveBeenCalledWith(3, 1, 512, expect.any(AbortSignal));
     expect(
       screen.getByLabelText("Page 1 editing area").getAttribute("viewBox"),
     ).toBe("0 0 400 600");

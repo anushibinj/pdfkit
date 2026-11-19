@@ -180,7 +180,10 @@ export function PageOverlay(props: PageOverlayProps) {
       aria-label={`Page ${props.pageNumber} editing area`}
       className={cn(
         "relative block h-auto w-full select-none",
-        selecting ? "touch-pan-y" : "touch-none",
+        // Select mode: let the browser pan and pinch-zoom (the editor has no
+        // zoom of its own). Drawing tools: the browser must not take the
+        // gesture, or a stroke would scroll the page instead.
+        selecting ? "touch-manipulation" : "touch-none",
         placing ||
           tool === "ink" ||
           tool === "rect" ||

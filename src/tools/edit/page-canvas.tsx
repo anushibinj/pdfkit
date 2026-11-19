@@ -39,6 +39,7 @@ interface PageCanvasProps {
     pageIndex: number,
     rotation: QuarterTurns,
     width: number,
+    signal?: AbortSignal,
   ): Promise<RenderResult>;
   sourceIndex: number;
   /** User quarter turns (the bitmap is rendered already turned). */
@@ -54,10 +55,11 @@ interface PageCanvasProps {
  * The original page, as rendered by PDFium in the worker.
  *
  * Lifecycle: whenever the page becomes active, or its rotation or width
- * changes, a render is requested. A render that finishes after its inputs
- * changed (or the page scrolled away) is dropped via the `cancelled` flag,
- * so a slow old render can never paint over a newer one. When the page
- * scrolls far away, the canvas is shrunk to 0 x 0, which frees its memory.
+ * changes, a render is requested. When the inputs change again or the page
+ * scrolls away, that request is aborted: the engine skips it if it is still
+ * queued, and a result that arrives anyway is dropped, so a slow old render
+ * can never paint over a newer one. When the page scrolls far away, the
+ * canvas is shrunk to 0 x 0, which frees its memory.
  *
  * @param props What to render and how wide.
  * @returns A canvas stretched to its container, with a loading or error
@@ -78,19 +80,23 @@ export function PageCanvas({
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!active || !canvas) return;
-    let cancelled = false;
-    renderPage(sourceIndex, rotation, width).then((result) => {
-      if (cancelled) return;
-      if (result.status === "rendered") {
-        drawPixels(canvas, result.width, result.height, result.pixels);
-        setDrawn(true);
-        setError(null);
-      } else {
-        setError(result.message);
-      }
-    });
+    // Aborting tells the engine to skip this render if it is still queued,
+    // and tells the callback below to ignore a result that arrives anyway.
+    const controller = new AbortController();
+    renderPage(sourceIndex, rotation, width, controller.signal).then(
+      (result) => {
+        if (controller.signal.aborted) return;
+        if (result.status === "rendered") {
+          drawPixels(canvas, result.width, result.height, result.pixels);
+          setDrawn(true);
+          setError(null);
+        } else {
+          setError(result.message);
+        }
+      },
+    );
     return () => {
-      cancelled = true;
+      controller.abort();
       // Release the bitmap's memory while the page is off screen.
       canvas.width = 0;
       canvas.height = 0;

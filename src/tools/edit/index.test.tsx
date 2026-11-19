@@ -121,7 +121,12 @@ describe("EditTool", () => {
       screen.getByRole("region", { name: "Page 2 of 2" }),
     ).toBeInTheDocument();
     expect(screen.queryByText("Drop a PDF here")).toBeNull();
-    expect(engine.render).toHaveBeenCalledWith(0, 0, expect.any(Number));
+    expect(engine.render).toHaveBeenCalledWith(
+      0,
+      0,
+      expect.any(Number),
+      expect.any(AbortSignal),
+    );
   });
 
   it("asks for a password and opens the file with it", async () => {

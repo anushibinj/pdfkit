@@ -50,6 +50,7 @@ export interface PdfEditor {
     pageIndex: number,
     rotation: QuarterTurns,
     width: number,
+    signal?: AbortSignal,
   ): Promise<RenderResult>;
   /** Produce the edited file from the current document. */
   save(): Promise<SaveResult>;
@@ -166,8 +167,9 @@ export function usePdfEditor(
       pageIndex: number,
       rotation: QuarterTurns,
       width: number,
+      signal?: AbortSignal,
     ): Promise<RenderResult> =>
-      engineRef.current?.render(pageIndex, rotation, width) ??
+      engineRef.current?.render(pageIndex, rotation, width, signal) ??
       Promise.resolve(UNMOUNTED),
     [],
   );

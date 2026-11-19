@@ -187,12 +187,13 @@ describe("usePdfEditor", () => {
   });
 
   it("renders pages through the engine", async () => {
+    const signal = new AbortController().signal;
     const { engine, factory } = fakeEngine();
     const { result } = renderHook(() => usePdfEditor(factory));
     await act(async () => {
-      await result.current.renderPage(0, 1, 512);
+      await result.current.renderPage(0, 1, 512, signal);
     });
-    expect(engine.render).toHaveBeenCalledWith(0, 1, 512);
+    expect(engine.render).toHaveBeenCalledWith(0, 1, 512, signal);
   });
 
   it("close resets everything and unmount disposes the engine", async () => {

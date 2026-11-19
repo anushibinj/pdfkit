@@ -24,6 +24,7 @@ import {
 } from "../core/gestures";
 import type { EditObject, PageInfo } from "../core/model";
 import { localBounds } from "../core/object-bounds";
+import { uprightFrameAt } from "../core/object-frame";
 import { addTurns, userToView, viewSize } from "../core/page-geometry";
 import type { SavePlan } from "../core/save-plan";
 import { InvalidPlanError } from "../core/sanitize-plan";
@@ -257,23 +258,22 @@ describe("EditorSession with the real PDFium build", () => {
     const png = makePng(20, 20, (x) =>
       x < 10 ? [255, 0, 0, 255] : [0, 0, 0, 0],
     );
-    const overSquare = {
-      ...createImageObject("p", { x: 350, y: 10 }, page1, {
-        id: "png",
-        pixelWidth: 20,
-        pixelHeight: 20,
-      }),
+    // Exactly over the black square (view 350..390 x 10..50).
+    const overSquare: EditObject = {
+      id: "p",
+      kind: "image",
+      ...uprightFrameAt({ x: 350, y: 10 }, page1.box, page1.turns),
       width: 40,
       height: 40,
+      imageId: "png",
     };
-    const jpeg = {
-      ...createImageObject("j", { x: 100, y: 500 }, page1, {
-        id: "jpg",
-        pixelWidth: 8,
-        pixelHeight: 8,
-      }),
+    const jpeg: EditObject = {
+      id: "j",
+      kind: "image",
+      ...uprightFrameAt({ x: 100, y: 500 }, page1.box, page1.turns),
       width: 40,
       height: 40,
+      imageId: "jpg",
     };
     const out = saveOnFirstPage(
       [overSquare, jpeg],

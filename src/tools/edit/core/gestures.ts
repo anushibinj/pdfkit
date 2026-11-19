@@ -76,6 +76,8 @@ export const DEFAULT_BOX_SIZE: Record<
 };
 /** Default width of a placed image, as a share of the displayed page width. */
 export const IMAGE_WIDTH_SHARE = 0.4;
+/** Tallest a newly placed image may be, as a share of the page height. */
+export const IMAGE_MAX_HEIGHT_SHARE = 0.8;
 
 /** A pointer interaction in progress. */
 export type Gesture =
@@ -153,11 +155,21 @@ export function createTextObject(
 
 /**
  * A new image object at a clicked point, upright on screen, keeping the
- * picture's aspect ratio. Its width is {@link IMAGE_WIDTH_SHARE} of the
- * displayed page width, so it starts out a sensible size on any paper.
+ * picture's aspect ratio and lying entirely on the page.
+ *
+ * Sizing: the width starts at {@link IMAGE_WIDTH_SHARE} of the displayed
+ * page width, so it is a sensible size on any paper. A tall picture (a
+ * portrait scan, say) could then be taller than the page, so if the height
+ * exceeds {@link IMAGE_MAX_HEIGHT_SHARE} of the page height it is sized by
+ * height instead. Both sides scale together, so the aspect ratio holds.
+ *
+ * Placement: the click becomes the top-left corner, except near the right
+ * or bottom edge, where the corner is moved back just far enough for the
+ * whole picture to fit. Anything off the page would be cut off in the
+ * saved file.
  *
  * @param id Id for the new object.
- * @param at Click position in view space (becomes the image's top-left).
+ * @param at Click position in view space.
  * @param page The page clicked on.
  * @param asset The picture.
  * @returns The image object.
@@ -168,15 +180,28 @@ export function createImageObject(
   page: GesturePage,
   asset: Pick<ImageAsset, "id" | "pixelWidth" | "pixelHeight">,
 ): ImageObject {
-  const width = viewSize(page.box, page.turns).width * IMAGE_WIDTH_SHARE;
+  const view = viewSize(page.box, page.turns);
   const aspect =
-    asset.pixelWidth > 0 ? asset.pixelHeight / asset.pixelWidth : 1;
+    asset.pixelWidth > 0 && asset.pixelHeight > 0
+      ? asset.pixelHeight / asset.pixelWidth
+      : 1;
+  let width = view.width * IMAGE_WIDTH_SHARE;
+  let height = width * aspect;
+  const maxHeight = view.height * IMAGE_MAX_HEIGHT_SHARE;
+  if (height > maxHeight) {
+    height = maxHeight;
+    width = height / aspect;
+  }
+  const topLeft = {
+    x: Math.max(0, Math.min(at.x, view.width - width)),
+    y: Math.max(0, Math.min(at.y, view.height - height)),
+  };
   return {
     id,
     kind: "image",
-    ...uprightFrameAt(at, page.box, page.turns),
+    ...uprightFrameAt(topLeft, page.box, page.turns),
     width,
-    height: width * aspect,
+    height,
     imageId: asset.id,
   };
 }

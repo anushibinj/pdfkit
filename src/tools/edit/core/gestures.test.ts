@@ -5,6 +5,7 @@ import {
   DEFAULT_BOX_SIZE,
   DEFAULT_TEXT,
   DEFAULT_TOOL_STYLE,
+  IMAGE_MAX_HEIGHT_SHARE,
   IMAGE_WIDTH_SHARE,
   MIN_OBJECT_SIZE,
   boxFromDrag,
@@ -84,6 +85,27 @@ describe("createImageObject", () => {
     expect(img.height).toBeCloseTo(200 * IMAGE_WIDTH_SHARE);
     expect(img.imageId).toBe("asset");
     expect(originOnScreen(img, turned)).toEqual({ x: 10, y: 10 });
+  });
+
+  it("sizes tall images by height so they fit on the page", () => {
+    // 1:4 portrait on a 600 x 400 page: 240 wide would be 960 tall
+    const img = createImageObject("i", { x: 0, y: 0 }, flat, {
+      id: "a",
+      pixelWidth: 100,
+      pixelHeight: 400,
+    });
+    expect(img.height).toBeCloseTo(400 * IMAGE_MAX_HEIGHT_SHARE);
+    expect(img.width).toBeCloseTo(img.height / 4);
+  });
+
+  it("moves an image placed near an edge back onto the page", () => {
+    const img = createImageObject("i", { x: 590, y: 390 }, flat, {
+      id: "a",
+      pixelWidth: 2,
+      pixelHeight: 1,
+    });
+    // 240 x 120 image: top-left at (360, 280) so it ends at the page corner
+    expect(originOnScreen(img, flat)).toEqual({ x: 360, y: 280 });
   });
 
   it("falls back to a square for an image without a size", () => {
