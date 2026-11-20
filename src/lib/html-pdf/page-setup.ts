@@ -1,4 +1,4 @@
-import type { PageSetup, PageSizeName } from "../messages";
+import type { PageSetup, PageSizeName } from "./types";
 
 /** Paper sizes offered in the UI, in display order. */
 export const PAGE_SIZES: readonly PageSizeName[] = ["A4", "Letter", "Legal"];

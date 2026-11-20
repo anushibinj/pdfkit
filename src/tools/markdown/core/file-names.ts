@@ -1,3 +1,5 @@
+import { pdfFileNameFor } from "@/lib/format";
+
 /** Extensions accepted by the "open a Markdown file" picker. */
 const MARKDOWN_EXTENSION = /\.(md|markdown|mdown|mkd|txt)$/i;
 
@@ -35,6 +37,5 @@ export function isMarkdownFile(file: { name: string; type: string }): boolean {
  * @returns A file name ending in ".pdf".
  */
 export function pdfNameForMarkdown(sourceName?: string): string {
-  const base = (sourceName ?? "").replace(MARKDOWN_EXTENSION, "").trim();
-  return `${base || "document"}.pdf`;
+  return pdfFileNameFor(sourceName, MARKDOWN_EXTENSION);
 }

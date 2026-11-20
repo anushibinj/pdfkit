@@ -5,8 +5,8 @@ import {
   MARGIN_LIMITS_MM,
   PAGE_SIZES,
   isPageSizeName,
-} from "./core/page-setup";
-import type { PageSetup } from "./messages";
+} from "@/lib/html-pdf/page-setup";
+import type { PageSetup } from "@/lib/html-pdf/types";
 
 interface PageSettingsProps {
   value: PageSetup;

@@ -1,4 +1,4 @@
-import type { ConvertResult } from "./messages";
+import type { ConvertResult } from "./types";
 
 type ErrorReason = Extract<ConvertResult, { status: "error" }>["reason"];
 

@@ -1,4 +1,4 @@
-import type { PageSetup } from "../messages";
+import type { PageSetup } from "./types";
 
 /**
  * Anything that can lay out an HTML document (with its `<style>` CSS) into

@@ -1,4 +1,11 @@
-import { FileCode, FilePen, Lock, LockOpen, ShieldCheck } from "lucide-react";
+import {
+  CodeXml,
+  FileCode,
+  FilePen,
+  Lock,
+  LockOpen,
+  ShieldCheck,
+} from "lucide-react";
 import type { ToolDefinition } from "./types";
 
 export type { ToolDefinition } from "./types";
@@ -78,6 +85,24 @@ export const tools: ToolDefinition[] = [
     icon: FileCode,
     beta: true,
     component: () => import("./markdown"),
+  },
+  {
+    slug: "html-to-pdf",
+    name: "HTML to PDF",
+    tagline: "Turn HTML and its CSS into a PDF, locally.",
+    description:
+      "Free HTML to PDF converter that runs in your browser. Paste HTML or open a file, keep its own CSS, pick the paper size and download a PDF. Nothing is uploaded.",
+    keywords: [
+      "html to pdf",
+      "convert html to pdf",
+      "html file to pdf",
+      "save html as pdf",
+      "offline html to pdf",
+      "private html to pdf converter",
+    ],
+    icon: CodeXml,
+    beta: true,
+    component: () => import("./html"),
   },
   {
     slug: "edit",

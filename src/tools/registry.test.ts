@@ -47,6 +47,12 @@ describe("tool registry", () => {
     expect(tool?.beta).toBe(true);
   });
 
+  it("registers the HTML to PDF converter as a beta tool", () => {
+    const tool = getTool("html-to-pdf");
+    expect(tool?.name).toBe("HTML to PDF");
+    expect(tool?.beta).toBe(true);
+  });
+
   it("registers the PDF editor as a beta tool", () => {
     const tool = getTool("edit");
     expect(tool?.name).toBe("PDF Editor");
@@ -55,6 +61,11 @@ describe("tool registry", () => {
 
   it("loads the PDF editor component lazily", async () => {
     const mod = await getTool("edit")!.component();
+    expect(typeof mod.default).toBe("function");
+  });
+
+  it("loads the HTML to PDF component lazily", async () => {
+    const mod = await getTool("html-to-pdf")!.component();
     expect(typeof mod.default).toBe("function");
   });
 
