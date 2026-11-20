@@ -6,7 +6,7 @@
  */
 import init, { HtmlConverter } from "ironpress/node";
 import { beforeAll, describe, expect, it } from "vitest";
-import { allStreamText, pageSizes } from "../test-utils/pdf-inspect";
+import { allStreamText, pageSizes } from "./test-utils/pdf-inspect";
 import { IronpressEngine } from "./ironpress-engine";
 
 const doc = (css: string, body: string) =>

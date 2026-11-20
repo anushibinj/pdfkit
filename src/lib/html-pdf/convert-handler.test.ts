@@ -1,33 +1,18 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ConvertRequest } from "../messages";
 import {
   createConvertHandler,
   toErrorResult,
-  toTransferableBuffer,
   type Converter,
 } from "./convert-handler";
 
-const request: ConvertRequest = {
-  markdown: "# x",
-  css: "",
-  page: { size: "A4", marginMm: 20 },
-};
+/** Any tool's request works: the handler never looks inside it. */
+interface FakeRequest {
+  source: string;
+}
+
+const request: FakeRequest = { source: "# x" };
 
 const ctx = () => ({ progress: vi.fn() });
-
-describe("toTransferableBuffer", () => {
-  it("reuses a buffer the view fully covers", () => {
-    const bytes = new Uint8Array([1, 2, 3]);
-    expect(toTransferableBuffer(bytes)).toBe(bytes.buffer);
-  });
-
-  it("copies a partial view into an exact-size buffer", () => {
-    const big = new Uint8Array([9, 1, 2, 3, 9]);
-    const out = toTransferableBuffer(big.subarray(1, 4));
-    expect(out).not.toBe(big.buffer);
-    expect(Array.from(new Uint8Array(out))).toEqual([1, 2, 3]);
-  });
-});
 
 describe("toErrorResult", () => {
   it("classifies memory exhaustion", () => {
@@ -53,7 +38,7 @@ describe("toErrorResult", () => {
 
 describe("createConvertHandler", () => {
   it("converts and transfers the PDF buffer", async () => {
-    const converter: Converter = {
+    const converter: Converter<FakeRequest> = {
       convert: vi.fn(() => new Uint8Array([37, 80])),
     };
     const c = ctx();
@@ -79,7 +64,7 @@ describe("createConvertHandler", () => {
   });
 
   it("reports conversion errors as results instead of rejecting", async () => {
-    const converter: Converter = {
+    const converter: Converter<FakeRequest> = {
       convert: () => {
         throw new WebAssembly.RuntimeError("unreachable");
       },

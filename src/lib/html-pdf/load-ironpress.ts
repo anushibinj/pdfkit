@@ -1,4 +1,4 @@
-import type { IronpressApi } from "../core/ironpress-engine";
+import type { IronpressApi } from "./ironpress-engine";
 
 /**
  * What the wasm-bindgen glue file (`ironpress.js`) exports: a default `init`
