@@ -42,10 +42,12 @@ export function PasswordDialog({
         >
           <DialogHeader>
             <DialogTitle>Password needed</DialogTitle>
-            <DialogDescription className="break-words [overflow-wrap:anywhere]">
+            <DialogDescription className="[overflow-wrap:anywhere] break-words">
               Enter the password to open{" "}
-              <span className="break-all font-medium text-foreground">{fileName}</span>.
-              It is used only on this device.
+              <span className="text-foreground font-medium break-all">
+                {fileName}
+              </span>
+              . It is used only on this device.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-2">
@@ -64,7 +66,7 @@ export function PasswordDialog({
               className="h-11 text-base"
             />
             {wrong && (
-              <p id={errorId} role="alert" className="text-sm text-destructive">
+              <p id={errorId} role="alert" className="text-destructive text-sm">
                 Wrong password. Check it and try again.
               </p>
             )}

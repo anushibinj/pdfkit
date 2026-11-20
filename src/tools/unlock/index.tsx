@@ -5,11 +5,11 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Dropzone } from "@/components/dropzone";
 import { FileRow } from "@/components/file-row";
+import { PasswordDialog } from "@/components/password-dialog";
 import { StatusBadge } from "@/components/status-badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { formatBytes, isPdfFile, suffixedPdfName } from "@/lib/format";
-import { PasswordDialog } from "./password-dialog";
 import { useUnlockQueue, type UnlockItem } from "./use-unlock-queue";
 
 const LARGE_FILE_BYTES = 500 * 1024 * 1024;
