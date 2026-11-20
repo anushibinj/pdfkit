@@ -69,6 +69,17 @@ describe("tool registry", () => {
     expect(typeof mod.default).toBe("function");
   });
 
+  it("registers Protect PDF as a beta tool", () => {
+    const tool = getTool("protect");
+    expect(tool?.name).toBe("Protect PDF");
+    expect(tool?.beta).toBe(true);
+  });
+
+  it("loads the Protect PDF component lazily", async () => {
+    const mod = await getTool("protect")!.component();
+    expect(typeof mod.default).toBe("function");
+  });
+
   it("loads the Markdown to PDF component lazily", async () => {
     const mod = await getTool("markdown-to-pdf")!.component();
     expect(typeof mod.default).toBe("function");
