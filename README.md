@@ -16,6 +16,20 @@ Currently shipped tools:
   [ironpress](https://github.com/gastongouron/ironpress) HTML/CSS layout engine
   compiled to WASM. Paper size and margins come from the page settings, or from
   an `@page` rule in the CSS (which wins).
+- **PDF Editor** (`/tools/edit/`, beta): changes the PDF's own text in place,
+  adds text, freehand drawings, boxes, highlights and images (PNG/JPEG, such
+  as a signature), and rotates, reorders or deletes pages, using
+  [PDFium](https://pdfium.googlesource.com/pdfium/) compiled to WASM
+  ([`@embedpdf/pdfium`](https://github.com/embedpdf/embed-pdf-viewer)).
+  Editing a line rewrites its text objects in the file; nothing is painted
+  over the old text. The line keeps its own (often subset-embedded) font when
+  that font demonstrably has every typed character, and otherwise switches to
+  the closest standard font at the same position, size and colour. The
+  on-screen preview is rendered by the same code that saves, so it shows
+  exactly what the file will contain. Password-protected PDFs open with their
+  password and stay protected after saving. Text in scanned pages or inside
+  form XObjects cannot be edited, and new or substituted text is limited to
+  the standard PDF fonts (WinAnsi: English and Western European languages).
 
 Built with Next.js (App Router, static export), TypeScript (strict), Tailwind
 CSS, shadcn/ui, next-themes and Vitest. It is an installable, offline-capable PWA.
@@ -67,8 +81,8 @@ install behaviour with `pnpm build && pnpm preview` (http://localhost:5000).
 
 ## Environment
 
-| Variable               | Purpose                                                                                                                                      |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Variable               | Purpose                                                                                                                                                            |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `NEXT_PUBLIC_SITE_URL` | Public origin, e.g. `https://pdfkit.example.com`. Used for canonical URLs, Open Graph/Twitter image URLs, sitemap and robots. Defaults to `http://localhost:3000`. |
 
 ```bash
@@ -109,9 +123,45 @@ service worker precache are all derived from `src/tools/registry.ts`.
 
 The service worker precaches every file in `out/` except those listed in
 `ON_FIRST_USE` in `scripts/build-sw.mjs`. The ironpress binary (~15 MB, ~6 MB
-gzipped) is one of them: it is cached the first time the Markdown to PDF tool
-loads it, so visitors who never use that tool never download it, and the tool
-still works offline after its first use.
+gzipped) and PDFium (binary ~4.6 MB, ~2 MB gzipped, plus its JavaScript glue)
+are on that list: each is cached the first time its tool loads it, so visitors who never use that
+tool never download it, and the tool still works offline after its first use.
+
+## Manual test checklist (PDF Editor)
+
+Sample files live in `fixtures/` (`user-password.pdf` has password `hunter2`;
+`text-chromium.pdf` is printed by Chromium with embedded subset fonts, see
+`scripts/make-text-fixture.mjs`).
+
+- [ ] Opening a PDF shows every page; pages far off screen render when
+      scrolled to.
+- [ ] **Edit text** on `fixtures/text-chromium.pdf`: click "Total amount due
+      is 1250 dollars.", type `1520`, press Enter; the line keeps its font. Type
+      `Zoe` into "Contact: billing team"; it switches to Helvetica, stays red
+      and a notice says why. Esc cancels; emptying a line deletes it.
+- [ ] **Add text:** click a page and type right there; font, size and colour
+      in the panel change it. Typing `₹` shows a toast and the character is
+      removed. Double-click added text to type into it again.
+- [ ] **Draw, Box, Highlight:** drag on a page; each tool stays active for the
+      next shape. A click (no drag) makes a default-size box.
+- [ ] **Image:** pick a PNG with a transparent background, click a page; it is
+      placed at 40% of the page width and the background stays transparent in
+      the download.
+- [ ] **Select:** drag an object to move it, drag the corner handle to resize a
+      box or image; Tab to an object, arrow keys nudge it, Delete removes it,
+      Ctrl+Z / Ctrl+Shift+Z undo and redo.
+- [ ] Rotate, move and delete pages; the last page cannot be deleted.
+- [ ] **Download PDF** saves `<name>-edited.pdf`; in a PDF reader the added
+      and edited text is selectable, and the old text of an edited line can no
+      longer be found or copied.
+- [ ] `user-password.pdf`: wrong password shows "Wrong password"; `hunter2`
+      opens it; the download still asks for `hunter2`.
+- [ ] **Open another** with unsaved edits asks before discarding them; closing
+      the tab with unsaved edits asks too.
+- [ ] Offline after one use: reload with DevTools > Network > Offline, open a
+      PDF and download it.
+- [ ] At 360px width there is no horizontal scroll and drawing with a finger
+      does not scroll the page.
 
 ## Manual test checklist (Markdown to PDF)
 
@@ -163,3 +213,10 @@ Markdown to PDF uses **ironpress**, Copyright (c) 2026 Gaston Gouron, licensed
 under the **MIT License** (licence at `/wasm/LICENSE-ironpress.txt`), and
 **marked**, licensed under the **MIT License**. Fonts: Geist and
 Inter (SIL Open Font License 1.1), bundled locally.
+
+The PDF Editor uses **PDFium**, Copyright The PDFium Authors, licensed under
+the **BSD 3-Clause License** and the **Apache License 2.0** (licence at
+`/wasm/LICENSE-pdfium.txt`), compiled to WebAssembly by **@embedpdf/pdfium**,
+Copyright (c) 2024 CloudPDF, Ji Chang, licensed under the **MIT License**
+(licence at `/wasm/LICENSE-embedpdf-pdfium.txt`). Text measurements come from
+Adobe's standard font metrics via **@pdf-lib/standard-fonts** (MIT License).
