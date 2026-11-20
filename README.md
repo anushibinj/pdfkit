@@ -16,6 +16,15 @@ Currently shipped tools:
   [ironpress](https://github.com/gastongouron/ironpress) HTML/CSS layout engine
   compiled to WASM. Paper size and margins come from the page settings, or from
   an `@page` rule in the CSS (which wins).
+- **HTML to PDF** (`/tools/html-to-pdf/`, beta): lays out HTML (a full page
+  or a fragment, typed or opened from an `.html`/`.htm`/`.xhtml` file) with its
+  own CSS into a PDF, using the same ironpress engine. Files are read in the
+  encoding they declare (a `<meta charset>`, as in Word's windows-1252 "Save as
+  Web Page" output), elements with the `hidden` attribute and closed
+  `<details>`/`<dialog>` content stay hidden, and an `@page` rule in the HTML
+  sets the paper size and margins. The engine has no network access and runs
+  no JavaScript, so after converting, the page lists what it left out: images
+  that are not PNG/JPEG `data:` URLs, linked stylesheets, and scripts.
 - **PDF Editor** (`/tools/edit/`, beta): changes the PDF's own text in place,
   adds text, freehand drawings, boxes, highlights and images (PNG/JPEG, such
   as a signature), and rotates, reorders or deletes pages, using
@@ -119,13 +128,21 @@ service worker precache are all derived from `src/tools/registry.ts`.
 3. Done. `pnpm test` validates the entry; `pnpm build` generates
    `/tools/<slug>/`, its OG card, sitemap entry and precache.
 
+A tool that turns something into HTML and then into a PDF can reuse the
+ironpress pipeline in `src/lib/html-pdf/` (engine adapter and loader, page
+setup, worker handler, conversion state and the `usePdfConversion` hook) and
+the converter page components (`CodeEditor`, `PageSettings`,
+`ConversionActions`, `ConversionStatus`, `BetaNotice`), as Markdown to PDF and
+HTML to PDF do.
+
 ## Large engines and the service worker
 
 The service worker precaches every file in `out/` except those listed in
 `ON_FIRST_USE` in `scripts/build-sw.mjs`. The ironpress binary (~15 MB, ~6 MB
 gzipped) and PDFium (binary ~4.6 MB, ~2 MB gzipped, plus its JavaScript glue)
 are on that list: each is cached the first time its tool loads it, so visitors who never use that
-tool never download it, and the tool still works offline after its first use.
+tool never download it, and the tool still works offline after its first use. Markdown to PDF and
+HTML to PDF load the same ironpress files, so using either one caches the engine for both.
 
 ## Manual test checklist (PDF Editor)
 
@@ -162,6 +179,34 @@ Sample files live in `fixtures/` (`user-password.pdf` has password `hunter2`;
       PDF and download it.
 - [ ] At 360px width there is no horizontal scroll and drawing with a finger
       does not scroll the page.
+
+## Manual test checklist (HTML to PDF)
+
+`fixtures/windows-1252.html` is saved in windows-1252, as Word's "Save as Web
+Page" does, with a hidden paragraph and an image that is not embedded.
+
+- [ ] The sample invoice converts to one A4 page; **Download PDF** saves
+      `document.pdf`, and no "Some content is not in the PDF" notice appears.
+- [ ] Opening `fixtures/windows-1252.html` shows `Café “Crème brûlée”` and
+      `4,50 €` in the editor; the PDF shows them too, does not contain the
+      hidden paragraph, is named `windows-1252.pdf`, and the page says
+      "1 image was left out".
+- [ ] `<p hidden>`, a closed `<details>` body and a closed `<dialog>` do not
+      appear in the PDF; `<details open>` and `<dialog open>` do.
+- [ ] An `@page { size: A5; margin: 0 }` rule in the HTML overrides the paper
+      size and margin settings.
+- [ ] A page with `<link rel="stylesheet">`, `<script>` and an
+      `<img src="https://...">` converts, and the notice counts each of them.
+- [ ] A `.md` or `.png` file is rejected with a toast; a file over 10 MB is
+      refused.
+- [ ] Editing the HTML after converting hides the old **Download PDF** button
+      and the notice.
+- [ ] **Cancel** stops a long conversion and the next one works.
+- [ ] DevTools > Console shows no Content Security Policy errors after
+      converting (with `pnpm build && pnpm preview`, which serves the real
+      headers).
+- [ ] Offline after one conversion: reload with DevTools > Network > Offline
+      and convert again.
 
 ## Manual test checklist (Markdown to PDF)
 
@@ -209,9 +254,10 @@ The WebAssembly build is [`@jspawn/qpdf-wasm`](https://github.com/jsscheller/qpd
 (Apache-2.0). The licence text ships at `/wasm/LICENSE.txt`, a notice at
 `/wasm/NOTICE.txt`. qpdf is credited here.
 
-Markdown to PDF uses **ironpress**, Copyright (c) 2026 Gaston Gouron, licensed
-under the **MIT License** (licence at `/wasm/LICENSE-ironpress.txt`), and
-**marked**, licensed under the **MIT License**. Fonts: Geist and
+Markdown to PDF and HTML to PDF use **ironpress**, Copyright (c) 2026 Gaston
+Gouron, licensed under the **MIT License** (licence at
+`/wasm/LICENSE-ironpress.txt`); Markdown to PDF also uses **marked**, licensed
+under the **MIT License**. Fonts: Geist and
 Inter (SIL Open Font License 1.1), bundled locally.
 
 The PDF Editor uses **PDFium**, Copyright The PDFium Authors, licensed under
