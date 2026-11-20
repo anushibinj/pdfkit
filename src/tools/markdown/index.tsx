@@ -11,9 +11,9 @@ import { Dropzone } from "@/components/dropzone";
 import { PageSettings } from "@/components/page-settings";
 import { Button } from "@/components/ui/button";
 import { downloadBlob } from "@/lib/download";
-import { formatBytes } from "@/lib/format";
 import { DEFAULT_PAGE_SETUP } from "@/lib/html-pdf/page-setup";
 import type { PageSetup } from "@/lib/html-pdf/types";
+import { readSingleFile } from "@/lib/read-single-file";
 import { DEFAULT_STYLESHEET, SAMPLE_MARKDOWN } from "./core/default-stylesheet";
 import {
   MARKDOWN_ACCEPT,
@@ -45,20 +45,16 @@ export default function MarkdownTool() {
     };
 
   const openFiles = async (files: File[]) => {
-    const [file] = files;
-    if (files.length > 1)
-      toast.info(`Opened ${file.name}. One file at a time.`);
-    if (file.size > MAX_MARKDOWN_BYTES) {
-      toast.error(`${file.name} is over ${formatBytes(MAX_MARKDOWN_BYTES)}.`);
-      return;
-    }
-    try {
-      setMarkdown(await file.text());
-      setSourceName(file.name);
-      inputChanged();
-    } catch {
-      toast.error(`Could not read ${file.name}.`);
-    }
+    const opened = await readSingleFile(
+      files,
+      MAX_MARKDOWN_BYTES,
+      (file) => file.text(),
+      toast,
+    );
+    if (!opened) return;
+    setMarkdown(opened.content);
+    setSourceName(opened.file.name);
+    inputChanged();
   };
 
   const converting = state.kind === "converting";
