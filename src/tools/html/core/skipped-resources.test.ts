@@ -1,19 +1,23 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
+import { forEachStartTag, type StartTag } from "./html-start-tags";
 import {
   NO_SKIPPED_RESOURCES,
   countPhrase,
   describeSkippedResources,
-  findSkippedResources,
   isEmbeddableImageSource,
   isRunnableScript,
+  isSkippedImage,
   isStylesheetLink,
   scanHtmlForSkippedResources,
 } from "./skipped-resources";
 
-const parse = (html: string) =>
-  new DOMParser().parseFromString(html, "text/html");
-const first = <T extends Element>(html: string, selector: string) =>
-  parse(html).querySelector(selector) as T;
+/** The first start tag in `html`, as the scanner reports it. */
+function firstTag(html: string): StartTag {
+  let found: StartTag | undefined;
+  forEachStartTag(html, (tag) => (found ??= tag));
+  if (!found) throw new Error(`no start tag in ${html}`);
+  return found;
+}
 
 describe("isEmbeddableImageSource", () => {
   it.each([
@@ -40,6 +44,18 @@ describe("isEmbeddableImageSource", () => {
   });
 });
 
+describe("isSkippedImage", () => {
+  it.each([
+    ["<img src=logo.png>", true],
+    ["<img srcset='a.png 1x'>", true],
+    ["<img src='data:image/png;base64,iVBOR'>", false],
+    ["<img alt='no source'>", false],
+    ["<img src='  '>", false],
+  ])("%s -> %s", (html, expected) => {
+    expect(isSkippedImage(firstTag(html))).toBe(expected);
+  });
+});
+
 describe("isRunnableScript", () => {
   it.each([
     "<script>x()</script>",
@@ -49,10 +65,13 @@ describe("isRunnableScript", () => {
     "<script type=module>x()</script>",
     "<script type=application/x-javascript>x()</script>",
     "<script language=JavaScript>x()</script>",
+    "<svg><script>alert(1)</script></svg>",
   ])("counts %s", (html) => {
-    expect(isRunnableScript(first<HTMLScriptElement>(html, "script"))).toBe(
-      true,
-    );
+    let script: StartTag | undefined;
+    forEachStartTag(html, (tag) => {
+      if (tag.name === "script") script = tag;
+    });
+    expect(isRunnableScript(script!)).toBe(true);
   });
 
   it.each([
@@ -63,9 +82,7 @@ describe("isRunnableScript", () => {
     "<script language=vbscript>x</script>",
     "<script>   </script>",
   ])("ignores %s", (html) => {
-    expect(isRunnableScript(first<HTMLScriptElement>(html, "script"))).toBe(
-      false,
-    );
+    expect(isRunnableScript(firstTag(html))).toBe(false);
   });
 });
 
@@ -77,46 +94,47 @@ describe("isStylesheetLink", () => {
     ["<link rel=icon href=a.ico>", false],
     ["<link href=a.css>", false],
   ])("%s -> %s", (html, expected) => {
-    expect(isStylesheetLink(first<HTMLLinkElement>(html, "link"))).toBe(
-      expected,
-    );
-  });
-});
-
-describe("findSkippedResources", () => {
-  it("counts each kind of skipped resource", () => {
-    const doc = parse(`
-      <link rel=stylesheet href=https://cdn.example.com/site.css>
-      <img src="data:image/png;base64,iVBORw0KGgo=">
-      <img src="photo.jpg"><img srcset="a.png 1x"><img alt="no source">
-      <script src=app.js></script>
-      <script type=application/ld+json>{}</script>
-      <!-- <img src="commented-out.png"> -->`);
-    expect(findSkippedResources(doc)).toEqual({
-      images: 2,
-      stylesheets: 1,
-      scripts: 1,
-    });
-  });
-
-  it("finds nothing in a self-contained document", () => {
-    expect(
-      findSkippedResources(parse("<style>p{}</style><p style='x'>Hi</p>")),
-    ).toEqual(NO_SKIPPED_RESOURCES);
+    expect(isStylesheetLink(firstTag(html))).toBe(expected);
   });
 });
 
 describe("scanHtmlForSkippedResources", () => {
-  it("parses with the browser's DOMParser by default", () => {
-    expect(scanHtmlForSkippedResources("<img src=x.png>").images).toBe(1);
+  it("counts each kind of skipped resource", () => {
+    expect(
+      scanHtmlForSkippedResources(`
+        <link rel=stylesheet href=https://cdn.example.com/site.css>
+        <img src="data:image/png;base64,iVBORw0KGgo=">
+        <img src="photo.jpg"><img srcset="a.png 1x"><img alt="no source">
+        <script src=app.js></script>
+        <script type=application/ld+json>{}</script>
+        <!-- <img src="commented-out.png"> -->
+        <template><img src="inert.png"></template>`),
+    ).toEqual({ images: 2, stylesheets: 1, scripts: 1 });
   });
 
-  it("uses an injected parser", () => {
-    const parser = {
-      parseFromString: vi.fn(() => parse("<script>x</script>")),
-    };
-    expect(scanHtmlForSkippedResources("ignored", parser).scripts).toBe(1);
-    expect(parser.parseFromString).toHaveBeenCalledWith("ignored", "text/html");
+  it("finds nothing in a self-contained document", () => {
+    expect(
+      scanHtmlForSkippedResources("<style>p{}</style><p style='x'>Hi</p>"),
+    ).toEqual(NO_SKIPPED_RESOURCES);
+  });
+
+  it("handles SVG scripts (which have no .text in a DOM) without failing", () => {
+    expect(
+      scanHtmlForSkippedResources("<svg><script>alert(1)</script></svg>"),
+    ).toEqual({ images: 0, stylesheets: 0, scripts: 1 });
+  });
+
+  it("never throws on malformed input", () => {
+    for (const html of [
+      "<",
+      "<img",
+      "<!--",
+      "<script>",
+      "</",
+      "<svg><![CDATA[",
+    ]) {
+      expect(() => scanHtmlForSkippedResources(html)).not.toThrow();
+    }
   });
 });
 

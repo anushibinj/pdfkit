@@ -11,7 +11,13 @@
  * - every `<link rel="stylesheet">`, even one with a `data:` URL;
  * - every script.
  * The conversion still succeeds, which is exactly why the user has to be told.
+ *
+ * The document is read with {@link forEachStartTag}, a linear tag scanner,
+ * not `DOMParser`: parsing into a DOM makes the browser report Content
+ * Security Policy violations for the HTML's inline styles and event handler
+ * attributes (see that module for details).
  */
+import { forEachStartTag, type StartTag } from "./html-start-tags";
 
 /** How many of each kind of resource the PDF will lack. */
 export interface SkippedResources {
@@ -82,25 +88,28 @@ export function isEmbeddableImageSource(src: string): boolean {
 }
 
 /**
- * Decide whether a `<script>` element would run in a browser, following the
- * HTML standard's "prepare the script element" rules for its type:
+ * Decide whether a `<script>` would run in a browser, following the HTML
+ * standard's "prepare the script element" rules for its type:
  * - no `type` (or an empty one) and no non-empty `language`: JavaScript;
  * - no `type` but `language="x"`: the type is "text/x";
  * - otherwise the trimmed, lowercased `type` must be a JavaScript type or
  *   "module".
  * Scripts with neither a `src` nor any code are ignored: they do nothing.
  *
- * @param script A script element from a parsed document.
+ * @param script A `<script>` start tag from {@link forEachStartTag}.
  * @returns `true` when a browser would run it.
  */
-export function isRunnableScript(script: HTMLScriptElement): boolean {
-  if (!script.hasAttribute("src") && script.text.trim() === "") return false;
-  const type = script.getAttribute("type");
-  const language = script.getAttribute("language");
+export function isRunnableScript(script: StartTag): boolean {
+  const { attributes } = script;
+  if (!attributes.has("src") && (script.text ?? "").trim() === "") {
+    return false;
+  }
+  const type = attributes.get("type");
+  const language = attributes.get("language");
   let typeString: string;
-  if (type === "" || (type === null && !language)) {
+  if (type === "" || (type === undefined && !language)) {
     typeString = "text/javascript";
-  } else if (type === null) {
+  } else if (type === undefined) {
     typeString = `text/${language}`;
   } else {
     typeString = type.trim();
@@ -114,63 +123,46 @@ export function isRunnableScript(script: HTMLScriptElement): boolean {
  * its `rel` contains the token "stylesheet" but not "alternate" (alternate
  * stylesheets are off until the reader picks one).
  *
- * @param link A link element from a parsed document.
+ * @param link A `<link>` start tag from {@link forEachStartTag}.
  * @returns `true` for an applied external stylesheet.
  */
-export function isStylesheetLink(link: HTMLLinkElement): boolean {
-  const tokens = (link.getAttribute("rel") ?? "")
+export function isStylesheetLink(link: StartTag): boolean {
+  const tokens = (link.attributes.get("rel") ?? "")
     .toLowerCase()
     .split(/[\t\n\f\r ]+/);
   return tokens.includes("stylesheet") && !tokens.includes("alternate");
 }
 
 /**
- * Count what the engine will leave out of a parsed document.
+ * Decide whether an `<img>` start tag is an image the engine leaves out.
  *
  * An `<img>` with neither `src` nor `srcset` is not counted: it shows
  * nothing in a browser either. One with only `srcset` is counted, because
  * the engine reads `src` alone.
  *
- * @param doc A parsed document (for example from `DOMParser`).
- * @returns The counts.
+ * @param img An `<img>` start tag from {@link forEachStartTag}.
+ * @returns `true` when the PDF will lack this image.
  */
-export function findSkippedResources(doc: Document): SkippedResources {
-  const images = Array.from(doc.querySelectorAll("img")).filter((img) => {
-    const src = img.getAttribute("src") ?? "";
-    const hasSource = src.trim() !== "" || img.hasAttribute("srcset");
-    return hasSource && !isEmbeddableImageSource(src);
-  }).length;
-  const stylesheets = Array.from(doc.querySelectorAll("link")).filter(
-    isStylesheetLink,
-  ).length;
-  const scripts = Array.from(doc.querySelectorAll("script")).filter(
-    isRunnableScript,
-  ).length;
-  return { images, stylesheets, scripts };
-}
-
-/** The part of `DOMParser` that {@link scanHtmlForSkippedResources} uses. */
-export interface HtmlParser {
-  parseFromString(html: string, type: "text/html"): Document;
+export function isSkippedImage(img: StartTag): boolean {
+  const src = img.attributes.get("src") ?? "";
+  const hasSource = src.trim() !== "" || img.attributes.has("srcset");
+  return hasSource && !isEmbeddableImageSource(src);
 }
 
 /**
- * Parse HTML and count what the engine will leave out.
- *
- * `DOMParser` is safe for untrusted HTML: the document it creates has no
- * browsing context, so no script runs and nothing is fetched (verified in
- * Chromium: no requests, no `onerror` handlers). It also parses exactly like
- * the engine's own HTML5 parser, so the counts match what the engine sees.
+ * Count what the engine will leave out of an HTML document.
  *
  * @param html The HTML being converted.
- * @param parser Injected for tests; defaults to the browser's `DOMParser`.
  * @returns The counts.
  */
-export function scanHtmlForSkippedResources(
-  html: string,
-  parser: HtmlParser = new DOMParser(),
-): SkippedResources {
-  return findSkippedResources(parser.parseFromString(html, "text/html"));
+export function scanHtmlForSkippedResources(html: string): SkippedResources {
+  const counts = { images: 0, stylesheets: 0, scripts: 0 };
+  forEachStartTag(html, (tag) => {
+    if (tag.name === "img" && isSkippedImage(tag)) counts.images++;
+    else if (tag.name === "link" && isStylesheetLink(tag)) counts.stylesheets++;
+    else if (tag.name === "script" && isRunnableScript(tag)) counts.scripts++;
+  });
+  return counts;
 }
 
 /**
