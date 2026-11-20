@@ -15,6 +15,8 @@ export type ProtectionState =
       kind: "done";
       pdf: Blob;
       replacedRestrictions: boolean;
+      /** Digital signatures the input had; none is valid in `pdf`. */
+      invalidatedSignatures: number;
       warnings?: string;
     }
   | { kind: "already-protected" }
@@ -26,6 +28,7 @@ export type ProtectionAction =
       type: "succeed";
       pdf: Blob;
       replacedRestrictions: boolean;
+      invalidatedSignatures: number;
       warnings?: string;
     }
   /** The PDF already needs a password; nothing was changed. */
@@ -77,6 +80,7 @@ export function protectionReducer(
             kind: "done",
             pdf: action.pdf,
             replacedRestrictions: action.replacedRestrictions,
+            invalidatedSignatures: action.invalidatedSignatures,
             warnings: action.warnings,
           }
         : state;

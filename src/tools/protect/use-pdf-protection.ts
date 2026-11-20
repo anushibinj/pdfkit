@@ -49,6 +49,7 @@ export function resultToAction(result: ProtectResult): ProtectionAction {
         type: "succeed",
         pdf: new Blob([result.data], { type: "application/pdf" }),
         replacedRestrictions: result.replacedRestrictions,
+        invalidatedSignatures: result.invalidatedSignatures,
         warnings: result.warnings,
       };
     case "already-protected":
@@ -126,6 +127,7 @@ export function usePdfProtection(
       if (!client || busyRef.current) return;
       busyRef.current = true;
       const seq = ++seqRef.current;
+      /** Whether this job is still the latest (not cancelled or replaced). */
       const current = () => seq === seqRef.current;
       /** Settle the job: unlock and dispatch, unless it was cancelled. */
       const finish = (action: ProtectionAction) => {
