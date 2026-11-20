@@ -8,6 +8,19 @@ Currently shipped tools:
 - **PDF Unlocker** (`/tools/unlock/`): removes owner restrictions and decrypts
   files whose password you know, using [qpdf](https://github.com/qpdf/qpdf)
   compiled to WASM. It does not crack or guess passwords.
+- **Protect PDF** (`/tools/protect/`, beta): adds an open password to a PDF
+  with AES-256 encryption (PDF 2.0, revision 6), using the same qpdf build.
+  The password is typed twice and is also set as the owner password, so the
+  person who knows it keeps full control (an empty owner password would let
+  anyone open an AES-256 file). Before the file is offered, it is re-opened
+  to check that it is refused without the password and opens with exactly
+  the password typed. Passwords go to qpdf in a job JSON file, never as
+  command line arguments (qpdf reads an argument starting with `@` as a file
+  of arguments). Passwords longer than 127 UTF-8 bytes are refused: qpdf
+  11.0.0 writes them untruncated, while PDF 2.0 readers truncate to 127 bytes,
+  so such a file would not open in qpdf or pdf.js. A PDF that already needs a
+  password is left alone (unlock it first); one with only restrictions gets
+  the password and loses the restrictions, and the page says so.
 - **Signature Verifier** (`/tools/verify/`, beta): checks that a signed PDF is
   unmodified and its signature is cryptographically correct.
 - **Markdown to PDF** (`/tools/markdown-to-pdf/`, beta): renders Markdown
@@ -176,6 +189,32 @@ Sample files live in `fixtures/` (`user-password.pdf` has password `hunter2`;
 - [ ] Offline after one conversion: reload with DevTools > Network > Offline
       and convert again.
 
+## Manual test checklist (Protect PDF)
+
+Sample files live in `fixtures/` (`plain.pdf`, `owner-restricted.pdf`,
+`user-password.pdf` with password `hunter2`).
+
+- [ ] Choosing `plain.pdf` shows it as "Ready" with the password form; the
+      **Protect PDF** button stays disabled until both fields match.
+- [ ] A typo in **Confirm password** shows "The passwords do not match." as
+      soon as it diverges; typing the right password never shows it.
+- [ ] **Show passwords** reveals both fields; pressing it again hides them.
+- [ ] A 128-character password shows "The password is too long"; `pass²`
+      shows the "Some PDF apps may not accept this password" warning.
+- [ ] **Protect PDF** then **Download protected PDF** saves
+      `plain-protected.pdf`; Chrome, Firefox and a desktop reader ask for the
+      password, refuse a wrong one and open it with the right one.
+- [ ] Editing the password after protecting hides the old download button.
+- [ ] `user-password.pdf` shows "Already protected" with a link to the PDF
+      Unlocker; `owner-restricted.pdf` is protected and the page says its
+      restrictions were replaced.
+- [ ] A `.png` is rejected with a toast; choosing two PDFs opens the first and
+      says "Protect one file at a time".
+- [ ] The protected file unlocks in the PDF Unlocker with its password.
+- [ ] **Network tab** shows no upload and no third-party requests; it works
+      offline after one visit.
+- [ ] At 360px width there is no horizontal scroll.
+
 ## Manual test checklist (PDF Unlocker)
 
 Sample files live in `fixtures/` (`plain.pdf`, `owner-restricted.pdf`,
@@ -203,7 +242,7 @@ Sample files live in `fixtures/` (`plain.pdf`, `owner-restricted.pdf`,
 
 ## Licences
 
-PDF unlocking uses **qpdf**, Copyright (c) Jay Berkenbilt, licensed under the
+PDF unlocking and password protection use **qpdf**, Copyright (c) Jay Berkenbilt, licensed under the
 **Apache License 2.0** (qpdf is also available under the Artistic License 2.0).
 The WebAssembly build is [`@jspawn/qpdf-wasm`](https://github.com/jsscheller/qpdf-wasm)
 (Apache-2.0). The licence text ships at `/wasm/LICENSE.txt`, a notice at

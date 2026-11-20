@@ -1,4 +1,4 @@
-import { FileCode, FilePen, LockOpen, ShieldCheck } from "lucide-react";
+import { FileCode, FilePen, Lock, LockOpen, ShieldCheck } from "lucide-react";
 import type { ToolDefinition } from "./types";
 
 export type { ToolDefinition } from "./types";
@@ -24,6 +24,25 @@ export const tools: ToolDefinition[] = [
     ],
     icon: LockOpen,
     component: () => import("./unlock"),
+  },
+  {
+    slug: "protect",
+    name: "Protect PDF",
+    tagline: "Add a password to a PDF, locally.",
+    description:
+      "Free PDF password protector that runs in your browser. Add a password with AES-256 encryption so only people who know it can open the PDF. Nothing is uploaded.",
+    keywords: [
+      "protect pdf",
+      "password protect pdf",
+      "add password to pdf",
+      "encrypt pdf",
+      "lock pdf",
+      "aes-256 pdf encryption",
+      "private pdf tool",
+    ],
+    icon: Lock,
+    beta: true,
+    component: () => import("./protect"),
   },
   {
     slug: "verify",
