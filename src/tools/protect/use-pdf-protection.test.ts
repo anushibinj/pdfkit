@@ -64,11 +64,13 @@ describe("resultToAction", () => {
       status: "protected",
       data: new Uint8Array([1, 2, 3]).buffer,
       replacedRestrictions: true,
+      invalidatedSignatures: 3,
       warnings: "w",
     });
     expect(action).toMatchObject({
       type: "succeed",
       replacedRestrictions: true,
+      invalidatedSignatures: 3,
       warnings: "w",
     });
     if (action.type !== "succeed") throw new Error("unreachable");
@@ -116,6 +118,7 @@ describe("usePdfProtection", () => {
         status: "protected",
         data: new Uint8Array([9, 9]).buffer,
         replacedRestrictions: false,
+        invalidatedSignatures: 0,
       }),
     );
     const state = result.current.state;
@@ -260,6 +263,7 @@ describe("usePdfProtection", () => {
         status: "protected",
         data: new ArrayBuffer(1),
         replacedRestrictions: false,
+        invalidatedSignatures: 0,
       }),
     );
     act(() => result.current.passwordChanged());

@@ -14,6 +14,8 @@ export type ProtectResult =
       data: ArrayBuffer;
       /** The input's printing/copying/editing restrictions were replaced */
       replacedRestrictions: boolean;
+      /** Digital signatures in the input; none of them is valid in `data` */
+      invalidatedSignatures: number;
       /** Present when qpdf succeeded with warnings (exit code 3) */
       warnings?: string;
     }

@@ -20,11 +20,13 @@ describe("toProtectResult", () => {
       kind: "protected",
       pdf: new Uint8Array([1, 2, 3]),
       replacedRestrictions: true,
+      invalidatedSignatures: 2,
       warnings: "repaired",
     });
     expect(out.result).toMatchObject({
       status: "protected",
       replacedRestrictions: true,
+      invalidatedSignatures: 2,
       warnings: "repaired",
     });
     if (out.result.status !== "protected") throw new Error("unreachable");
@@ -38,6 +40,7 @@ describe("toProtectResult", () => {
       kind: "protected",
       pdf: memory.subarray(1, 3),
       replacedRestrictions: false,
+      invalidatedSignatures: 0,
     });
     if (out.result.status !== "protected") throw new Error("unreachable");
     expect(out.result.data).not.toBe(memory.buffer);
@@ -74,6 +77,7 @@ describe("createProtectHandler", () => {
       kind: "protected" as const,
       pdf: new Uint8Array([7]),
       replacedRestrictions: false,
+      invalidatedSignatures: 0,
     }));
     const c = ctx();
     const out = await createProtectHandler(

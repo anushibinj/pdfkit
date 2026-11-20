@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { QpdfJob } from "@/lib/qpdf/qpdf-job";
 import type { QpdfRun } from "@/lib/qpdf/qpdf-runner";
 import { FakeQpdfRunner } from "@/lib/qpdf/test-utils/fake-qpdf";
+import { readFixture } from "@/lib/qpdf/test-utils/node-qpdf";
 import { PdfProtector, VERIFICATION_FAILED_MESSAGE } from "./pdf-protector";
 
 const INPUT = "/job-t-in.pdf";
@@ -48,6 +49,7 @@ describe("PdfProtector.protect", () => {
       kind: "protected",
       pdf: ENCRYPTED,
       replacedRestrictions: false,
+      invalidatedSignatures: 0,
       warnings: undefined,
     });
     // probe input, encrypt, probe output, check the password
@@ -97,6 +99,7 @@ describe("PdfProtector.protect", () => {
     expect(protector.protect(pdf, "s3cret")).toMatchObject({
       kind: "protected",
       replacedRestrictions: true,
+      invalidatedSignatures: 0,
     });
   });
 
@@ -201,5 +204,12 @@ describe("PdfProtector.protect", () => {
     protector.protect(pdf, "x");
     protector.protect(pdf, "x");
     expect(runner.runs[0][1]).not.toBe(runner.runs[1][1]);
+  });
+
+  it("counts the input's digital signatures, which encryption invalidates", () => {
+    const { protector } = fakeQpdf();
+    expect(
+      protector.protect(readFixture("signed.pdf"), "s3cret"),
+    ).toMatchObject({ kind: "protected", invalidatedSignatures: 1 });
   });
 });

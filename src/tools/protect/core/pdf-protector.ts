@@ -1,3 +1,4 @@
+import { findSignatures } from "@/lib/pdf-signature-scan";
 import { probeEncryption } from "@/lib/qpdf/encryption-status";
 import {
   EXIT_ERROR,
@@ -30,6 +31,12 @@ export type ProtectOutcome =
        * replaces those settings, so the new file has no restrictions.
        */
       replacedRestrictions: boolean;
+      /**
+       * How many digital signatures the input had. Encrypting rewrites every
+       * byte the signatures cover, so none of them is valid in the new file
+       * (the original file is not changed).
+       */
+      invalidatedSignatures: number;
       /** qpdf's warnings, for example after repairing a damaged file. */
       warnings?: string;
     }
@@ -82,7 +89,12 @@ export class PdfProtector {
    *    warnings worth showing (for example, the input needed repairs).
    * 4. Verify the result before handing it over (see {@link verify}).
    *    A file that would lock its owner out must never be offered.
-   * 5. Always delete the input, output and job files, whatever happened,
+   * 5. Count the input's digital signatures (a byte scan of the input, see
+   *    `findSignatures`). A signature covers exact file bytes and encrypting
+   *    rewrites them all, so every signature is invalid in the new file.
+   *    Testing confirmed it: the Verifier calls the fixture's signature
+   *    valid before and unreadable after. The count lets the page say so.
+   * 6. Always delete the input, output and job files, whatever happened,
    *    so no copy of the document or the password stays in memory longer
    *    than needed.
    *
@@ -102,8 +114,9 @@ export class PdfProtector {
     try {
       this.qpdf.writeFile(files.input, pdf);
       const before = probeEncryption(this.qpdf, files.input);
-      if (before.kind === "password-required")
+      if (before.kind === "password-required") {
         return { kind: "already-protected" };
+      }
       if (before.kind === "unreadable") {
         return { kind: "failed", message: before.message };
       }
@@ -120,6 +133,7 @@ export class PdfProtector {
         kind: "protected",
         pdf: this.qpdf.readFile(files.output),
         replacedRestrictions: before.kind === "opens-without-password",
+        invalidatedSignatures: findSignatures(pdf).found.length,
         warnings:
           run.code === EXIT_WARNINGS
             ? friendlyQpdfMessage(run.stderr)
