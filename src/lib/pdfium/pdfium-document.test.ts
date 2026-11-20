@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { fakePdfium } from "../test-utils/fake-pdfium";
-import { FPDF_ERR, RENDER_FLAGS } from "./pdfium-api";
+import { fakePdfiumCore } from "./test-utils/fake-pdfium";
+import { FPDF_ERR, RENDER_FLAGS } from "./core-api";
 import {
   PdfOpenError,
   PdfiumDocument,
@@ -9,7 +9,7 @@ import {
 import { WasmHeap } from "./wasm-heap";
 
 function setup() {
-  const { api, runtime } = fakePdfium();
+  const { api, runtime } = fakePdfiumCore();
   const heap = new WasmHeap(runtime);
   return { api, runtime, heap };
 }
@@ -61,6 +61,22 @@ describe("PdfiumDocument", () => {
       expect.objectContaining({ reason: "password" }),
     );
     expect(runtime.leaks()).toEqual([]);
+  });
+
+  it("create makes an empty document with no file block to free", () => {
+    const { api, runtime, heap } = setup();
+    const doc = PdfiumDocument.create(api, heap);
+    expect(api.FPDF_CreateNewDocument).toHaveBeenCalledTimes(1);
+    expect(runtime.allocated).toEqual([]);
+    doc.close();
+    expect(api.FPDF_CloseDocument).toHaveBeenCalledWith(doc.handle);
+    expect(runtime.freed).toEqual([]);
+  });
+
+  it("create reports a refused document as out of memory", () => {
+    const { api, heap } = setup();
+    api.FPDF_CreateNewDocument.mockReturnValue(0);
+    expect(() => PdfiumDocument.create(api, heap)).toThrow(RangeError);
   });
 
   it("pageCount asks PDFium", () => {

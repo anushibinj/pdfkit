@@ -8,16 +8,6 @@ export interface Size {
 }
 
 /**
- * Type guard for quarter-turn counts coming from untyped input.
- *
- * @param value Anything.
- * @returns `true` for the integers 0, 1, 2 and 3.
- */
-export function isQuarterTurns(value: unknown): value is QuarterTurns {
-  return value === 0 || value === 1 || value === 2 || value === 3;
-}
-
-/**
  * Add two rotations and wrap the result into 0..3.
  *
  * `((n % 4) + 4) % 4` instead of `n % 4` because JavaScript's `%` keeps the

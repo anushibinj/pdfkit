@@ -3,8 +3,8 @@ import type { SavePage, SavePlan } from "../core/save-plan";
 import { fakeMetrics } from "../test-utils/fake-metrics";
 import { fakePdfium } from "../test-utils/fake-pdfium";
 import { applySavePlan } from "./apply-plan";
-import { PdfiumDocument } from "./pdfium-document";
-import { WasmHeap } from "./wasm-heap";
+import { PdfiumDocument } from "@/lib/pdfium/pdfium-document";
+import { WasmHeap } from "@/lib/pdfium/wasm-heap";
 import { createWriterRegistry } from "./writers/registry";
 
 function setup(pageCount: number) {

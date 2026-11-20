@@ -1,6 +1,5 @@
-import type { PageInfo, QuarterTurns } from "../core/model";
-import { isQuarterTurns } from "../core/page-geometry";
-import { FPDF_ERR, RENDER_FLAGS, type PdfiumApi } from "./pdfium-api";
+import { FPDF_ERR, RENDER_FLAGS, type PdfiumCoreApi } from "./core-api";
+import { isQuarterTurns, type PageInfo, type QuarterTurns } from "./page-box";
 import type { WasmHeap } from "./wasm-heap";
 
 /** Why a file could not be opened, from PDFium's error code. */
@@ -70,10 +69,11 @@ export class PdfiumDocument {
    * @param api The PDFium module.
    * @param heap Memory helper for that module.
    * @param handle The `FPDF_DOCUMENT`.
-   * @param dataPtr Address of the file bytes the document reads from.
+   * @param dataPtr Address of the file bytes the document reads from, or 0
+   *   for a document created empty.
    */
   private constructor(
-    private readonly api: PdfiumApi,
+    private readonly api: PdfiumCoreApi,
     private readonly heap: WasmHeap,
     readonly handle: number,
     private readonly dataPtr: number,
@@ -90,7 +90,7 @@ export class PdfiumDocument {
    * @throws {PdfOpenError} When PDFium refuses the file.
    */
   static open(
-    api: PdfiumApi,
+    api: PdfiumCoreApi,
     heap: WasmHeap,
     bytes: Uint8Array,
     password: string,
@@ -103,6 +103,28 @@ export class PdfiumDocument {
       throw new PdfOpenError(classifyOpenError(code));
     }
     return new PdfiumDocument(api, heap, handle, dataPtr);
+  }
+
+  /**
+   * Create a new, empty document (no pages), for example to draw content
+   * into and then save.
+   *
+   * There is no file behind a created document, so the file address is 0,
+   * which {@link WasmHeap.free} ignores; {@link close} therefore only
+   * closes the document. `FPDF_CreateNewDocument` can only fail when PDFium
+   * cannot allocate memory, so a failure is reported as a `RangeError`
+   * (classified as "out of memory" by the workers).
+   *
+   * @param api The PDFium module.
+   * @param heap Memory helper for that module.
+   * @returns The new document.
+   * @throws {RangeError} When PDFium could not create it.
+   */
+  static create(api: PdfiumCoreApi, heap: WasmHeap): PdfiumDocument {
+    const handle = api.FPDF_CreateNewDocument();
+    if (!handle)
+      throw new RangeError("out of memory: could not create a document");
+    return new PdfiumDocument(api, heap, handle, 0);
   }
 
   /** @returns The number of pages. */
