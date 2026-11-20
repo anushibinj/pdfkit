@@ -34,7 +34,11 @@
  *   text element inside them is not recognised;
  * - start tags that the tree builder drops are still reported: those inside
  *   `<select>` (whose parsing browsers are currently changing) and
- *   `<frameset>`.
+ *   `<frameset>`;
+ * - an unclosed `<svg>` or `<math>` that an enclosing element's end tag
+ *   closes implicitly (`<div><svg></div>`) is treated as still open: telling
+ *   that apart from an end tag the parser ignores needs the tree builder's
+ *   stack of open elements and its scope rules.
  * Everything else is checked by a differential test that compares this
  * scanner with jsdom's spec-compliant parser on generated documents.
  */
@@ -260,6 +264,7 @@ export function readTag(html: string, start: number): ReadTag | null {
   }
   const name = html.slice(start, i).toLowerCase();
   const attributes = new Map<string, string>();
+  /** Record an attribute unless one with the same name came first. */
   const add = (key: string, value: string) => {
     if (!attributes.has(key)) attributes.set(key, value);
   };

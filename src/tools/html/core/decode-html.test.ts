@@ -76,6 +76,7 @@ describe("charsetFromContent", () => {
 });
 
 describe("getAttribute", () => {
+  /** Read the first attribute of `text`, scanning all of it. */
   const read = (text: string) => {
     const b = bytes(text);
     return getAttribute(b, 0, b.length);

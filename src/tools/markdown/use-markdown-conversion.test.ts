@@ -22,6 +22,38 @@ describe("createWorkerConversionClient", () => {
     expect(client).toBeInstanceOf(WorkerClient);
     client.terminate();
   });
+
+  it("starts md2pdf.worker.ts as a module worker on the first request", async () => {
+    const created: { url: string; options: WorkerOptions | undefined }[] = [];
+    /** Records how it was constructed; never answers. */
+    class FakeWorker {
+      constructor(url: string | URL, options?: WorkerOptions) {
+        created.push({ url: String(url), options });
+      }
+      postMessage() {}
+      addEventListener() {}
+      terminate() {}
+    }
+    vi.stubGlobal("Worker", FakeWorker);
+    try {
+      const client = createWorkerConversionClient();
+      const pending = client
+        .request({
+          markdown: "# x",
+          css: "",
+          page: { size: "A4", marginMm: 20 },
+        })
+        .catch(() => "terminated");
+      expect(created).toHaveLength(1);
+      // The bundler may append a query (e.g. "?worker_file") to the URL.
+      expect(created[0].url).toMatch(/\/worker\/md2pdf\.worker\.ts(\?|$)/);
+      expect(created[0].options).toEqual({ type: "module" });
+      client.terminate();
+      await expect(pending).resolves.toBe("terminated");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
 });
 
 describe("useMarkdownConversion", () => {

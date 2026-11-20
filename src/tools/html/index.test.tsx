@@ -26,7 +26,9 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
+/** The HTML editor's text area. */
 const htmlBox = () => screen.getByLabelText(/^HTML/) as HTMLTextAreaElement;
+/** The dropzone's hidden file input. */
 const fileInput = (container: HTMLElement) =>
   container.querySelector('input[type="file"]') as HTMLInputElement;
 const pdf = new Blob(["%PDF-1.4"], { type: "application/pdf" });
@@ -131,14 +133,18 @@ describe("HtmlTool", () => {
       },
     });
     await user.click(screen.getByRole("button", { name: /Convert to PDF/ }));
-    // nothing is shown before the PDF exists
+    // nothing is shown before the PDF exists, but the live region that will
+    // announce it already does (screen readers ignore regions added late)
     expect(screen.queryByText(/not in the PDF/)).toBeNull();
+    const region = screen.getByTestId("skipped-resources-region");
+    expect(region).toHaveAttribute("aria-live", "polite");
     hook.state = { kind: "done", pdf };
     rerender(<HtmlTool />);
     const notice = screen.getByText("Some content is not in the PDF")
       .parentElement as HTMLElement;
     expect(notice).toHaveTextContent("1 image was left out");
     expect(notice).toHaveTextContent("1 linked stylesheet was left out");
+    expect(region).toContainElement(notice);
   });
 
   it("shows no notice for the self-contained sample", async () => {

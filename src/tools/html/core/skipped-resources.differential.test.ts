@@ -123,6 +123,7 @@ function resource(pick: Picker): string {
 
 /** A random piece of document around the resources. */
 function piece(pick: Picker, depth: number): string {
+  /** Content to nest inside this piece; depth is capped to keep documents small. */
   const inner = () => (depth > 2 ? resource(pick) : chunk(pick, depth + 1));
   switch (pick([0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const)) {
     case 0:
@@ -150,7 +151,7 @@ function piece(pick: Picker, depth: number): string {
     case 6:
       return `<table><tr><td>${inner()}</td></tr></table>`;
     case 7:
-      return `<svg viewBox="0 0 1 1">${pick(["<script>draw()</script>", "<style>" + resource(pick) + "</style>", "<image href=a.png/>", "<![CDATA[" + resource(pick) + "]]>", "<p>" + inner(), ""])}</svg>${inner()}`;
+      return `<svg viewBox="0 0 1 1">${pick(["<script>draw()</script>", "<style>" + resource(pick) + "</style>", "<image href=a.png/>", "<![CDATA[" + resource(pick) + "]]>", "<p>" + inner(), pick(["</p>", "</br>", "</section>", "<font color=red>", "<font>"]) + "<style>" + resource(pick) + "</style>", ""])}</svg>${inner()}`;
     case 8:
       return pick([
         "a < b ",
@@ -181,6 +182,7 @@ function chunk(pick: Picker, depth: number): string {
  * the end-of-input rules (unclosed tags, comments, raw text, scripts).
  */
 function randomDocument(random: () => number): string {
+  /** Choose one element with the seeded generator. */
   const pick: Picker = (list) => list[Math.floor(random() * list.length)];
   let html =
     pick(["", "<!doctype html>", "<!DOCTYPE html><html><head>"]) +
@@ -204,6 +206,16 @@ describe("tag scanner vs a spec-compliant parser", () => {
     "<noscript><img src=a.png></noscript>",
     "<image src=a.png><svg><image href=b.png/></svg>",
     "<img src=a.png",
+    // Foreign content breakouts: after </p>, </br> or <font color|face|size>,
+    // <style> is an HTML raw text element again; plain <font> and </div>
+    // do not break out.
+    "<svg></p><style><img src=a.png></style></svg>",
+    "<svg></br><style><img src=a.png></style></svg>",
+    "<svg><font color=red><style><img src=a.png></style></svg>",
+    "<svg><font face=x><style><img src=a.png></style></svg>",
+    "<svg><font size=3><style><img src=a.png></style></svg>",
+    "<svg><font><style><img src=a.png></style></svg>",
+    "<svg></div><style><img src=a.png></style></svg>",
   ])("agrees on %j", (html) => {
     expect(scannerSignature(html)).toEqual(domSignature(html));
   });
@@ -247,6 +259,10 @@ describe("tag scanner vs a spec-compliant parser", () => {
     ],
     ["tags dropped inside <select>", "<select><img src=a.png></select>"],
     ["tags dropped inside <frameset>", "<frameset><img src=a.png></frameset>"],
+    [
+      "an unclosed <svg> closed by an enclosing end tag",
+      "<div><svg></div><style><img src=a.png></style>",
+    ],
   ])("documents a known simplification: %s", (_label, html) => {
     // The scanner reports one skipped image where the parser builds none
     // (or an embeddable one); see "Known simplifications" in html-start-tags.

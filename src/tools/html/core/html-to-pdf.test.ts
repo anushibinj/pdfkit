@@ -5,9 +5,11 @@ import type { PageSetup } from "@/lib/html-pdf/types";
 import { BROWSER_DEFAULTS_STYLE } from "./browser-defaults";
 import { HtmlToPdfConverter } from "./html-to-pdf";
 
+/** Records what it was asked to render and returns a fixed "%PDF". */
 class SpyEngine implements PdfEngine {
   html = "";
   page: PageSetup | undefined;
+  /** Remember the HTML and page settings, then return four fake PDF bytes. */
   render(html: string, page: PageSetup) {
     this.html = html;
     this.page = page;
