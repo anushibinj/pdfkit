@@ -5,3 +5,4 @@ pnpm-lock.yaml
 public/wasm
 public/og
 src/components/ui
+fixtures/*.html

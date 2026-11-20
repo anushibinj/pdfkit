@@ -1,4 +1,4 @@
-import type { PageSetup, PageSizeName } from "../messages";
+import type { PageSetup, PageSizeName } from "./types";
 import { mmToPoints } from "./page-setup";
 import type { PdfEngine } from "./pdf-engine";
 
@@ -51,8 +51,9 @@ export class IronpressEngine implements PdfEngine {
    * leak a converter until the worker restarts.
    *
    * Sanitising is switched on explicitly (it is also ironpress's default):
-   * Markdown may contain raw HTML, and the engine then drops scripts, iframes,
-   * event handlers and `javascript:` URLs.
+   * the HTML is untrusted (typed or opened by the user, or raw HTML inside
+   * Markdown), and the engine then drops scripts, iframes, event handlers and
+   * `javascript:` URLs, so none of them can reach the PDF.
    *
    * @param html A complete HTML document.
    * @param page Paper size and margins.

@@ -1,14 +1,20 @@
 import { errorMessage, isOutOfMemory } from "@/lib/errors";
 import { toTransferableBuffer } from "@/lib/transfer";
 import type { HandlerContext, HandlerResult } from "@/lib/worker-protocol";
-import type { ConvertRequest, ConvertResult } from "../messages";
+import type { ConvertResult } from "./types";
 
-// Shared with other tools; re-exported so existing imports keep working.
-export { toTransferableBuffer } from "@/lib/transfer";
-
-/** Anything that turns a request into PDF bytes (the real one is `MarkdownToPdfConverter`). */
-export interface Converter {
-  convert(request: ConvertRequest): Uint8Array;
+/**
+ * Anything that turns a tool's request into PDF bytes, for example
+ * `MarkdownToPdfConverter` or `HtmlToPdfConverter`.
+ *
+ * @typeParam Req The tool's own request message.
+ */
+export interface Converter<Req> {
+  /**
+   * @param request The request received from the UI thread.
+   * @returns The PDF file's bytes.
+   */
+  convert(request: Req): Uint8Array;
 }
 
 /**
@@ -61,18 +67,22 @@ export function toErrorResult(
  * Every failure becomes a typed result, so the promise never rejects and the
  * UI only has to handle one shape.
  *
+ * The handler is generic over the request type, so every ironpress-based
+ * tool shares this error handling and only supplies its own converter.
+ *
+ * @typeParam Req The tool's own request message.
  * @param getConverter Resolves to a ready converter (memoised by the caller).
  * @returns The request handler.
  */
-export function createConvertHandler(
-  getConverter: () => Promise<Converter>,
+export function createConvertHandler<Req>(
+  getConverter: () => Promise<Converter<Req>>,
 ): (
-  request: ConvertRequest,
+  request: Req,
   ctx: HandlerContext,
 ) => Promise<HandlerResult<ConvertResult>> {
   return async (request, ctx) => {
     ctx.progress(0.1, "Loading the PDF engine");
-    let converter: Converter;
+    let converter: Converter<Req>;
     try {
       converter = await getConverter();
     } catch (err) {
