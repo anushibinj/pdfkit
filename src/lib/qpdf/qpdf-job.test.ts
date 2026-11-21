@@ -9,6 +9,20 @@ const job: QpdfJob = {
 };
 
 describe("runQpdfJob", () => {
+  it("writes a page selection from an empty start as JSON", () => {
+    const runner = new FakeQpdfRunner();
+    const merge: QpdfJob = {
+      empty: "",
+      outputFile: "/out.pdf",
+      pages: [
+        { file: "/a.pdf", range: "1-z" },
+        { file: "/b.pdf", password: "@--x", range: "1-z" },
+      ],
+    };
+    runQpdfJob(runner, "/j.json", merge);
+    expect(runner.jobs).toEqual([merge]);
+  });
+
   it("writes the job as JSON and points qpdf at it", () => {
     const runner = new FakeQpdfRunner(() => ({ code: 0, stderr: "" }));
     const result = runQpdfJob(runner, "/j.json", job);

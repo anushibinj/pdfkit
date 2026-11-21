@@ -67,11 +67,12 @@ describe("instantiateWasmFromUrl", () => {
 
 /**
  * Builds a fake glue module whose factory behaves like Emscripten's: it calls
- * `instantiateWasm`, waits for `done`, binds `console.warn` itself and writes
- * stderr through it when `callMain` runs.
+ * `instantiateWasm`, waits for `done`, binds `console.warn` and `console.log`
+ * itself and writes stderr and stdout through them when `callMain` runs.
  */
 interface FakeFactoryOptions {
   noInitialRun: boolean;
+  print: (line: string) => void;
   locateFile: (file: string) => string;
   instantiateWasm: (
     imports: WebAssembly.Imports,
@@ -81,9 +82,10 @@ interface FakeFactoryOptions {
 
 function fakeGlue() {
   const factory = vi.fn(async (opts: FakeFactoryOptions) => {
-    const host = (globalThis as { fakeConsole?: Pick<Console, "warn"> })
+    const host = (globalThis as { fakeConsole?: Pick<Console, "warn" | "log"> })
       .fakeConsole!;
     const warn = host.warn.bind(host);
+    const log = host.log.bind(host);
     await new Promise<void>((resolve) =>
       opts.instantiateWasm({}, () => resolve()),
     );
@@ -96,6 +98,7 @@ function fakeGlue() {
       },
       callMain: (args) => {
         warn("stderr for", args.join(" "));
+        log("stdout for", args.join(" "));
         return 3;
       },
     };
@@ -145,6 +148,25 @@ describe("loadQpdf", () => {
       stderr: "stderr for --check /a.pdf",
     });
     expect(() => fakeConsole.log("ignored")).not.toThrow();
+  });
+
+  it("captures stdout written through console.log when given a stdout log", async () => {
+    const stdout = new StderrLog();
+    const { opts } = options({ stdout });
+    const runner = await loadQpdf(opts);
+    expect(runner.run(["--show-npages", "/a.pdf"])).toEqual({
+      code: 3,
+      stderr: "stderr for --show-npages /a.pdf",
+      stdout: "stdout for --show-npages /a.pdf",
+    });
+  });
+
+  it("wires print to the stdout log, for builds that honour it", async () => {
+    const stdout = new StderrLog();
+    const { opts, factory } = options({ stdout });
+    await loadQpdf(opts);
+    factory.mock.calls[0][0].print("7");
+    expect(stdout.text()).toBe("7");
   });
 
   it("keeps capturing into the shared log after a reload", async () => {

@@ -18,6 +18,9 @@ import { StderrLog, type QpdfRunner } from "../qpdf-runner";
  * restored afterwards so other tests in the same process keep their console.
  * qpdf keeps using the bound copies, so its stderr is still captured.
  *
+ * stdout is captured too (results carry `stdout`), so tests can read output
+ * such as the page count printed by `--show-npages`.
+ *
  * @returns A runner over a fresh qpdf instance.
  */
 export async function loadNodeQpdf(): Promise<QpdfRunner> {
@@ -37,6 +40,7 @@ export async function loadNodeQpdf(): Promise<QpdfRunner> {
         ).instance,
       console,
       stderr: new StderrLog(),
+      stdout: new StderrLog(),
     });
   } finally {
     console.warn = warn;

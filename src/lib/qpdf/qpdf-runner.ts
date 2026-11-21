@@ -12,6 +12,13 @@ export interface QpdfRun {
   code: number;
   /** Everything qpdf wrote to stderr during this run, one line per `\n`. */
   stderr: string;
+  /**
+   * Everything qpdf wrote to stdout during this run, one line per `\n`
+   * (for example the count printed by `--show-npages`). Only present when
+   * the runner captures stdout: see `QpdfLoadOptions.stdout`. Most commands
+   * print nothing there, so most tools leave it off.
+   */
+  stdout?: string;
 }
 
 /**
@@ -75,11 +82,13 @@ export interface QpdfModule {
 }
 
 /**
- * Collects the lines qpdf prints to stderr.
+ * Collects the lines qpdf prints to one of its output streams.
  *
- * This qpdf build writes stderr through `console.warn` (see `load-qpdf.ts`),
- * so the loader points that at {@link StderrLog.append}. A run clears the log
- * first, so each {@link QpdfRun} carries only its own messages.
+ * This qpdf build writes stderr through `console.warn` and stdout through
+ * `console.log` (see `load-qpdf.ts`), so the loader points those at
+ * {@link StderrLog.append}: always for stderr, and for stdout when a tool asks
+ * for it (a second instance of this class). A run clears the log first, so
+ * each {@link QpdfRun} carries only its own output.
  */
 export class StderrLog {
   private lines: string[] = [];
@@ -113,25 +122,32 @@ export class EmscriptenQpdfRunner implements QpdfRunner {
   /**
    * @param module The instantiated qpdf module.
    * @param stderr The log that receives qpdf's stderr lines.
+   * @param stdout The log that receives qpdf's stdout lines, when the tool
+   *   reads stdout; without it, results carry no `stdout`.
    */
   constructor(
     private readonly module: QpdfModule,
     private readonly stderr: StderrLog,
+    private readonly stdout?: StderrLog,
   ) {}
 
   /**
    * Run qpdf. `callMain` is synchronous: the module runs to completion
-   * before it returns, so the log holds exactly this run's output afterwards.
+   * before it returns, so the logs hold exactly this run's output afterwards.
    * The arguments are copied because Emscripten's `callMain` is typed to take
    * a mutable array.
    *
    * @param args Arguments, without the program name.
-   * @returns The exit code and this run's stderr.
+   * @returns The exit code, this run's stderr and, when captured, its stdout.
    */
   run(args: readonly string[]): QpdfRun {
     this.stderr.clear();
+    this.stdout?.clear();
     const code = this.module.callMain([...args]);
-    return { code, stderr: this.stderr.text() };
+    const stderr = this.stderr.text();
+    return this.stdout
+      ? { code, stderr, stdout: this.stdout.text() }
+      : { code, stderr };
   }
 
   /**
