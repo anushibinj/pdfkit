@@ -1,9 +1,9 @@
 "use client";
 
 import { Trash2, X } from "lucide-react";
-import { useId, useState, type ReactNode } from "react";
+import { useId, type ReactNode } from "react";
+import { ColorField, NumberField, fieldClass } from "@/components/form-fields";
 import { Button } from "@/components/ui/button";
-import { hexToRgb, rgbToHex } from "@/lib/color";
 import type { ObjectPatch } from "./core/editor-state";
 import type { DrawingTool, ToolStyle } from "./core/gestures";
 import {
@@ -11,14 +11,10 @@ import {
   STROKE_WIDTH_LIMITS,
   type EditObject,
   type FontFamily,
-  type Rgb,
   type TextObject,
 } from "./core/model";
 import { stripUnsupported, type FontMetricsSource } from "./core/text-layout";
 import { cleanTypedText } from "./text-input";
-
-const fieldClass =
-  "h-11 rounded-lg border border-input bg-transparent px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm dark:bg-input/30";
 
 /** Font choices, labelled with the PDF font each one uses. */
 export const FONT_OPTIONS: readonly { value: FontFamily; label: string }[] = [
@@ -38,106 +34,6 @@ export const TOOL_HINTS: Record<DrawingTool, string> = {
   rect: "Drag on a page to draw a box.",
   highlight: "Drag over text to highlight it.",
 };
-
-/**
- * Force a number into a range.
- *
- * @param n The number.
- * @param limits Inclusive range.
- * @returns The clamped number.
- */
-function clamp(n: number, limits: { min: number; max: number }): number {
-  return Math.min(limits.max, Math.max(limits.min, n));
-}
-
-interface NumberFieldProps {
-  label: string;
-  value: number;
-  limits: { min: number; max: number };
-  step?: number;
-  onChange(value: number): void;
-}
-
-/**
- * A labelled number input that tolerates being cleared while typing.
- *
- * The text the user types is kept as a draft, so emptying the field to type
- * a new value does not snap the old number back under the cursor. Every
- * valid number is clamped and reported at once; the draft is dropped on
- * blur, showing the value actually in use.
- *
- * @param props Label, value, range and change handler.
- * @returns The field.
- */
-export function NumberField({
-  label,
-  value,
-  limits,
-  step = 1,
-  onChange,
-}: NumberFieldProps) {
-  const id = useId();
-  const [draft, setDraft] = useState<string | null>(null);
-  return (
-    <div className="flex shrink-0 flex-col gap-1">
-      <label htmlFor={id} className="text-sm font-medium">
-        {label}
-      </label>
-      <input
-        id={id}
-        type="number"
-        inputMode="decimal"
-        min={limits.min}
-        max={limits.max}
-        step={step}
-        className={`${fieldClass} w-24`}
-        value={draft ?? String(Math.round(value * 100) / 100)}
-        onChange={(e) => {
-          setDraft(e.target.value);
-          const n = Number(e.target.value);
-          if (e.target.value.trim() !== "" && Number.isFinite(n))
-            onChange(clamp(n, limits));
-        }}
-        onBlur={() => setDraft(null)}
-      />
-    </div>
-  );
-}
-
-/**
- * A labelled colour picker.
- *
- * @param props Label, colour and change handler.
- * @returns The field.
- */
-export function ColorField({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: Rgb;
-  onChange(value: Rgb): void;
-}) {
-  const id = useId();
-  return (
-    <div className="flex shrink-0 flex-col gap-1">
-      <label htmlFor={id} className="text-sm font-medium">
-        {label}
-      </label>
-      <input
-        id={id}
-        type="color"
-        className="border-input h-11 w-16 cursor-pointer rounded-lg border bg-transparent p-1"
-        value={rgbToHex(value)}
-        onChange={(e) => {
-          const rgb = hexToRgb(e.target.value);
-          if (rgb) onChange(rgb);
-        }}
-      />
-    </div>
-  );
-}
 
 /**
  * A labelled font family picker.
