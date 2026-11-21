@@ -124,7 +124,10 @@ export function fakePdfium(runtime = new FakeRuntime()): {
   const defaults: { [K in keyof PdfiumFunctions]: PdfiumFunctions[K] } = {
     FPDF_GetLastError: () => 0,
     FPDF_LoadMemDocument: nextHandle,
+    FPDF_CreateNewDocument: nextHandle,
     FPDF_CloseDocument: none,
+    FPDF_ImportPagesByIndex: ok,
+    FPDFPage_New: nextHandle,
     FPDF_GetPageCount: () => 1,
     FPDF_LoadPage: nextHandle,
     FPDF_ClosePage: none,

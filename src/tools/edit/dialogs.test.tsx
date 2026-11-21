@@ -44,6 +44,41 @@ describe("PasswordPrompt", () => {
     expect(onCancel).toHaveBeenCalled();
   });
 
+  it("says by default that the edited file keeps the password", () => {
+    render(
+      <PasswordPrompt
+        fileName="a.pdf"
+        wrong={false}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("dialog")).toHaveTextContent(
+      "the edited file keeps the same password",
+    );
+  });
+
+  it("shows a custom note and cancel label", async () => {
+    const user = userEvent.setup();
+    const onCancel = vi.fn();
+    render(
+      <PasswordPrompt
+        fileName="a.pdf"
+        wrong={false}
+        onSubmit={vi.fn()}
+        onCancel={onCancel}
+        note="The organized file has no password."
+        cancelLabel="Skip this file"
+      />,
+    );
+    expect(screen.getByRole("dialog")).toHaveTextContent(
+      "The organized file has no password.",
+    );
+    expect(screen.getByRole("dialog")).not.toHaveTextContent("keeps the same");
+    await user.click(screen.getByRole("button", { name: "Skip this file" }));
+    expect(onCancel).toHaveBeenCalled();
+  });
+
   it("does not submit twice while busy", async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
@@ -78,5 +113,30 @@ describe("DiscardDialog", () => {
       <DiscardDialog open={false} onKeep={onKeep} onDiscard={onDiscard} />,
     );
     expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("shows custom wording when given", async () => {
+    const user = userEvent.setup();
+    const onDiscard = vi.fn();
+    render(
+      <DiscardDialog
+        open
+        onKeep={vi.fn()}
+        onDiscard={onDiscard}
+        title="Start over?"
+        description="The board has not been downloaded."
+        keepLabel="Keep the board"
+        discardLabel="Start over"
+      />,
+    );
+    expect(screen.getByRole("dialog")).toHaveTextContent("Start over?");
+    expect(screen.getByRole("dialog")).toHaveTextContent(
+      "The board has not been downloaded.",
+    );
+    expect(
+      screen.getByRole("button", { name: "Keep the board" }),
+    ).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Start over" }));
+    expect(onDiscard).toHaveBeenCalled();
   });
 });

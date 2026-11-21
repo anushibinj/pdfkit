@@ -53,7 +53,9 @@ export function extractText(
     const n = full.FPDFText_CountChars(text);
     const buf = pdfium.wasmExports.malloc((n + 1) * 2);
     full.FPDFText_GetText(text, 0, n, buf);
-    pages.push(pdfium.UTF16ToString(buf));
+    // With no characters PDFium writes nothing, not even the terminator, so
+    // the (uninitialised) buffer must not be decoded.
+    pages.push(n > 0 ? pdfium.UTF16ToString(buf) : "");
     pdfium.wasmExports.free(buf);
     full.FPDFText_ClosePage(text);
     full.FPDF_ClosePage(page);

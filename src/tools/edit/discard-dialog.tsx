@@ -14,35 +14,50 @@ interface DiscardDialogProps {
   open: boolean;
   onKeep(): void;
   onDiscard(): void;
+  /** Dialog title; defaults to the editor's wording. */
+  title?: string;
+  /** Explanation under the title; defaults to the editor's wording. */
+  description?: string;
+  /** Label of the button that keeps the work. */
+  keepLabel?: string;
+  /** Label of the button that discards it. */
+  discardLabel?: string;
 }
 
 /**
- * Confirm closing a file that has edits not yet downloaded.
+ * Confirm throwing away work that has not been downloaded yet. The wording
+ * defaults to the PDF editor's ("Discard your edits?"); other tools pass
+ * their own.
  *
- * @param props Whether it is shown, and the two choices.
+ * @param props Whether it is shown, the two choices and optional wording.
  * @returns The dialog (renders nothing while closed).
  */
-export function DiscardDialog({ open, onKeep, onDiscard }: DiscardDialogProps) {
+export function DiscardDialog({
+  open,
+  onKeep,
+  onDiscard,
+  title = "Discard your edits?",
+  description = "Your changes have not been downloaded yet. Opening another file discards them.",
+  keepLabel = "Keep editing",
+  discardLabel = "Discard edits",
+}: DiscardDialogProps) {
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onKeep()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Discard your edits?</DialogTitle>
-          <DialogDescription>
-            Your changes have not been downloaded yet. Opening another file
-            discards them.
-          </DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <Button variant="outline" className="min-h-11" onClick={onKeep}>
-            Keep editing
+            {keepLabel}
           </Button>
           <Button
             variant="destructive"
             className="min-h-11"
             onClick={onDiscard}
           >
-            Discard edits
+            {discardLabel}
           </Button>
         </DialogFooter>
       </DialogContent>

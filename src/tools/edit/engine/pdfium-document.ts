@@ -105,6 +105,25 @@ export class PdfiumDocument {
     return new PdfiumDocument(api, heap, handle, dataPtr);
   }
 
+  /**
+   * Create a new, empty document (no pages, no encryption), for building a
+   * file out of pages of other documents.
+   *
+   * It reads no file bytes, so it owns no file block: the stored address
+   * is 0, which `close` passes to `free` and `free` ignores.
+   *
+   * @param api The PDFium module.
+   * @param heap Memory helper for that module.
+   * @returns The open, empty document.
+   * @throws {RangeError} When PDFium cannot allocate it (out of memory).
+   */
+  static create(api: PdfiumApi, heap: WasmHeap): PdfiumDocument {
+    const handle = api.FPDF_CreateNewDocument();
+    if (!handle)
+      throw new RangeError("out of memory: could not create a document");
+    return new PdfiumDocument(api, heap, handle, 0);
+  }
+
   /** @returns The number of pages. */
   pageCount(): number {
     return this.api.FPDF_GetPageCount(this.handle);

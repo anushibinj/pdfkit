@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useId, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,7 +20,18 @@ interface PasswordPromptProps {
   busy?: boolean;
   onSubmit(password: string): void;
   onCancel(): void;
+  /**
+   * What happens to the password, after "Enter the password to open X.".
+   * Defaults to the editor's wording (the edited file keeps it).
+   */
+  note?: ReactNode;
+  /** Label of the button that gives up on the file. Defaults to "Cancel". */
+  cancelLabel?: string;
 }
+
+/** The editor's note: the password stays on the device and on the file. */
+export const KEEPS_PASSWORD_NOTE =
+  "It is used only on this device, and the edited file keeps the same password.";
 
 /**
  * Ask for the password of an encrypted PDF.
@@ -37,6 +48,8 @@ export function PasswordPrompt({
   busy = false,
   onSubmit,
   onCancel,
+  note = KEEPS_PASSWORD_NOTE,
+  cancelLabel = "Cancel",
 }: PasswordPromptProps) {
   const [password, setPassword] = useState("");
   const inputId = useId();
@@ -58,8 +71,7 @@ export function PasswordPrompt({
               <span className="text-foreground font-medium break-all">
                 {fileName}
               </span>
-              . It is used only on this device, and the edited file keeps the
-              same password.
+              . {note}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-2">
@@ -90,7 +102,7 @@ export function PasswordPrompt({
               className="min-h-11"
               onClick={onCancel}
             >
-              Cancel
+              {cancelLabel}
             </Button>
             <Button
               type="submit"

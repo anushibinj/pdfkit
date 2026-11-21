@@ -63,6 +63,23 @@ describe("PdfiumDocument", () => {
     expect(runtime.leaks()).toEqual([]);
   });
 
+  it("create makes an empty document that owns no file bytes", () => {
+    const { api, runtime, heap } = setup();
+    const doc = PdfiumDocument.create(api, heap);
+    expect(api.FPDF_CreateNewDocument).toHaveBeenCalledTimes(1);
+    expect(runtime.allocated).toEqual([]);
+    doc.close();
+    expect(api.FPDF_CloseDocument).toHaveBeenCalledWith(doc.handle);
+    // free(0) is never forwarded to the allocator
+    expect(runtime.freed).toEqual([]);
+  });
+
+  it("create reports an allocation failure as out of memory", () => {
+    const { api, heap } = setup();
+    api.FPDF_CreateNewDocument.mockReturnValue(0);
+    expect(() => PdfiumDocument.create(api, heap)).toThrow(RangeError);
+  });
+
   it("pageCount asks PDFium", () => {
     const { api, heap } = setup();
     api.FPDF_GetPageCount.mockReturnValue(7);

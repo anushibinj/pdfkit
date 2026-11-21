@@ -41,7 +41,30 @@ export interface PdfiumApi {
 
   FPDF_GetLastError(): number;
   FPDF_LoadMemDocument(dataPtr: number, size: number, password: string): number;
+  /** A new, empty, unencrypted document (the page organizer's output). */
+  FPDF_CreateNewDocument(): number;
   FPDF_CloseDocument(doc: number): void;
+  /**
+   * Copy pages of `srcDoc` into `destDoc`, inserted together at `index`.
+   * Objects the pages share are copied once per call.
+   */
+  FPDF_ImportPagesByIndex(
+    destDoc: number,
+    srcDoc: number,
+    indicesPtr: number,
+    length: number,
+    index: number,
+  ): boolean;
+  /**
+   * Insert an empty page of `width` x `height` points at `index`. Returns
+   * the loaded page, which the caller must close.
+   */
+  FPDFPage_New(
+    doc: number,
+    index: number,
+    width: number,
+    height: number,
+  ): number;
   FPDF_GetPageCount(doc: number): number;
   FPDF_LoadPage(doc: number, index: number): number;
   FPDF_ClosePage(page: number): void;
