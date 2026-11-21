@@ -58,6 +58,17 @@ describe("tool registry", () => {
     expect(typeof mod.default).toBe("function");
   });
 
+  it("registers Merge PDFs as a beta tool", () => {
+    const tool = getTool("merge");
+    expect(tool?.name).toBe("Merge PDFs");
+    expect(tool?.beta).toBe(true);
+  });
+
+  it("loads the Merge PDFs component lazily", async () => {
+    const mod = await getTool("merge")!.component();
+    expect(typeof mod.default).toBe("function");
+  });
+
   it("loads the Markdown to PDF component lazily", async () => {
     const mod = await getTool("markdown-to-pdf")!.component();
     expect(typeof mod.default).toBe("function");

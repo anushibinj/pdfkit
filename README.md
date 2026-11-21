@@ -10,6 +10,13 @@ Currently shipped tools:
   compiled to WASM. It does not crack or guess passwords.
 - **Signature Verifier** (`/tools/verify/`, beta): checks that a signed PDF is
   unmodified and its signature is cryptographically correct.
+- **Merge PDFs** (`/tools/merge/`, beta): combines several PDFs into one, in
+  the order you choose, using the same qpdf WASM build as the unlocker (no
+  extra download). Pages are copied as PDF objects, so nothing is re-rendered
+  or re-compressed; links, comments and form fields stay. Password-protected
+  files open with their password. Bookmarks and document properties are not
+  carried over, the result is not encrypted, and digital signatures in the
+  inputs are not valid in it.
 - **Markdown to PDF** (`/tools/markdown-to-pdf/`, beta): renders Markdown
   (CommonMark + GitHub Flavored Markdown, via [marked](https://marked.js.org))
   with your own CSS into a PDF, using the
@@ -176,6 +183,27 @@ Sample files live in `fixtures/` (`user-password.pdf` has password `hunter2`;
 - [ ] Offline after one conversion: reload with DevTools > Network > Offline
       and convert again.
 
+## Manual test checklist (Merge PDFs)
+
+Use the files in `fixtures/` (`user-password.pdf` has password `hunter2`).
+
+- [ ] Add `plain.pdf` and `text-chromium.pdf`: each shows "Ready" and its page
+      count; with one file, the button is disabled and says to add another.
+- [ ] Move the second file up; the order numbers change and focus stays on the
+      moved row's button. The first row cannot move up, the last cannot move down.
+- [ ] **Merge PDFs**, then **Download merged PDF** saves `plain-merged.pdf`;
+      it opens with every page in the chosen order and text is selectable.
+- [ ] Add `user-password.pdf`: the password dialog opens; a wrong password
+      shows "Wrong password"; `hunter2` makes it "Ready". "Skip this file"
+      leaves an **Enter password** button and blocks merging until it is
+      unlocked or removed.
+- [ ] A `.txt` file is rejected with a toast; a renamed non-PDF shows
+      "Cannot open" and blocks merging until removed.
+- [ ] Changing the list after merging hides the old download button.
+- [ ] While merging, the drop area and every list button are disabled.
+- [ ] Offline after one use: reload with DevTools > Network > Offline and merge again.
+- [ ] At 360px width there is no horizontal scroll.
+
 ## Manual test checklist (PDF Unlocker)
 
 Sample files live in `fixtures/` (`plain.pdf`, `owner-restricted.pdf`,
@@ -203,7 +231,7 @@ Sample files live in `fixtures/` (`plain.pdf`, `owner-restricted.pdf`,
 
 ## Licences
 
-PDF unlocking uses **qpdf**, Copyright (c) Jay Berkenbilt, licensed under the
+PDF unlocking and merging use **qpdf**, Copyright (c) Jay Berkenbilt, licensed under the
 **Apache License 2.0** (qpdf is also available under the Artistic License 2.0).
 The WebAssembly build is [`@jspawn/qpdf-wasm`](https://github.com/jsscheller/qpdf-wasm)
 (Apache-2.0). The licence text ships at `/wasm/LICENSE.txt`, a notice at
