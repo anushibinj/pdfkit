@@ -7,14 +7,14 @@ import {
   Download,
   KeyRound,
   Trash2,
-  TriangleAlert,
   X,
 } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
+import { BetaNotice } from "@/components/beta-notice";
 import { Dropzone } from "@/components/dropzone";
 import { FileRow } from "@/components/file-row";
-import { PasswordDialog } from "@/components/password-dialog";
+import { PasswordPrompt } from "@/components/password-prompt";
 import { StatusBadge } from "@/components/status-badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -108,6 +108,35 @@ export function focusMoveButton(
   if (target && !target.disabled) target.focus();
 }
 
+/**
+ * Pick the file whose password prompt is shown, if any.
+ *
+ * A file whose typed password is being checked comes first, so its prompt
+ * stays open (showing "Opening…") instead of closing and reappearing when
+ * the password turns out to be wrong. Otherwise it is the first file that
+ * needs a password and whose prompt the user has not skipped.
+ *
+ * @param items The list.
+ * @returns The file, whether its password is being checked, and whether the
+ *   last password typed for it was wrong; `undefined` when no prompt is due.
+ */
+export function passwordPromptFor(
+  items: readonly MergeItem[],
+): { item: MergeItem; busy: boolean; wrong: boolean } | undefined {
+  const checking = items.find(
+    ({ status }) =>
+      (status.kind === "queued" || status.kind === "checking") &&
+      status.password !== undefined &&
+      !status.promptSkipped,
+  );
+  if (checking) return { item: checking, busy: true, wrong: false };
+  const locked = items.find(
+    ({ status }) => status.kind === "needs-password" && !status.dismissed,
+  );
+  if (locked?.status.kind !== "needs-password") return undefined;
+  return { item: locked, busy: false, wrong: locked.status.wrong };
+}
+
 /** The badge on one file's row. */
 function StatusFor({ status }: { status: FileStatus }) {
   switch (status.kind) {
@@ -165,36 +194,24 @@ export default function MergeTool() {
     add(files);
   };
 
-  // The first file that still needs a password and was not skipped.
-  const promptItem = items.find(
-    (i) => i.status.kind === "needs-password" && !i.status.dismissed,
-  );
+  const prompt = passwordPromptFor(items);
 
   return (
     <div className="space-y-6">
-      <Alert
-        role="note"
-        className="border-yellow-300 bg-yellow-50 text-yellow-950 dark:border-yellow-800 dark:bg-yellow-950/40 dark:text-yellow-100"
-      >
-        <TriangleAlert aria-hidden="true" />
-        <AlertTitle>Beta: what is and is not kept</AlertTitle>
-        <AlertDescription className="text-yellow-900 dark:text-yellow-200">
-          <ul className="list-disc space-y-1 pl-4">
-            <li>
-              Every page is copied as it is: text, images, links, comments and
-              form fields stay, and nothing is re-compressed.
-            </li>
-            <li>
-              Bookmarks (the outline) and document properties such as the title
-              are not carried over.
-            </li>
-            <li>
-              The merged file has no password, and digital signatures in the
-              original files are no longer valid in it.
-            </li>
-          </ul>
-        </AlertDescription>
-      </Alert>
+      <BetaNotice title="Beta: what is and is not kept">
+        <li>
+          Every page is copied as it is: text, images, links, comments and form
+          fields stay, and nothing is re-compressed.
+        </li>
+        <li>
+          Bookmarks (the outline) and document properties such as the title are
+          not carried over.
+        </li>
+        <li>
+          The merged file has no password, and digital signatures in the
+          original files are no longer valid in it.
+        </li>
+      </BetaNotice>
 
       <Dropzone
         accept=".pdf,application/pdf"
@@ -302,13 +319,15 @@ export default function MergeTool() {
         </section>
       )}
 
-      {promptItem && promptItem.status.kind === "needs-password" && (
-        <PasswordDialog
-          key={promptItem.id}
-          fileName={promptItem.file.name}
-          wrong={promptItem.status.wrong}
-          onSubmit={(password) => submitPassword(promptItem.id, password)}
-          onCancel={() => dismissPassword(promptItem.id)}
+      {prompt && (
+        <PasswordPrompt
+          key={prompt.item.id}
+          fileName={prompt.item.file.name}
+          wrong={prompt.wrong}
+          busy={prompt.busy}
+          note="The merged file will not have a password."
+          onSubmit={(password) => submitPassword(prompt.item.id, password)}
+          onCancel={() => dismissPassword(prompt.item.id)}
         />
       )}
     </div>

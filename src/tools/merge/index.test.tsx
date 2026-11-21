@@ -25,6 +25,7 @@ import MergeTool, {
   focusMoveButton,
   outcomeAnnouncement,
   pagesLabel,
+  passwordPromptFor,
   summaryText,
 } from "./index";
 
@@ -206,16 +207,27 @@ describe("MergeTool", () => {
     render(<MergeTool />);
     const dialog = screen.getByRole("dialog");
     expect(dialog).toHaveTextContent("locked.pdf");
+    expect(dialog).toHaveTextContent(/merged file will not have a password/);
     expect(within(dialog).getByRole("alert")).toHaveTextContent(
       /Wrong password/,
     );
     await user.type(within(dialog).getByLabelText("Password"), "hunter2");
-    await user.click(within(dialog).getByRole("button", { name: "Unlock" }));
+    await user.click(within(dialog).getByRole("button", { name: "Open" }));
     expect(hook.submitPassword).toHaveBeenCalledWith("locked", "hunter2");
-    await user.click(
-      within(dialog).getByRole("button", { name: "Skip this file" }),
-    );
+    await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
     expect(hook.dismissPassword).toHaveBeenCalledWith("locked");
+  });
+
+  it("keeps the prompt open while the typed password is checked", () => {
+    hook.state.items = [
+      item("locked", { kind: "checking", password: "hunter2" }),
+    ];
+    render(<MergeTool />);
+    expect(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Opening…",
+      }),
+    ).toBeDisabled();
   });
 
   it("offers a skipped password prompt again", async () => {
@@ -227,6 +239,50 @@ describe("MergeTool", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
     await user.click(screen.getByRole("button", { name: /Enter password/ }));
     expect(hook.reopenPassword).toHaveBeenCalledWith("locked");
+  });
+});
+
+describe("passwordPromptFor", () => {
+  const locked = (dismissed: boolean, wrong = false): FileStatus => ({
+    kind: "needs-password",
+    wrong,
+    dismissed,
+  });
+
+  it("prefers a file whose typed password is being checked", () => {
+    const items = [
+      item("a", locked(false)),
+      item("b", { kind: "queued", password: "pw" }),
+    ];
+    expect(passwordPromptFor(items)).toEqual({
+      item: items[1],
+      busy: true,
+      wrong: false,
+    });
+  });
+
+  it("otherwise asks for the first locked file that was not skipped", () => {
+    const items = [
+      item("a", locked(true)),
+      item("b", locked(false, true)),
+      item("c", locked(false)),
+    ];
+    expect(passwordPromptFor(items)).toEqual({
+      item: items[1],
+      busy: false,
+      wrong: true,
+    });
+  });
+
+  it("asks nothing when no file needs a password, or all were skipped", () => {
+    expect(passwordPromptFor([item("a", ready(1))])).toBeUndefined();
+    expect(passwordPromptFor([item("a", locked(true))])).toBeUndefined();
+    expect(
+      passwordPromptFor([
+        item("a", { kind: "checking", password: "x", promptSkipped: true }),
+        item("b", { kind: "checking" }),
+      ]),
+    ).toBeUndefined();
   });
 });
 

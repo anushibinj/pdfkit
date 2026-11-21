@@ -130,6 +130,15 @@ describe("statusFromInspection", () => {
       ),
     ).toEqual({ kind: "error", reason: "out-of-memory", message: "m" });
   });
+
+  it("keeps a skipped prompt skipped", () => {
+    expect(
+      statusFromInspection({ status: "wrong-password" }, "x", true),
+    ).toEqual({ kind: "needs-password", wrong: true, dismissed: true });
+    expect(
+      statusFromInspection({ status: "password-required" }, undefined, true),
+    ).toEqual({ kind: "needs-password", wrong: false, dismissed: true });
+  });
 });
 
 describe("mergeReducer: the list", () => {
@@ -211,6 +220,45 @@ describe("mergeReducer: the list", () => {
       id: "a",
     });
     expect(reopened.items[0].status).toMatchObject({ dismissed: false });
+    expect(mergeReducer(reopened, { type: "reopen-password", id: "a" })).toBe(
+      reopened,
+    );
+  });
+
+  it("remembers a prompt closed while its password is checked", () => {
+    const checking = run(
+      state([
+        item("a", { kind: "needs-password", wrong: false, dismissed: false }),
+      ]),
+      { type: "submit-password", id: "a", password: "nope" },
+      { type: "check-started", id: "a" },
+      { type: "dismiss-password", id: "a" },
+    );
+    expect(checking.items[0].status).toEqual({
+      kind: "checking",
+      password: "nope",
+      promptSkipped: true,
+    });
+    expect(mergeReducer(checking, { type: "dismiss-password", id: "a" })).toBe(
+      checking,
+    );
+    // A wrong password then waits behind "Enter password" instead of
+    // reopening the prompt the user just closed.
+    const answered = mergeReducer(checking, {
+      type: "checked",
+      id: "a",
+      result: { status: "wrong-password" },
+    });
+    expect(answered.items[0].status).toEqual({
+      kind: "needs-password",
+      wrong: true,
+      dismissed: true,
+    });
+  });
+
+  it("ignores closing the prompt of a file checked without a password", () => {
+    const s = state([item("a", { kind: "checking" })]);
+    expect(mergeReducer(s, { type: "dismiss-password", id: "a" })).toBe(s);
   });
 
   it("moves files up and down, and not past either end", () => {

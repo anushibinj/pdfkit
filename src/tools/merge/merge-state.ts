@@ -2,9 +2,12 @@ import type { FailureReason, InspectResult } from "./messages";
 
 /** Where one file is, from the UI's point of view. */
 export type FileStatus =
-  /** Waiting to be checked. `password` is set after the user typed one. */
-  | { kind: "queued"; password?: string }
-  | { kind: "checking"; password?: string }
+  /**
+   * Waiting to be checked. `password` is set after the user typed one;
+   * `promptSkipped` when they then closed the prompt before the answer came.
+   */
+  | { kind: "queued"; password?: string; promptSkipped?: boolean }
+  | { kind: "checking"; password?: string; promptSkipped?: boolean }
   /** Opens fine; `password` (if any) is the one that opened it. */
   | { kind: "ready"; pageCount: number; password?: string }
   /**
@@ -127,19 +130,27 @@ export function nextToCheck(
  *
  * @param result What inspecting the file found.
  * @param password The password it was checked with, if any.
+ * @param promptSkipped The user closed the password prompt while this check
+ *   ran; a password problem then waits behind "Enter password" instead of
+ *   reopening the prompt they just closed.
  * @returns The new status.
  */
 export function statusFromInspection(
   result: InspectResult,
   password: string | undefined,
+  promptSkipped = false,
 ): FileStatus {
   switch (result.status) {
     case "inspected":
       return { kind: "ready", pageCount: result.pageCount, password };
     case "password-required":
-      return { kind: "needs-password", wrong: false, dismissed: false };
+      return {
+        kind: "needs-password",
+        wrong: false,
+        dismissed: promptSkipped,
+      };
     case "wrong-password":
-      return { kind: "needs-password", wrong: true, dismissed: false };
+      return { kind: "needs-password", wrong: true, dismissed: promptSkipped };
     case "error":
       return { kind: "error", reason: result.reason, message: result.message };
   }
@@ -231,14 +242,16 @@ export function mergeReducer(
     }
     case "check-started":
       return updateItem(state, action.id, ({ status }) =>
-        status.kind === "queued"
-          ? { kind: "checking", password: status.password }
-          : undefined,
+        status.kind === "queued" ? { ...status, kind: "checking" } : undefined,
       );
     case "checked":
       return updateItem(state, action.id, ({ status }) =>
         status.kind === "checking"
-          ? statusFromInspection(action.result, status.password)
+          ? statusFromInspection(
+              action.result,
+              status.password,
+              status.promptSkipped,
+            )
           : undefined,
       );
     case "submit-password": {
@@ -251,14 +264,27 @@ export function mergeReducer(
       return next === state ? state : withItems(next, next.items);
     }
     case "dismiss-password":
-    case "reopen-password": {
-      const dismissed = action.type === "dismiss-password";
+      return updateItem(state, action.id, ({ status }) => {
+        if (status.kind === "needs-password" && !status.dismissed) {
+          return { ...status, dismissed: true };
+        }
+        // Closed while its typed password is checked: remember it, so a
+        // wrong password does not reopen the prompt (statusFromInspection).
+        if (
+          (status.kind === "queued" || status.kind === "checking") &&
+          status.password !== undefined &&
+          !status.promptSkipped
+        ) {
+          return { ...status, promptSkipped: true };
+        }
+        return undefined;
+      });
+    case "reopen-password":
       return updateItem(state, action.id, ({ status }) =>
-        status.kind === "needs-password" && status.dismissed !== dismissed
-          ? { ...status, dismissed }
+        status.kind === "needs-password" && status.dismissed
+          ? { ...status, dismissed: false }
           : undefined,
       );
-    }
     case "move": {
       if (locked) return state;
       const from = state.items.findIndex((i) => i.id === action.id);
