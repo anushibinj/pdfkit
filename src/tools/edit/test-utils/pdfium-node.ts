@@ -1,10 +1,9 @@
 /**
  * Test-only helpers that run the real PDFium WebAssembly build in Node and
- * build small fixture files. Node only (uses fs and zlib).
+ * build small fixture files. Node only.
  */
-import { init, type WrappedPdfiumModule } from "@embedpdf/pdfium";
-import { readFileSync } from "node:fs";
-import { createRequire } from "node:module";
+import type { WrappedPdfiumModule } from "@embedpdf/pdfium";
+import { loadNodePdfiumModule } from "@/lib/pdfium/test-utils/pdfium-node";
 import type { PdfiumApi } from "../engine/pdfium-api";
 
 /** The full PDFium module (for inspection helpers the editor never needs). */
@@ -19,12 +18,7 @@ export async function loadNodePdfium(): Promise<{
   api: PdfiumApi;
   full: FullPdfium;
 }> {
-  const require = createRequire(import.meta.url);
-  const wasmBinary = readFileSync(
-    require.resolve("@embedpdf/pdfium/pdfium.wasm"),
-  );
-  const full = await init({ wasmBinary } as never);
-  full.PDFiumExt_Init();
+  const full = await loadNodePdfiumModule();
   return { api: full as unknown as PdfiumApi, full };
 }
 

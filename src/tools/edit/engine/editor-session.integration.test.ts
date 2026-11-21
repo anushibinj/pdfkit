@@ -40,7 +40,7 @@ import {
 } from "../test-utils/pdfium-node";
 import { EditorSession, MAX_RENDER_WIDTH } from "./editor-session";
 import type { PdfiumApi } from "./pdfium-api";
-import { PdfOpenError } from "./pdfium-document";
+import { PdfOpenError } from "@/lib/pdfium/pdfium-document";
 
 let api: PdfiumApi;
 let full: FullPdfium;

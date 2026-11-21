@@ -1,6 +1,7 @@
 import type { WrappedPdfiumModule } from "@embedpdf/pdfium";
 import { describe, expect, it, vi } from "vitest";
-import { asPdfiumApi, loadPdfium, type PdfiumGlue } from "./load-pdfium";
+import type { PdfiumGlue } from "@/lib/pdfium/load-pdfium";
+import { asPdfiumApi, loadPdfium } from "./load-pdfium";
 
 describe("asPdfiumApi", () => {
   it("returns the module unchanged (the check happens at compile time)", () => {

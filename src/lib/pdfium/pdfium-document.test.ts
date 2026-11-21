@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { fakePdfium } from "../test-utils/fake-pdfium";
 import { FPDF_ERR, RENDER_FLAGS } from "./pdfium-api";
 import {
   PdfOpenError,
   PdfiumDocument,
   classifyOpenError,
 } from "./pdfium-document";
+import { fakeDocumentApi } from "./test-utils/fake-pdfium";
 import { WasmHeap } from "./wasm-heap";
 
 function setup() {
-  const { api, runtime } = fakePdfium();
+  const { api, runtime } = fakeDocumentApi();
   const heap = new WasmHeap(runtime);
   return { api, runtime, heap };
 }

@@ -9,7 +9,7 @@ import {
 } from "../core/text-runs";
 import { PAGE_OBJECT_TEXT, type PdfiumApi } from "./pdfium-api";
 import type { TextSurface } from "./text-edits";
-import type { WasmHeap } from "./wasm-heap";
+import type { WasmHeap } from "@/lib/pdfium/wasm-heap";
 import { check } from "./writers/object-writer";
 
 /** Text render modes that paint glyphs and do not clip: fill, stroke, both. */

@@ -1,6 +1,5 @@
-import type { PageInfo, QuarterTurns } from "../core/model";
-import { isQuarterTurns } from "../core/page-geometry";
-import { FPDF_ERR, RENDER_FLAGS, type PdfiumApi } from "./pdfium-api";
+import { isQuarterTurns, type PageInfo, type QuarterTurns } from "./page-types";
+import { FPDF_ERR, RENDER_FLAGS, type PdfiumDocumentApi } from "./pdfium-api";
 import type { WasmHeap } from "./wasm-heap";
 
 /** Why a file could not be opened, from PDFium's error code. */
@@ -73,7 +72,7 @@ export class PdfiumDocument {
    * @param dataPtr Address of the file bytes the document reads from.
    */
   private constructor(
-    private readonly api: PdfiumApi,
+    private readonly api: PdfiumDocumentApi,
     private readonly heap: WasmHeap,
     readonly handle: number,
     private readonly dataPtr: number,
@@ -90,7 +89,7 @@ export class PdfiumDocument {
    * @throws {PdfOpenError} When PDFium refuses the file.
    */
   static open(
-    api: PdfiumApi,
+    api: PdfiumDocumentApi,
     heap: WasmHeap,
     bytes: Uint8Array,
     password: string,

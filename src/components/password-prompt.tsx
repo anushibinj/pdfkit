@@ -18,6 +18,12 @@ interface PasswordPromptProps {
   wrong: boolean;
   /** A password is being checked. */
   busy?: boolean;
+  /**
+   * One sentence on what happens to the password in this tool, shown after
+   * "It is used only on this device." (e.g. "The edited file keeps the same
+   * password.").
+   */
+  note?: string;
   onSubmit(password: string): void;
   onCancel(): void;
 }
@@ -26,7 +32,8 @@ interface PasswordPromptProps {
  * Ask for the password of an encrypted PDF.
  *
  * The password only goes to the PDF engine in this tab's worker. Mount it
- * with `key={fileName}` so the field starts empty for every file.
+ * with `key={fileName}` so the field starts empty for every file. Shared by
+ * the tools that open one PDF at a time (editor, splitter).
  *
  * @param props File name, state and callbacks.
  * @returns A modal dialog.
@@ -35,6 +42,7 @@ export function PasswordPrompt({
   fileName,
   wrong,
   busy = false,
+  note,
   onSubmit,
   onCancel,
 }: PasswordPromptProps) {
@@ -58,8 +66,7 @@ export function PasswordPrompt({
               <span className="text-foreground font-medium break-all">
                 {fileName}
               </span>
-              . It is used only on this device, and the edited file keeps the
-              same password.
+              . It is used only on this device.{note ? ` ${note}` : ""}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-2">

@@ -10,15 +10,17 @@
  * `object-frame.ts` for the conversions to and from the screen.
  */
 
+// Page types shared with other PDFium tools; re-exported so the editor keeps
+// one place to import its model from.
+import type { QuarterTurns } from "@/lib/pdfium/page-types";
+export type { PageBox, PageInfo, QuarterTurns } from "@/lib/pdfium/page-types";
+
 /** An sRGB colour with 8-bit channels (0-255). */
 export interface Rgb {
   r: number;
   g: number;
   b: number;
 }
-
-/** A number of 90 degree turns. */
-export type QuarterTurns = 0 | 1 | 2 | 3;
 
 /** A point or vector in a 2D coordinate space. */
 export interface Point {
@@ -124,24 +126,6 @@ export interface ImageAsset {
   /** Intrinsic size in pixels, used for the aspect ratio. */
   pixelWidth: number;
   pixelHeight: number;
-}
-
-/**
- * The page's visible area in user space (PDFium's page bounding box: the
- * CropBox clipped to the MediaBox). It does not have to start at (0, 0).
- */
-export interface PageBox {
-  left: number;
-  bottom: number;
-  right: number;
-  top: number;
-}
-
-/** What the worker reports about one page of the opened file. */
-export interface PageInfo {
-  box: PageBox;
-  /** The page's own /Rotate, as clockwise quarter turns. */
-  rotation: QuarterTurns;
 }
 
 /** One page in the editor, in output order. */

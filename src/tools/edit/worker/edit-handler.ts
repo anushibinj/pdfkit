@@ -6,7 +6,7 @@ import { isQuarterTurns } from "../core/page-geometry";
 import { InvalidPlanError } from "../core/sanitize-plan";
 import type { TextRun } from "../core/text-runs";
 import type { PageRender } from "../engine/editor-session";
-import { PdfOpenError } from "../engine/pdfium-document";
+import { PdfOpenError } from "@/lib/pdfium/pdfium-document";
 import type { EditorRequest, EditorResult, ErrorResult } from "../messages";
 
 /** What the handler needs from the worker's session (`EditorSession`). */

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { friendlyQpdfMessage, isInvalidPassword, isOutOfMemory } from "./qpdf-run";
+import { isOutOfMemory } from "@/lib/errors";
+import { friendlyQpdfMessage, isInvalidPassword } from "./qpdf-output";
 
 describe("qpdf output helpers", () => {
   it("detects invalid password messages", () => {

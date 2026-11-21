@@ -4,7 +4,6 @@ import type { PageBox, QuarterTurns } from "./model";
 import {
   addTurns,
   boxSize,
-  isQuarterTurns,
   userToView,
   viewSize,
   viewToUser,
@@ -17,15 +16,6 @@ const view = (turns: QuarterTurns, x: number, y: number) => {
   const p = applyToPoint(userToView(box, turns), { x, y });
   return { x: Math.round(p.x * 1000) / 1000, y: Math.round(p.y * 1000) / 1000 };
 };
-
-describe("isQuarterTurns", () => {
-  it.each([0, 1, 2, 3])("accepts %d", (n) => {
-    expect(isQuarterTurns(n)).toBe(true);
-  });
-  it.each([4, -1, 1.5, "1", null, undefined])("rejects %j", (v) => {
-    expect(isQuarterTurns(v)).toBe(false);
-  });
-});
 
 describe("addTurns", () => {
   it.each([
