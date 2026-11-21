@@ -20,6 +20,27 @@ export function suffixedPdfName(name: string, suffix: string): string {
   return `${base}${suffix}.pdf`;
 }
 
+/**
+ * Name the PDF made from a source file: "notes.md" becomes "notes.pdf".
+ *
+ * Only an extension matched by `extension` is removed, so a name with some
+ * other extension keeps it ("archive.tar" -> "archive.tar.pdf") instead of
+ * losing part of its name. With no source file (text typed into an editor),
+ * or a name that is empty after the extension is removed and the rest is
+ * trimmed, the result is "document.pdf".
+ *
+ * @param sourceName The opened file's name, if any.
+ * @param extension Matches the extensions to drop; must be anchored with `$`.
+ * @returns A file name ending in ".pdf".
+ */
+export function pdfFileNameFor(
+  sourceName: string | undefined,
+  extension: RegExp,
+): string {
+  const base = (sourceName ?? "").replace(extension, "").trim();
+  return `${base || "document"}.pdf`;
+}
+
 /** True when the file name or MIME type indicates a PDF. */
 export function isPdfFile(file: { name: string; type: string }): boolean {
   return file.type === "application/pdf" || /\.pdf$/i.test(file.name);

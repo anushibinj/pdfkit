@@ -1,114 +1,161 @@
-import type { ConsoleCapture } from "./console-capture";
-import type { QpdfModule } from "./qpdf-module";
+/**
+ * A small, tool-agnostic interface over the qpdf command line compiled to
+ * WebAssembly, plus its implementation on top of the Emscripten module.
+ *
+ * Tools depend on {@link QpdfRunner}, not on Emscripten, so their logic can be
+ * unit tested with a fake and the engine can be replaced without touching them.
+ */
 
-/** What one qpdf command produced. */
+/** The outcome of one qpdf invocation. */
 export interface QpdfRun {
-  /** 0 success, 2 error, 3 success with warnings (see `qpdf-output.ts`). */
+  /** Process exit code (see `EXIT_*` in `qpdf-output.ts`). */
   code: number;
-  stdout: string;
+  /** Everything qpdf wrote to stderr during this run, one line per `\n`. */
   stderr: string;
 }
 
 /**
- * Unique file names for one piece of work in qpdf's in-memory file system.
- *
- * Every name handed out is remembered, so {@link QpdfRunner.withJob} can
- * delete all of them afterwards. Names look like `/job-3-in.pdf`, the shape
- * `friendlyQpdfMessage` strips from qpdf's messages.
+ * What a tool needs from a loaded qpdf: run commands against a private,
+ * in-memory file system.
  */
-export class QpdfJob {
-  private readonly used: string[] = [];
-
-  /** @param prefix Unique per job, e.g. "/job-3". */
-  constructor(private readonly prefix: string) {}
-
+export interface QpdfRunner {
   /**
-   * Reserve a file name for this job.
+   * Run qpdf once, like `qpdf <args...>` on a command line.
    *
-   * @param name A short name such as "in.pdf".
-   * @returns The full path, e.g. "/job-3-in.pdf".
+   * @param args Arguments, without the program name.
+   * @returns The exit code and the stderr of this run only.
    */
-  path(name: string): string {
-    const path = `${this.prefix}-${name}`;
-    if (!this.used.includes(path)) this.used.push(path);
-    return path;
-  }
-
-  /** @returns Every path reserved so far. */
-  paths(): readonly string[] {
-    return this.used;
-  }
-}
-
-/**
- * What code that drives qpdf needs: run commands and move files in and out
- * of its memory file system. Implemented by {@link QpdfRunner}; tests pass
- * fakes.
- */
-export interface QpdfEngine {
   run(args: readonly string[]): QpdfRun;
-  writeFile(path: string, bytes: Uint8Array): void;
+  /**
+   * Create or replace a file in the in-memory file system.
+   *
+   * @param path Absolute path, for example "/job-1-in.pdf".
+   * @param data The file's bytes.
+   */
+  writeFile(path: string, data: Uint8Array): void;
+  /**
+   * Read a file from the in-memory file system.
+   *
+   * @param path Absolute path.
+   * @returns The file's bytes. The view may point into WebAssembly memory, so
+   *   copy it (see `toTransferableBuffer`) before transferring it.
+   * @throws When the file does not exist.
+   */
   readFile(path: string): Uint8Array;
+  /**
+   * Check whether a file exists.
+   *
+   * @param path Absolute path.
+   * @returns `true` if it exists.
+   */
   exists(path: string): boolean;
+  /**
+   * Delete a file if it exists. Never throws: it is used for clean-up in
+   * `finally` blocks, where a second error would hide the first.
+   *
+   * @param path Absolute path.
+   */
   remove(path: string): void;
-  withJob<T>(fn: (job: QpdfJob) => T): T;
+}
+
+/** The parts of Emscripten's `FS` object that qpdf tools use. */
+export interface QpdfFileSystem {
+  writeFile(path: string, data: Uint8Array): void;
+  readFile(path: string): Uint8Array;
+  unlink(path: string): void;
+  /** Throws when the path does not exist. */
+  stat(path: string): unknown;
+}
+
+/** The parts of the Emscripten-generated qpdf module that tools use. */
+export interface QpdfModule {
+  FS: QpdfFileSystem;
+  /** Runs qpdf's `main()` with the given arguments and returns its exit code. */
+  callMain(args: string[]): number;
 }
 
 /**
- * A ready qpdf instance: runs commands and moves files in and out of its
- * memory file system.
+ * Collects the lines qpdf prints to stderr.
+ *
+ * This qpdf build writes stderr through `console.warn` (see `load-qpdf.ts`),
+ * so the loader points that at {@link StderrLog.append}. A run clears the log
+ * first, so each {@link QpdfRun} carries only its own messages.
  */
-export class QpdfRunner implements QpdfEngine {
-  private jobs = 0;
+export class StderrLog {
+  private lines: string[] = [];
 
   /**
-   * @param module The instantiated qpdf program.
-   * @param capture Where its console output lands (installed before the
-   *   program was created).
+   * Record one line of output.
+   *
+   * @param line The text qpdf printed.
+   */
+  append(line: string): void {
+    this.lines.push(line);
+  }
+
+  /** Forget everything recorded so far. */
+  clear(): void {
+    this.lines = [];
+  }
+
+  /**
+   * Read what was recorded since the last {@link clear}.
+   *
+   * @returns The lines joined with "\n" ("" when nothing was printed).
+   */
+  text(): string {
+    return this.lines.join("\n");
+  }
+}
+
+/** {@link QpdfRunner} backed by the Emscripten qpdf module. */
+export class EmscriptenQpdfRunner implements QpdfRunner {
+  /**
+   * @param module The instantiated qpdf module.
+   * @param stderr The log that receives qpdf's stderr lines.
    */
   constructor(
     private readonly module: QpdfModule,
-    private readonly capture: ConsoleCapture,
+    private readonly stderr: StderrLog,
   ) {}
 
   /**
-   * Run one qpdf command and collect what it printed.
+   * Run qpdf. `callMain` is synchronous: the module runs to completion
+   * before it returns, so the log holds exactly this run's output afterwards.
+   * The arguments are copied because Emscripten's `callMain` is typed to take
+   * a mutable array.
    *
-   * @param args The arguments after `qpdf`, e.g. `["--decrypt", "a", "b"]`.
-   * @returns The exit code and the output of this run only.
+   * @param args Arguments, without the program name.
+   * @returns The exit code and this run's stderr.
    */
   run(args: readonly string[]): QpdfRun {
-    this.capture.reset();
+    this.stderr.clear();
     const code = this.module.callMain([...args]);
-    return {
-      code,
-      stdout: this.capture.stdout(),
-      stderr: this.capture.stderr(),
-    };
+    return { code, stderr: this.stderr.text() };
   }
 
   /**
-   * @param path Where to write.
-   * @param bytes The file's content.
+   * @param path Absolute path.
+   * @param data The file's bytes.
    */
-  writeFile(path: string, bytes: Uint8Array): void {
-    this.module.FS.writeFile(path, bytes);
+  writeFile(path: string, data: Uint8Array): void {
+    this.module.FS.writeFile(path, data);
   }
 
   /**
-   * @param path The file to read.
-   * @returns A new array with the file's content. Emscripten's
-   *   `FS.readFile` copies the bytes out (checked in the glue), so the
-   *   array stays valid after the file is deleted and its whole buffer can
-   *   be transferred.
+   * @param path Absolute path.
+   * @returns The file's bytes.
    */
   readFile(path: string): Uint8Array {
     return this.module.FS.readFile(path);
   }
 
   /**
-   * @param path A file path.
-   * @returns Whether the file exists.
+   * Emscripten has no `exists`; `stat` throws for a missing path, so a
+   * successful `stat` means the file exists.
+   *
+   * @param path Absolute path.
+   * @returns `true` if it exists.
    */
   exists(path: string): boolean {
     try {
@@ -120,34 +167,16 @@ export class QpdfRunner implements QpdfEngine {
   }
 
   /**
-   * Delete a file if it exists. Never throws: clean-up must not hide the
-   * error that made it necessary.
+   * Best-effort delete: a failure here must not mask the error of the work
+   * that is being cleaned up after.
    *
-   * @param path A file path.
+   * @param path Absolute path.
    */
   remove(path: string): void {
     try {
       if (this.exists(path)) this.module.FS.unlink(path);
     } catch {
-      /* best-effort clean-up */
-    }
-  }
-
-  /**
-   * Run `fn` with fresh, unique file names and delete every file it
-   * created afterwards, whether it returns or throws. Files are held in
-   * WebAssembly memory, so a leaked one would cost memory until the worker
-   * restarts.
-   *
-   * @param fn The work; reserves file names with `job.path(name)`.
-   * @returns What `fn` returns.
-   */
-  withJob<T>(fn: (job: QpdfJob) => T): T {
-    const job = new QpdfJob(`/job-${++this.jobs}`);
-    try {
-      return fn(job);
-    } finally {
-      for (const path of job.paths()) this.remove(path);
+      /* best effort clean-up */
     }
   }
 }

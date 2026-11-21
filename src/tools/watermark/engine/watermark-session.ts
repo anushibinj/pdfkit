@@ -5,7 +5,7 @@ import {
 } from "@/lib/pdfium/pdfium-document";
 import { fitRenderSize } from "@/lib/pdfium/render-size";
 import { WasmHeap } from "@/lib/pdfium/wasm-heap";
-import type { QpdfEngine } from "@/lib/qpdf/qpdf-runner";
+import type { QpdfRunner } from "@/lib/qpdf/qpdf-runner";
 import {
   sanitizePageIndices,
   sanitizeSettings,
@@ -51,7 +51,7 @@ export class WatermarkSession {
    */
   constructor(
     private readonly api: WatermarkPdfiumApi,
-    qpdf: QpdfEngine,
+    qpdf: QpdfRunner,
     painters: PainterRegistry,
   ) {
     this.heap = new WasmHeap(api.pdfium);

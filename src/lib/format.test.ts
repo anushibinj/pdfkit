@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { formatBytes, isPdfFile, suffixedPdfName } from "./format";
+import {
+  formatBytes,
+  isPdfFile,
+  pdfFileNameFor,
+  suffixedPdfName,
+} from "./format";
 
 describe("formatBytes", () => {
   it.each([
@@ -29,6 +34,22 @@ describe("suffixedPdfName", () => {
   it("adds .pdf when missing and handles empty names", () => {
     expect(suffixedPdfName("scan", "-unlocked")).toBe("scan-unlocked.pdf");
     expect(suffixedPdfName(".pdf", "-unlocked")).toBe("document-unlocked.pdf");
+  });
+});
+
+describe("pdfFileNameFor", () => {
+  const ext = /\.(txt|text)$/i;
+
+  it.each([
+    ["notes.txt", "notes.pdf"],
+    ["Notes.TEXT", "Notes.pdf"],
+    ["archive.tar", "archive.tar.pdf"],
+    ["  spaced  .txt", "spaced.pdf"],
+    [".txt", "document.pdf"],
+    ["  ", "document.pdf"],
+    [undefined, "document.pdf"],
+  ])("%j -> %s", (input, expected) => {
+    expect(pdfFileNameFor(input, ext)).toBe(expected);
   });
 });
 

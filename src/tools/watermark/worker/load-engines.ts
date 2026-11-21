@@ -1,10 +1,8 @@
 import type { WrappedPdfiumModule } from "@embedpdf/pdfium";
 import type { ModuleImporter } from "@/lib/module-importer";
 import { loadPdfiumModule } from "@/lib/pdfium/load-pdfium";
-import type { CapturableConsole } from "@/lib/qpdf/console-capture";
-import type { WasmInstantiator } from "@/lib/qpdf/instantiate-wasm";
-import { loadQpdf } from "@/lib/qpdf/load-qpdf";
-import type { QpdfEngine } from "@/lib/qpdf/qpdf-runner";
+import { loadQpdf, type WasmInstantiator } from "@/lib/qpdf/load-qpdf";
+import type { QpdfRunner, StderrLog } from "@/lib/qpdf/qpdf-runner";
 import { createPainterRegistry } from "../engine/painters/registry";
 import type { WatermarkPdfiumApi } from "../engine/watermark-pdfium-api";
 import { WatermarkSession } from "../engine/watermark-session";
@@ -29,7 +27,7 @@ export function asWatermarkPdfiumApi(
 /** How to load the two engines (injected for tests). */
 export interface EngineLoaders {
   pdfium(): Promise<WrappedPdfiumModule>;
-  qpdf(): Promise<QpdfEngine>;
+  qpdf(): Promise<QpdfRunner>;
 }
 
 /**
@@ -37,19 +35,28 @@ export interface EngineLoaders {
  *
  * @param wasmDir Absolute URL of the directory, ending in "/".
  * @param importer Performs dynamic imports of the glue files.
- * @param instantiate Instantiates qpdf's binary.
- * @param console The worker's console, captured for qpdf's messages.
+ * @param instantiate Instantiates qpdf's binary (`instantiateWasmFromUrl`).
+ * @param console The worker's console, through which qpdf prints.
+ * @param stderr Where qpdf's messages are collected (one per worker).
  * @returns The loaders.
  */
 export function engineLoaders(
   wasmDir: string,
   importer: ModuleImporter,
   instantiate: WasmInstantiator,
-  console: CapturableConsole,
+  console: Pick<Console, "warn" | "log">,
+  stderr: StderrLog,
 ): EngineLoaders {
   return {
     pdfium: () => loadPdfiumModule(wasmDir, importer),
-    qpdf: () => loadQpdf(wasmDir, { importer, instantiate, console }),
+    qpdf: () =>
+      loadQpdf({
+        wasmDir,
+        importModule: importer,
+        instantiate,
+        console,
+        stderr,
+      }),
   };
 }
 

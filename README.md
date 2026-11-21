@@ -8,6 +8,22 @@ Currently shipped tools:
 - **PDF Unlocker** (`/tools/unlock/`): removes owner restrictions and decrypts
   files whose password you know, using [qpdf](https://github.com/qpdf/qpdf)
   compiled to WASM. It does not crack or guess passwords.
+- **Protect PDF** (`/tools/protect/`, beta): adds an open password to a PDF
+  with AES-256 encryption (PDF 2.0, revision 6), using the same qpdf build.
+  The password is typed twice and is also set as the owner password, so the
+  person who knows it keeps full control (an empty owner password would let
+  anyone open an AES-256 file). Before the file is offered, it is re-opened
+  to check that it is refused without the password and opens with exactly
+  the password typed. Passwords go to qpdf in a job JSON file, never as
+  command line arguments (qpdf reads an argument starting with `@` as a file
+  of arguments). Passwords longer than 127 UTF-8 bytes are refused: qpdf
+  11.0.0 writes them untruncated, while PDF 2.0 readers truncate to 127 bytes,
+  so such a file would not open in qpdf or pdf.js. A PDF that already needs a
+  password is left alone (unlock it first); one with only restrictions gets
+  the password and loses the restrictions, and the page says so. Encrypting
+  rewrites the file, so a digitally signed PDF's signatures are no longer
+  valid in the protected copy; the page warns about that too (signatures are
+  found with the same byte scan as the Signature Verifier).
 - **Signature Verifier** (`/tools/verify/`, beta): checks that a signed PDF is
   unmodified and its signature is cryptographically correct.
 - **Markdown to PDF** (`/tools/markdown-to-pdf/`, beta): renders Markdown
@@ -16,6 +32,15 @@ Currently shipped tools:
   [ironpress](https://github.com/gastongouron/ironpress) HTML/CSS layout engine
   compiled to WASM. Paper size and margins come from the page settings, or from
   an `@page` rule in the CSS (which wins).
+- **HTML to PDF** (`/tools/html-to-pdf/`, beta): lays out HTML (a full page
+  or a fragment, typed or opened from an `.html`/`.htm`/`.xhtml` file) with its
+  own CSS into a PDF, using the same ironpress engine. Files are read in the
+  encoding they declare (a `<meta charset>`, as in Word's windows-1252 "Save as
+  Web Page" output), elements with the `hidden` attribute and closed
+  `<details>`/`<dialog>` content stay hidden, and an `@page` rule in the HTML
+  sets the paper size and margins. The engine has no network access and runs
+  no JavaScript, so after converting, the page lists what it left out: images
+  that are not PNG/JPEG `data:` URLs, linked stylesheets, and scripts.
 - **PDF Editor** (`/tools/edit/`, beta): changes the PDF's own text in place,
   adds text, freehand drawings, boxes, highlights and images (PNG/JPEG, such
   as a signature), and rotates, reorders or deletes pages, using
@@ -132,14 +157,22 @@ service worker precache are all derived from `src/tools/registry.ts`.
 3. Done. `pnpm test` validates the entry; `pnpm build` generates
    `/tools/<slug>/`, its OG card, sitemap entry and precache.
 
+A tool that turns something into HTML and then into a PDF can reuse the
+ironpress pipeline in `src/lib/html-pdf/` (engine adapter and loader, page
+setup, worker handler, conversion state and the `usePdfConversion` hook) and
+the converter page components (`CodeEditor`, `PageSettings`,
+`ConversionActions`, `ConversionStatus`, `BetaNotice`), as Markdown to PDF and
+HTML to PDF do.
+
 ## Large engines and the service worker
 
 The service worker precaches every file in `out/` except those listed in
 `ON_FIRST_USE` in `scripts/build-sw.mjs`. The ironpress binary (~15 MB, ~6 MB
 gzipped) and PDFium (binary ~4.6 MB, ~2 MB gzipped, plus its JavaScript glue)
-are on that list: each is cached the first time a tool loads it (PDFium is
-shared by the PDF Editor and Add Watermark), so visitors who never use those
-tools never download it, and the tools still work offline after first use.
+are on that list: each is cached the first time a tool loads it, so visitors who never use
+those tools never download it, and the tools still work offline after first use. Markdown to PDF
+and HTML to PDF load the same ironpress files, and the PDF Editor and Add Watermark the same
+PDFium files, so using either tool of a pair caches the engine for both.
 
 ## Manual test checklist (PDF Editor)
 
@@ -176,6 +209,34 @@ Sample files live in `fixtures/` (`user-password.pdf` has password `hunter2`;
       PDF and download it.
 - [ ] At 360px width there is no horizontal scroll and drawing with a finger
       does not scroll the page.
+
+## Manual test checklist (HTML to PDF)
+
+`fixtures/windows-1252.html` is saved in windows-1252, as Word's "Save as Web
+Page" does, with a hidden paragraph and an image that is not embedded.
+
+- [ ] The sample invoice converts to one A4 page; **Download PDF** saves
+      `document.pdf`, and no "Some content is not in the PDF" notice appears.
+- [ ] Opening `fixtures/windows-1252.html` shows `Café “Crème brûlée”` and
+      `4,50 €` in the editor; the PDF shows them too, does not contain the
+      hidden paragraph, is named `windows-1252.pdf`, and the page says
+      "1 image was left out".
+- [ ] `<p hidden>`, a closed `<details>` body and a closed `<dialog>` do not
+      appear in the PDF; `<details open>` and `<dialog open>` do.
+- [ ] An `@page { size: A5; margin: 0 }` rule in the HTML overrides the paper
+      size and margin settings.
+- [ ] A page with `<link rel="stylesheet">`, `<script>` and an
+      `<img src="https://...">` converts, and the notice counts each of them.
+- [ ] A `.md` or `.png` file is rejected with a toast; a file over 10 MB is
+      refused.
+- [ ] Editing the HTML after converting hides the old **Download PDF** button
+      and the notice.
+- [ ] **Cancel** stops a long conversion and the next one works.
+- [ ] DevTools > Console shows no Content Security Policy errors after
+      converting (with `pnpm build && pnpm preview`, which serves the real
+      headers).
+- [ ] Offline after one conversion: reload with DevTools > Network > Offline
+      and convert again.
 
 ## Manual test checklist (Add Watermark)
 
@@ -215,6 +276,33 @@ Sample files live in `fixtures/` (`user-password.pdf` has password `hunter2`;
 - [ ] Offline after one conversion: reload with DevTools > Network > Offline
       and convert again.
 
+## Manual test checklist (Protect PDF)
+
+Sample files live in `fixtures/` (`plain.pdf`, `owner-restricted.pdf`,
+`user-password.pdf` with password `hunter2`).
+
+- [ ] Choosing `plain.pdf` shows it as "Ready" with the password form; the
+      **Protect PDF** button stays disabled until both fields match.
+- [ ] A typo in **Confirm password** shows "The passwords do not match." as
+      soon as it diverges; typing the right password never shows it.
+- [ ] **Show passwords** reveals both fields; pressing it again hides them.
+- [ ] A 128-character password shows "The password is too long"; `pass²`
+      shows the "Some PDF apps may not accept this password" warning.
+- [ ] **Protect PDF** then **Download protected PDF** saves
+      `plain-protected.pdf`; Chrome, Firefox and a desktop reader ask for the
+      password, refuse a wrong one and open it with the right one.
+- [ ] Editing the password after protecting hides the old download button.
+- [ ] `user-password.pdf` shows "Already protected" with a link to the PDF
+      Unlocker; `owner-restricted.pdf` is protected and the page says its
+      restrictions were replaced; `signed.pdf` is protected and the page warns
+      that its signature is no longer valid in the protected copy.
+- [ ] A `.png` is rejected with a toast; choosing two PDFs opens the first and
+      says "Protect one file at a time".
+- [ ] The protected file unlocks in the PDF Unlocker with its password.
+- [ ] **Network tab** shows no upload and no third-party requests; it works
+      offline after one visit.
+- [ ] At 360px width there is no horizontal scroll.
+
 ## Manual test checklist (PDF Unlocker)
 
 Sample files live in `fixtures/` (`plain.pdf`, `owner-restricted.pdf`,
@@ -242,15 +330,16 @@ Sample files live in `fixtures/` (`plain.pdf`, `owner-restricted.pdf`,
 
 ## Licences
 
-PDF unlocking and watermarking use **qpdf**, Copyright (c) Jay Berkenbilt, licensed under the
+PDF unlocking, password protection and watermarking use **qpdf**, Copyright (c) Jay Berkenbilt, licensed under the
 **Apache License 2.0** (qpdf is also available under the Artistic License 2.0).
 The WebAssembly build is [`@jspawn/qpdf-wasm`](https://github.com/jsscheller/qpdf-wasm)
 (Apache-2.0). The licence text ships at `/wasm/LICENSE.txt`, a notice at
 `/wasm/NOTICE.txt`. qpdf is credited here.
 
-Markdown to PDF uses **ironpress**, Copyright (c) 2026 Gaston Gouron, licensed
-under the **MIT License** (licence at `/wasm/LICENSE-ironpress.txt`), and
-**marked**, licensed under the **MIT License**. Fonts: Geist and
+Markdown to PDF and HTML to PDF use **ironpress**, Copyright (c) 2026 Gaston
+Gouron, licensed under the **MIT License** (licence at
+`/wasm/LICENSE-ironpress.txt`); Markdown to PDF also uses **marked**, licensed
+under the **MIT License**. Fonts: Geist and
 Inter (SIL Open Font License 1.1), bundled locally.
 
 The PDF Editor and Add Watermark use **PDFium**, Copyright The PDFium Authors, licensed under

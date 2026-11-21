@@ -1,8 +1,11 @@
 import type { WrappedPdfiumModule } from "@embedpdf/pdfium";
 import { describe, expect, it, vi } from "vitest";
 import type { PdfiumGlue } from "@/lib/pdfium/load-pdfium";
-import type { QpdfGlue, QpdfModule } from "@/lib/qpdf/qpdf-module";
-import type { QpdfEngine } from "@/lib/qpdf/qpdf-runner";
+import {
+  StderrLog,
+  type QpdfModule,
+  type QpdfRunner,
+} from "@/lib/qpdf/qpdf-runner";
 import { fakeWatermarkPdfium } from "../test-utils/fake-pdfium";
 import { WatermarkSession } from "../engine/watermark-session";
 import {
@@ -25,9 +28,15 @@ describe("engineLoaders", () => {
     } as unknown as WrappedPdfiumModule;
     const program = { FS: {}, callMain: () => 0 } as unknown as QpdfModule;
     const pdfiumGlue: PdfiumGlue = { init: async () => pdfium };
-    const qpdfGlue: QpdfGlue = {
-      default: (options) =>
-        new Promise((resolve) =>
+    // Emscripten-like factory: resolves once instantiateWasm calls `done`.
+    const qpdfGlue = {
+      default: (options: {
+        instantiateWasm(
+          imports: WebAssembly.Imports,
+          done: (instance: WebAssembly.Instance) => void,
+        ): unknown;
+      }) =>
+        new Promise<QpdfModule>((resolve) =>
           options.instantiateWasm({}, () => resolve(program)),
         ),
     };
@@ -39,6 +48,7 @@ describe("engineLoaders", () => {
       importer,
       async () => ({}) as WebAssembly.Instance,
       { log: () => {}, warn: () => {} },
+      new StderrLog(),
     );
     expect(await loaders.pdfium()).toBe(pdfium);
     expect(await loaders.qpdf()).toBeDefined();
@@ -54,7 +64,7 @@ describe("loadWatermarkSession", () => {
     const { api } = fakeWatermarkPdfium();
     const session = await loadWatermarkSession({
       pdfium: async () => api as unknown as WrappedPdfiumModule,
-      qpdf: async () => ({}) as QpdfEngine,
+      qpdf: async () => ({}) as QpdfRunner,
     });
     expect(session).toBeInstanceOf(WatermarkSession);
   });
@@ -65,7 +75,7 @@ describe("loadWatermarkSession", () => {
         pdfium: async () => {
           throw new Error("CompileError");
         },
-        qpdf: async () => ({}) as QpdfEngine,
+        qpdf: async () => ({}) as QpdfRunner,
       }),
     ).rejects.toThrow("CompileError");
   });

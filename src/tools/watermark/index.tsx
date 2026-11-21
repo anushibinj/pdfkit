@@ -1,8 +1,9 @@
 "use client";
 
-import { Download, FilePlus2, TriangleAlert } from "lucide-react";
+import { Download, FilePlus2 } from "lucide-react";
 import { useId, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { BetaNotice } from "@/components/beta-notice";
 import { Dropzone } from "@/components/dropzone";
 import { PasswordPrompt } from "@/components/password-prompt";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -11,6 +12,7 @@ import { canDecodeImage } from "@/lib/decode-image";
 import { downloadBlob } from "@/lib/download";
 import { formatBytes, isPdfFile, suffixedPdfName } from "@/lib/format";
 import { MAX_IMAGE_BYTES, readImageInfo } from "@/lib/image-info";
+import { readSingleFile } from "@/lib/read-single-file";
 import {
   DEFAULT_FORM,
   checkForm,
@@ -65,17 +67,14 @@ export default function WatermarkTool() {
   };
 
   const pickImage = async (file: File) => {
-    if (file.size > MAX_IMAGE_BYTES) {
-      toast.error(`${file.name} is over ${formatBytes(MAX_IMAGE_BYTES)}.`);
-      return;
-    }
-    let bytes: ArrayBuffer;
-    try {
-      bytes = await file.arrayBuffer();
-    } catch {
-      toast.error(`Could not read ${file.name}.`);
-      return;
-    }
+    const opened = await readSingleFile(
+      [file],
+      MAX_IMAGE_BYTES,
+      (f) => f.arrayBuffer(),
+      toast,
+    );
+    if (!opened) return;
+    const bytes = opened.content;
     const info = readImageInfo(new Uint8Array(bytes));
     if (!info) {
       toast.error(`${file.name} is not a PNG or JPEG image.`);
@@ -103,33 +102,21 @@ export default function WatermarkTool() {
 
   return (
     <div className="space-y-6">
-      <Alert
-        role="note"
-        className="border-yellow-300 bg-yellow-50 text-yellow-950 dark:border-yellow-800 dark:bg-yellow-950/40 dark:text-yellow-100"
-      >
-        <TriangleAlert aria-hidden="true" />
-        <AlertTitle>
-          Beta: what the watermark tool can and cannot do yet
-        </AlertTitle>
-        <AlertDescription className="text-yellow-900 dark:text-yellow-200">
-          <ul className="list-disc space-y-1 pl-4">
-            <li>
-              Text watermarks use the standard PDF fonts (Helvetica, Times,
-              Courier), which cover English and other Western European
-              languages, not other scripts (such as Devanagari, Chinese or
-              Arabic) or emoji. For those, use a picture of the text.
-            </li>
-            <li>
-              The page content is not rewritten: the watermark is added on top
-              of it or underneath it. Password-protected PDFs keep their
-              password.
-            </li>
-            <li>
-              Adding a watermark invalidates the PDF&apos;s digital signatures.
-            </li>
-          </ul>
-        </AlertDescription>
-      </Alert>
+      <BetaNotice title="Beta: what the watermark tool can and cannot do yet">
+        <li>
+          Text watermarks use the standard PDF fonts (Helvetica, Times,
+          Courier), which cover English and other Western European languages,
+          not other scripts (such as Devanagari, Chinese or Arabic) or emoji.
+          For those, use a picture of the text.
+        </li>
+        <li>
+          The page content is not rewritten: the watermark is added on top of it
+          or underneath it. Password-protected PDFs keep their password.
+        </li>
+        <li>
+          Adding a watermark invalidates the PDF&apos;s digital signatures.
+        </li>
+      </BetaNotice>
 
       {status.kind === "failed" && (
         <Alert variant="destructive">

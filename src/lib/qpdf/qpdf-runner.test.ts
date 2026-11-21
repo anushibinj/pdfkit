@@ -1,102 +1,109 @@
 import { describe, expect, it, vi } from "vitest";
-import { ConsoleCapture } from "./console-capture";
-import type { QpdfModule } from "./qpdf-module";
-import { QpdfJob, QpdfRunner } from "./qpdf-runner";
+import {
+  EmscriptenQpdfRunner,
+  StderrLog,
+  type QpdfModule,
+} from "./qpdf-runner";
 
-/** A qpdf module with a Map as its file system. */
-function fakeModule(callMain: QpdfModule["callMain"] = () => 0) {
+/** An in-memory stand-in for Emscripten's FS and `callMain`. */
+function fakeModule(main: (args: string[], log: StderrLog) => number) {
   const files = new Map<string, Uint8Array>();
-  const program: QpdfModule = {
+  const log = new StderrLog();
+  const qpdfModule: QpdfModule = {
     FS: {
-      writeFile: (path, data) => void files.set(path, data),
-      readFile: (path) => {
-        const data = files.get(path);
-        if (!data) throw new Error(`ENOENT ${path}`);
-        return data;
-      },
-      unlink: (path) => void files.delete(path),
-      stat: (path) => {
-        if (!files.has(path)) throw new Error(`ENOENT ${path}`);
+      writeFile: vi.fn((p: string, d: Uint8Array) => void files.set(p, d)),
+      readFile: vi.fn((p: string) => {
+        const f = files.get(p);
+        if (!f) throw new Error(`ENOENT ${p}`);
+        return f;
+      }),
+      unlink: vi.fn((p: string) => {
+        if (!files.delete(p)) throw new Error(`ENOENT ${p}`);
+      }),
+      stat: vi.fn((p: string) => {
+        if (!files.has(p)) throw new Error(`ENOENT ${p}`);
         return {};
-      },
+      }),
     },
-    callMain: vi.fn(callMain),
+    callMain: vi.fn((args: string[]) => main(args, log)),
   };
-  return { module: program, files };
+  return {
+    module: qpdfModule,
+    log,
+    files,
+    runner: new EmscriptenQpdfRunner(qpdfModule, log),
+  };
 }
 
-describe("QpdfJob", () => {
-  it("prefixes names and remembers each path once", () => {
-    const job = new QpdfJob("/job-7");
-    expect(job.path("in.pdf")).toBe("/job-7-in.pdf");
-    job.path("in.pdf");
-    job.path("out.pdf");
-    expect(job.paths()).toEqual(["/job-7-in.pdf", "/job-7-out.pdf"]);
+describe("StderrLog", () => {
+  it("joins appended lines and starts empty", () => {
+    const log = new StderrLog();
+    expect(log.text()).toBe("");
+    log.append("a");
+    log.append("b");
+    expect(log.text()).toBe("a\nb");
+  });
+
+  it("clear forgets earlier lines", () => {
+    const log = new StderrLog();
+    log.append("old");
+    log.clear();
+    log.append("new");
+    expect(log.text()).toBe("new");
   });
 });
 
-describe("QpdfRunner", () => {
-  it("run returns the exit code and only this run's output", () => {
-    const capture = new ConsoleCapture();
-    capture.writeErr("left over from an earlier run");
-    const { module } = fakeModule(() => {
-      capture.writeOut("out");
-      capture.writeErr("err");
-      return 3;
+describe("EmscriptenQpdfRunner", () => {
+  it("run returns the exit code and only this run's stderr", () => {
+    let call = 0;
+    const { runner, module } = fakeModule((_args, log) => {
+      log.append(`run ${++call}`);
+      return call === 1 ? 2 : 0;
     });
-    const runner = new QpdfRunner(module, capture);
-    expect(runner.run(["--check", "/a.pdf"])).toEqual({
-      code: 3,
-      stdout: "out",
-      stderr: "err",
+    expect(runner.run(["--version"])).toEqual({ code: 2, stderr: "run 1" });
+    expect(runner.run(["--check", "/x.pdf"])).toEqual({
+      code: 0,
+      stderr: "run 2",
     });
-    expect(module.callMain).toHaveBeenCalledWith(["--check", "/a.pdf"]);
+    expect(module.callMain).toHaveBeenLastCalledWith(["--check", "/x.pdf"]);
   });
 
-  it("writes, reads, checks and removes files", () => {
-    const { module, files } = fakeModule();
-    const runner = new QpdfRunner(module, new ConsoleCapture());
-    runner.writeFile("/a", new Uint8Array([1]));
-    expect(runner.exists("/a")).toBe(true);
-    expect(Array.from(runner.readFile("/a"))).toEqual([1]);
-    runner.remove("/a");
-    runner.remove("/a"); // missing: no error
-    expect(runner.exists("/a")).toBe(false);
-    expect(files.size).toBe(0);
+  it("run passes a copy of the arguments", () => {
+    const { runner, module } = fakeModule(() => 0);
+    const args = Object.freeze(["--version"]);
+    runner.run(args);
+    const passed = vi.mocked(module.callMain).mock.calls[0][0];
+    expect(passed).toEqual(["--version"]);
+    expect(passed).not.toBe(args);
   });
 
-  it("remove never throws, even when the file system does", () => {
-    const { module } = fakeModule();
-    module.FS.stat = () => ({});
-    module.FS.unlink = () => {
+  it("writes, reads and checks files", () => {
+    const { runner } = fakeModule(() => 0);
+    expect(runner.exists("/a.pdf")).toBe(false);
+    runner.writeFile("/a.pdf", new Uint8Array([1, 2]));
+    expect(runner.exists("/a.pdf")).toBe(true);
+    expect(Array.from(runner.readFile("/a.pdf"))).toEqual([1, 2]);
+  });
+
+  it("readFile throws for a missing file", () => {
+    const { runner } = fakeModule(() => 0);
+    expect(() => runner.readFile("/missing.pdf")).toThrow(/ENOENT/);
+  });
+
+  it("remove deletes a file and ignores missing ones", () => {
+    const { runner, files } = fakeModule(() => 0);
+    runner.writeFile("/a.pdf", new Uint8Array([1]));
+    runner.remove("/a.pdf");
+    expect(files.has("/a.pdf")).toBe(false);
+    expect(() => runner.remove("/a.pdf")).not.toThrow();
+  });
+
+  it("remove never throws, even when unlink fails", () => {
+    const { runner, module } = fakeModule(() => 0);
+    runner.writeFile("/a.pdf", new Uint8Array([1]));
+    vi.mocked(module.FS.unlink).mockImplementation(() => {
       throw new Error("EBUSY");
-    };
-    const runner = new QpdfRunner(module, new ConsoleCapture());
-    expect(() => runner.remove("/a")).not.toThrow();
-  });
-
-  it("withJob gives each job unique names and deletes its files afterwards", () => {
-    const { module, files } = fakeModule();
-    const runner = new QpdfRunner(module, new ConsoleCapture());
-    const first = runner.withJob((job) => {
-      runner.writeFile(job.path("in.pdf"), new Uint8Array([1]));
-      runner.writeFile(job.path("out.pdf"), new Uint8Array([2]));
-      return job.path("in.pdf");
     });
-    const second = runner.withJob((job) => job.path("in.pdf"));
-    expect(first).not.toBe(second);
-    expect(files.size).toBe(0);
-  });
-
-  it("withJob deletes the files when the work throws", () => {
-    const { module, files } = fakeModule();
-    const runner = new QpdfRunner(module, new ConsoleCapture());
-    expect(() =>
-      runner.withJob((job) => {
-        runner.writeFile(job.path("in.pdf"), new Uint8Array([1]));
-        throw new RangeError("out of memory");
-      }),
-    ).toThrow(RangeError);
-    expect(files.size).toBe(0);
+    expect(() => runner.remove("/a.pdf")).not.toThrow();
   });
 });

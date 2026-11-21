@@ -1,5 +1,11 @@
 import { EXIT_ERROR, friendlyQpdfMessage } from "@/lib/qpdf/qpdf-output";
-import type { QpdfEngine } from "@/lib/qpdf/qpdf-runner";
+import type { QpdfRunner } from "@/lib/qpdf/qpdf-runner";
+import {
+  newScratchToken,
+  removeScratchFiles,
+  scratchFiles,
+  type ScratchFiles,
+} from "@/lib/qpdf/scratch-files";
 import type { Layer } from "../core/model";
 import { formatPageRanges } from "../core/page-ranges";
 
@@ -71,8 +77,15 @@ export function overlayArgs(
  * file keeps its encryption and password.
  */
 export class QpdfStamper {
-  /** @param qpdf A ready qpdf instance. */
-  constructor(private readonly qpdf: QpdfEngine) {}
+  /**
+   * @param qpdf A ready qpdf instance.
+   * @param newToken Makes the unique part of each job's file names
+   *   (injected for tests).
+   */
+  constructor(
+    private readonly qpdf: QpdfRunner,
+    private readonly newToken: () => string = newScratchToken,
+  ) {}
 
   /**
    * Keep the PDF in qpdf's file system for the following jobs, so a preview
@@ -98,18 +111,16 @@ export class QpdfStamper {
    * @throws {StampError} When qpdf fails.
    */
   stampDocument(password: string, job: StampJob): Uint8Array {
-    return this.qpdf.withJob((files) => {
-      const stamp = files.path("stamp.pdf");
-      const output = files.path("out.pdf");
-      this.qpdf.writeFile(stamp, job.stamp);
+    return this.withScratchFiles((files) => {
+      this.qpdf.writeFile(files.input, job.stamp);
       return this.runToFile(
         [
           ...passwordArgs(password),
           SOURCE_PATH,
-          ...overlayArgs(stamp, job),
-          output,
+          ...overlayArgs(files.input, job),
+          files.output,
         ],
-        output,
+        files.output,
       );
     });
   }
@@ -133,8 +144,7 @@ export class QpdfStamper {
     pageIndex: number,
     stamp: Pick<StampJob, "stamp" | "layer"> | null,
   ): Uint8Array {
-    return this.qpdf.withJob((files) => {
-      const output = files.path("preview.pdf");
+    return this.withScratchFiles((files) => {
       const args = [
         ...passwordArgs(password),
         SOURCE_PATH,
@@ -144,14 +154,35 @@ export class QpdfStamper {
         "--",
       ];
       if (stamp) {
-        const stampPath = files.path("stamp.pdf");
-        this.qpdf.writeFile(stampPath, stamp.stamp);
+        this.qpdf.writeFile(files.input, stamp.stamp);
         args.push(
-          ...overlayArgs(stampPath, { layer: stamp.layer, to: [0], from: [0] }),
+          ...overlayArgs(files.input, {
+            layer: stamp.layer,
+            to: [0],
+            from: [0],
+          }),
         );
       }
-      return this.runToFile([...args, output], output);
+      return this.runToFile([...args, files.output], files.output);
     });
+  }
+
+  /**
+   * Run `fn` with fresh file names for one job and delete those files
+   * afterwards, whether it returns or throws (they live in WebAssembly
+   * memory until deleted). A job's input is the stamp; the PDF itself stays
+   * at {@link SOURCE_PATH} for the whole session.
+   *
+   * @param fn The job.
+   * @returns What `fn` returns.
+   */
+  private withScratchFiles<T>(fn: (files: ScratchFiles) => T): T {
+    const files = scratchFiles(this.newToken());
+    try {
+      return fn(files);
+    } finally {
+      removeScratchFiles(this.qpdf, files);
+    }
   }
 
   /**
@@ -162,8 +193,8 @@ export class QpdfStamper {
    *
    * @param args The full command line.
    * @param output Where qpdf writes.
-   * @returns The output's bytes (already a copy, independent of the file,
-   *   which the job deletes afterwards).
+   * @returns The output's bytes. Emscripten's `FS.readFile` returns a copy
+   *   (checked in the glue), so they stay valid after the file is deleted.
    * @throws {StampError} When qpdf failed or wrote nothing.
    */
   private runToFile(args: string[], output: string): Uint8Array {

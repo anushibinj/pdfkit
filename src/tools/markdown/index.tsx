@@ -1,29 +1,25 @@
 "use client";
 
-import {
-  Download,
-  FileText,
-  RotateCcw,
-  Square,
-  TriangleAlert,
-} from "lucide-react";
+import { RotateCcw } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { BetaNotice } from "@/components/beta-notice";
+import { CodeEditor } from "@/components/code-editor";
+import { ConversionActions } from "@/components/conversion-actions";
+import { ConversionStatus } from "@/components/conversion-status";
 import { Dropzone } from "@/components/dropzone";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { PageSettings } from "@/components/page-settings";
 import { Button } from "@/components/ui/button";
 import { downloadBlob } from "@/lib/download";
-import { formatBytes } from "@/lib/format";
-import { CodeEditor } from "./code-editor";
+import { DEFAULT_PAGE_SETUP } from "@/lib/html-pdf/page-setup";
+import type { PageSetup } from "@/lib/html-pdf/types";
+import { readSingleFile } from "@/lib/read-single-file";
 import { DEFAULT_STYLESHEET, SAMPLE_MARKDOWN } from "./core/default-stylesheet";
 import {
   MARKDOWN_ACCEPT,
   isMarkdownFile,
   pdfNameForMarkdown,
 } from "./core/file-names";
-import { DEFAULT_PAGE_SETUP } from "./core/page-setup";
-import type { PageSetup } from "./messages";
-import { PageSettings } from "./page-settings";
 import { useMarkdownConversion } from "./use-markdown-conversion";
 
 /** Larger Markdown files are refused: layout time grows with length. */
@@ -49,58 +45,37 @@ export default function MarkdownTool() {
     };
 
   const openFiles = async (files: File[]) => {
-    const [file] = files;
-    if (files.length > 1)
-      toast.info(`Opened ${file.name}. One file at a time.`);
-    if (file.size > MAX_MARKDOWN_BYTES) {
-      toast.error(`${file.name} is over ${formatBytes(MAX_MARKDOWN_BYTES)}.`);
-      return;
-    }
-    try {
-      setMarkdown(await file.text());
-      setSourceName(file.name);
-      inputChanged();
-    } catch {
-      toast.error(`Could not read ${file.name}.`);
-    }
+    const opened = await readSingleFile(
+      files,
+      MAX_MARKDOWN_BYTES,
+      (file) => file.text(),
+      toast,
+    );
+    if (!opened) return;
+    setMarkdown(opened.content);
+    setSourceName(opened.file.name);
+    inputChanged();
   };
 
   const converting = state.kind === "converting";
-  const announcement =
-    state.kind === "converting"
-      ? "Creating the PDF…"
-      : state.kind === "done"
-        ? `PDF ready, ${formatBytes(state.pdf.size)}.`
-        : state.kind === "error"
-          ? `Could not create the PDF. ${state.message}`
-          : "";
 
   return (
     <div className="space-y-6">
-      <Alert
-        role="note"
-        className="border-yellow-300 bg-yellow-50 text-yellow-950 dark:border-yellow-800 dark:bg-yellow-950/40 dark:text-yellow-100"
-      >
-        <TriangleAlert aria-hidden="true" />
-        <AlertTitle>Beta: what the PDF engine can and cannot do yet</AlertTitle>
-        <AlertDescription className="text-yellow-900 dark:text-yellow-200">
-          <ul className="list-disc space-y-1 pl-4">
-            <li>
-              Fonts cover Latin, Greek, Cyrillic, Hebrew and Arabic. Indic
-              scripts (such as Devanagari), Chinese, Japanese, Korean and emoji
-              do not display correctly yet.
-            </li>
-            <li>
-              Use the font families <code>sans-serif</code>, <code>serif</code>{" "}
-              or <code>monospace</code>; other names fall back to one of them.
-            </li>
-            <li>
-              Images that point to the web or to files on your computer are not
-              included.
-            </li>
-          </ul>
-        </AlertDescription>
-      </Alert>
+      <BetaNotice title="Beta: what the PDF engine can and cannot do yet">
+        <li>
+          Fonts cover Latin, Greek, Cyrillic, Hebrew and Arabic. Indic scripts
+          (such as Devanagari), Chinese, Japanese, Korean and emoji do not
+          display correctly yet.
+        </li>
+        <li>
+          Use the font families <code>sans-serif</code>, <code>serif</code> or{" "}
+          <code>monospace</code>; other names fall back to one of them.
+        </li>
+        <li>
+          Images that point to the web or to files on your computer are not
+          included.
+        </li>
+      </BetaNotice>
 
       <Dropzone
         accept={MARKDOWN_ACCEPT}
@@ -151,55 +126,21 @@ export default function MarkdownTool() {
           onChange={edit(setPage)}
           disabled={converting}
         />
-        <div className="flex flex-wrap gap-3">
-          {converting ? (
-            <Button variant="outline" className="min-h-11" onClick={cancel}>
-              <Square aria-hidden="true" /> Cancel
-            </Button>
-          ) : (
-            <Button
-              className="min-h-11"
-              disabled={markdown.trim() === ""}
-              onClick={() => convert({ markdown, css, page })}
-            >
-              <FileText aria-hidden="true" /> Convert to PDF
-            </Button>
-          )}
-          {state.kind === "done" && (
-            <Button
-              className="min-h-11"
-              onClick={() =>
-                downloadBlob(state.pdf, pdfNameForMarkdown(sourceName))
-              }
-            >
-              <Download aria-hidden="true" /> Download PDF (
-              {formatBytes(state.pdf.size)})
-            </Button>
-          )}
-        </div>
+        <ConversionActions
+          state={state}
+          canConvert={markdown.trim() !== ""}
+          onConvert={() => convert({ markdown, css, page })}
+          onCancel={cancel}
+          onDownload={(pdf) =>
+            downloadBlob(pdf, pdfNameForMarkdown(sourceName))
+          }
+        />
       </div>
 
-      <div role="status" aria-live="polite" className="sr-only">
-        {announcement}
-      </div>
-
-      {converting && (
-        <p className="text-muted-foreground text-sm">
-          Creating the PDF… The first conversion downloads the PDF engine (about
-          15 MB), so it takes a little longer.
-        </p>
-      )}
-
-      {state.kind === "error" && (
-        <Alert variant="destructive">
-          <AlertTitle>
-            {state.reason === "out-of-memory"
-              ? "Out of memory"
-              : "Could not create the PDF"}
-          </AlertTitle>
-          <AlertDescription>{state.message}</AlertDescription>
-        </Alert>
-      )}
+      <ConversionStatus
+        state={state}
+        busyMessage="Creating the PDF… The first conversion downloads the PDF engine (about 15 MB), so it takes a little longer."
+      />
     </div>
   );
 }

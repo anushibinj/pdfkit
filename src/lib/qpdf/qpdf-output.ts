@@ -1,40 +1,41 @@
-/** Pure helpers for interpreting qpdf's output (no WASM needed, unit tested). */
+/**
+ * Pure helpers for reading qpdf's exit codes and stderr. Shared by every tool
+ * that runs qpdf (no WASM, no DOM, unit tested).
+ */
 
-/** qpdf finished without problems. */
+/** qpdf finished without errors or warnings. */
 export const EXIT_OK = 0;
-/** qpdf failed; no usable output was written. */
+/** qpdf failed. Also used by `--requires-password` for "not encrypted". */
 export const EXIT_ERROR = 2;
-/** qpdf succeeded but reported warnings (e.g. it repaired a damaged file). */
+/** qpdf finished, but printed warnings (for example after repairing a file). */
 export const EXIT_WARNINGS = 3;
 
 /**
- * Decide whether qpdf refused a file because of its password.
+ * Decide whether qpdf's stderr reports a wrong or missing password.
  *
- * qpdf reports this as "<file>: invalid password", both when no password
- * was given for a file that needs one and when the given one is wrong; the
- * caller knows which case it is from whether it passed a password.
- *
- * @param stderr qpdf's standard error.
- * @returns `true` when the message is about the password.
+ * @param stderr Everything qpdf wrote to stderr during one run.
+ * @returns `true` when qpdf said "invalid password".
  */
 export function isInvalidPassword(stderr: string): boolean {
   return /invalid password/i.test(stderr);
 }
 
 /**
- * Turn qpdf's standard error into a sentence a person can read.
+ * Turn qpdf's stderr into a sentence a person can read.
  *
- * qpdf prefixes every line with the program name and the file path
- * ("qpdf: /job-1-in.pdf: can't find startxref"). Both prefixes mean nothing
- * to the user (the path is an internal name in WebAssembly memory), so they
- * are removed, and the two most common failures get plain explanations:
- * - a missing header or cross-reference table means the file is not a PDF,
- *   or is damaged;
- * - an unsupported encryption or filter is named as such, with qpdf's own
- *   words kept in brackets for anyone who needs the detail.
+ * qpdf prefixes every line with the program name and the file it was working
+ * on ("this.program: /job-1-in.pdf: can't find startxref"). Those prefixes
+ * mean nothing to a user (the paths are in a private in-memory file system),
+ * so they are removed. Two families of messages are then reworded:
+ * - a missing PDF header or `startxref` means the file is not a PDF, or is
+ *   too damaged to read;
+ * - "unsupported encryption" or an unsupported filter means qpdf cannot
+ *   handle the method, which is worth saying plainly (the raw text is kept in
+ *   brackets so a bug report still has the detail).
+ * Anything else is returned with its first letter capitalised.
  *
- * @param stderr qpdf's standard error (may be empty).
- * @returns A message that starts with a capital letter.
+ * @param stderr Everything qpdf wrote to stderr during one run.
+ * @returns A readable message; never empty.
  */
 export function friendlyQpdfMessage(stderr: string): string {
   const lines = stderr
