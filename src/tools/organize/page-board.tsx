@@ -19,6 +19,7 @@ import {
   type BoardAction,
   type BoardState,
 } from "./core/board-state";
+import { moveKeysBy, moveKeysTo } from "./core/arrange";
 import { columnCount } from "./core/drag";
 import {
   boardCommandForKey,
@@ -28,7 +29,11 @@ import {
 } from "./core/keyboard";
 import type { SelectMode } from "./core/selection";
 import { ZOOM_LEVELS } from "./core/zoom";
-import { PageThumbnail, type ThumbnailRenderer } from "./page-thumbnail";
+import {
+  PageThumbnail,
+  shapeOf,
+  type ThumbnailRenderer,
+} from "./page-thumbnail";
 import { useBoardDrag } from "./use-board-drag";
 
 /**
@@ -145,6 +150,8 @@ export function PageBoard({
     },
     onDrop: (dragged, gap) => {
       dispatch({ type: "move-to", keys: dragged, gap });
+      // Dropped where they already were: selected, but nothing moved.
+      if (moveKeysTo(pages, new Set(dragged), gap) === pages) return;
       onAnnounce(
         `Moved ${dragged.length === 1 ? "1 page" : `${dragged.length} pages`}.`,
       );
@@ -156,13 +163,46 @@ export function PageBoard({
   );
   const dropGap = drag.drag?.gap ?? null;
 
+  // Keys as of the last run of the effect below, to find where a removed
+  // page used to be.
+  const previousKeys = useRef<readonly string[]>(keys);
+
+  /*
+   * Keep keyboard focus on the board when the page order changes.
+   *
+   * Two cases lose focus: React moves a focused card's DOM node (a keyboard
+   * move), or the focused card is removed (Delete, or an undo). Either way
+   * the browser drops focus to <body>. Steps:
+   * 1. If focus is somewhere else on the page (a toolbar button), leave it:
+   *    the user is working there.
+   * 2. After a keyboard move, focus the moved page again (`refocus`, set
+   *    only for moves that really change the order).
+   * 3. If the focused page is gone and focus fell to <body>, focus the
+   *    page that now sits at its position (or the new last page), as a
+   *    listbox does after deleting an item.
+   */
   useLayoutEffect(() => {
-    const key = refocus.current;
-    if (key === null) return;
+    const before = previousKeys.current;
+    previousKeys.current = keys;
+    const wanted = refocus.current;
     refocus.current = null;
-    const card = cardFor(containerRef.current, key);
-    if (card && document.activeElement !== card) card.focus();
-  }, [pages]);
+    const container = containerRef.current;
+    if (!container) return;
+    const active = document.activeElement;
+    const focusLost = active === null || active === document.body;
+    if (!focusLost && !container.contains(active)) return;
+    if (wanted !== null && keys.includes(wanted)) {
+      const card = cardFor(container, wanted);
+      if (card && active !== card) card.focus();
+      return;
+    }
+    if (!focusLost || focusKey === null || keys.includes(focusKey)) return;
+    const oldIndex = before.indexOf(focusKey);
+    if (oldIndex < 0 || keys.length === 0) return;
+    const next = keys[Math.min(oldIndex, keys.length - 1)];
+    setFocusKey(next);
+    cardFor(container, next)?.focus();
+  }, [keys, focusKey]);
 
   /** Move the focus to the card at `index` (and keep it as the tab stop). */
   const focusIndex = useCallback(
@@ -175,14 +215,20 @@ export function PageBoard({
     [keys],
   );
 
-  const onCardClick = (event: MouseEvent<HTMLElement>, key: string) => {
-    event.stopPropagation();
-    if (drag.consumeClick() || disabled) return;
-    const onTick =
-      event.target instanceof Element &&
-      event.target.closest("[data-toggle]") !== null;
-    dispatch({ type: "select", key, mode: selectModeFor(event, onTick) });
-  };
+  // Stable (as long as `disabled` does not change), so memoised thumbnails
+  // are not re-rendered for a new callback on every board render.
+  const { consumeClick } = drag;
+  const onCardClick = useCallback(
+    (event: MouseEvent<HTMLElement>, key: string) => {
+      event.stopPropagation();
+      if (consumeClick() || disabled) return;
+      const onTick =
+        event.target instanceof Element &&
+        event.target.closest("[data-toggle]") !== null;
+      dispatch({ type: "select", key, mode: selectModeFor(event, onTick) });
+    },
+    [consumeClick, disabled, dispatch],
+  );
 
   const onKeyDown = (event: KeyboardEvent<HTMLElement>) => {
     const command = boardCommandForKey({
@@ -231,21 +277,24 @@ export function PageBoard({
       }
       case "move": {
         // Moving an unselected page moves just that page.
-        const count = state.selection.keys.has(currentKey)
-          ? state.selection.keys.size
-          : 1;
+        const moving = state.selection.keys.has(currentKey)
+          ? state.selection.keys
+          : new Set([currentKey]);
         if (!state.selection.keys.has(currentKey))
           dispatch({ type: "select", key: currentKey, mode: "only" });
+        const delta = moveDelta(
+          command.step,
+          measureColumns(containerRef.current),
+          keys.length,
+        );
+        // Already at that end: nothing moves, so nothing is announced and
+        // no refocus is left behind for a later, unrelated change.
+        if (moveKeysBy(pages, moving, delta) === pages) return;
         refocus.current = currentKey;
-        dispatch({
-          type: "move-by",
-          delta: moveDelta(
-            command.step,
-            measureColumns(containerRef.current),
-            keys.length,
-          ),
-        });
-        onAnnounce(`Moved ${count === 1 ? "1 page" : `${count} pages`}.`);
+        dispatch({ type: "move-by", delta });
+        onAnnounce(
+          `Moved ${moving.size === 1 ? "1 page" : `${moving.size} pages`}.`,
+        );
         return;
       }
       case "toggle":
@@ -296,7 +345,7 @@ export function PageBoard({
             fileNumber={
               page.kind === "source" ? (fileNumbers.get(page.sourceId) ?? 0) : 0
             }
-            size={displayedSize(page, sources)}
+            {...shapeOf(displayedSize(page, sources))}
             selected={state.selection.keys.has(page.key)}
             tabbable={page.key === tabKey}
             dragging={draggedKeys.has(page.key)}

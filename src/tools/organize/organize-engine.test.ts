@@ -166,9 +166,11 @@ describe("OrganizeEngine", () => {
     const engine = new OrganizeEngine(factory);
     await engine.open("a", new ArrayBuffer(1));
     await engine.render("a", 0, 0, 1); // crashes
-    expect(await engine.render("a", 0, 0, 1)).toMatchObject({
-      message: "corrupt",
-    });
+    const failed = await engine.render("a", 0, 0, 1);
+    expect(failed).toMatchObject({ status: "error", reason: "failed" });
+    expect((failed as { message: string }).message).toBe(
+      "The PDF engine restarted and could not reopen the files already on the board. corrupt Start over and add them again.",
+    );
     // No further re-open attempt: the render goes straight through.
     await engine.render("a", 0, 0, 1);
     expect(workers[1].requests.map((r) => r.op)).toEqual(["open", "render"]);

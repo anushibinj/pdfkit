@@ -4,8 +4,10 @@ import type { BoardPage, BoardSource } from "./core/board";
 import type { RenderResult } from "./messages";
 import {
   PageThumbnail,
+  shapeOf,
   thumbnailLabel,
   toCanvasResult,
+  type PageThumbnailProps,
 } from "./page-thumbnail";
 
 const source: BoardSource = {
@@ -43,7 +45,7 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 /** Render a thumbnail with defaults; override any prop. */
-function show(props: Partial<Parameters<typeof PageThumbnail>[0]> = {}) {
+function show(props: Partial<PageThumbnailProps> = {}) {
   const handlers = {
     render: vi.fn(async () => rendered),
     onPointerDown: vi.fn(),
@@ -56,7 +58,8 @@ function show(props: Partial<Parameters<typeof PageThumbnail>[0]> = {}) {
       index={2}
       source={source}
       fileNumber={3}
-      size={{ width: 100, height: 200 }}
+      aspectRatio="100 / 200"
+      landscape={false}
       selected={false}
       tabbable
       dragging={false}
@@ -79,6 +82,23 @@ describe("toCanvasResult", () => {
   });
 });
 
+describe("shapeOf", () => {
+  it("describes the size as an aspect ratio and an orientation", () => {
+    expect(shapeOf({ width: 612, height: 792 })).toEqual({
+      aspectRatio: "612 / 792",
+      landscape: false,
+    });
+    expect(shapeOf({ width: 800, height: 600 }).landscape).toBe(true);
+    expect(shapeOf(null)).toEqual({ aspectRatio: null, landscape: false });
+  });
+
+  it("gives equal primitives for equal sizes (so memo can compare)", () => {
+    const a = shapeOf({ width: 1, height: 2 });
+    const b = shapeOf({ width: 1, height: 2 });
+    expect(a.aspectRatio).toBe(b.aspectRatio);
+  });
+});
+
 describe("thumbnailLabel", () => {
   it("names the position, file, page and turn", () => {
     expect(thumbnailLabel(page, 3, source)).toBe("Page 3: report.pdf, page 2");
@@ -93,6 +113,19 @@ describe("thumbnailLabel", () => {
 });
 
 describe("PageThumbnail", () => {
+  it("is memoised", () => {
+    expect((PageThumbnail as unknown as { $$typeof: symbol }).$$typeof).toBe(
+      Symbol.for("react.memo"),
+    );
+  });
+
+  it("fills the frame's width for a landscape page, its height otherwise", () => {
+    show({ landscape: true, aspectRatio: "200 / 100" });
+    const sheet = screen.getByRole("option").querySelector(".bg-white");
+    expect(sheet).toHaveClass("w-full");
+    expect(sheet).toHaveStyle({ aspectRatio: "200 / 100" });
+  });
+
   it("is a labelled, selectable option in the tab order", () => {
     show({ selected: true });
     const option = screen.getByRole("option", {

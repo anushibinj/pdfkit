@@ -2,9 +2,9 @@
 
 import { Check, GripVertical, RotateCw } from "lucide-react";
 import {
+  memo,
   useCallback,
   useRef,
-  type KeyboardEvent,
   type MouseEvent,
   type PointerEvent,
 } from "react";
@@ -75,10 +75,37 @@ export function thumbnailLabel(
   return `Page ${position}: ${origin}${turn}`;
 }
 
+/** A page's shape as primitives, so memoised thumbnails can compare it. */
+export interface ThumbnailShape {
+  /** CSS `aspect-ratio`, e.g. "612 / 792"; `null` when the size is unknown. */
+  aspectRatio: string | null;
+  /** Wider than tall: the sheet fills the frame's width, not its height. */
+  landscape: boolean;
+}
+
+/**
+ * Describe a displayed page size as the thumbnail's shape.
+ *
+ * Plain strings and booleans compare by value, unlike a `Size` object
+ * (computed afresh on every board render), so `memo` can skip a thumbnail
+ * whose shape did not change.
+ *
+ * @param size Displayed width and height in points, or `null`.
+ * @returns The shape.
+ */
+export function shapeOf(size: Size | null): ThumbnailShape {
+  return size
+    ? {
+        aspectRatio: `${size.width} / ${size.height}`,
+        landscape: size.width > size.height,
+      }
+    : { aspectRatio: null, landscape: false };
+}
+
 /** No text edits on thumbnails (a constant, so `PageCanvas` never re-renders for it). */
 const NO_TEXT_EDITS = [] as const;
 
-interface PageThumbnailProps {
+export interface PageThumbnailProps extends ThumbnailShape {
   page: BoardPage;
   /** 0-based position on the board. */
   index: number;
@@ -86,8 +113,6 @@ interface PageThumbnailProps {
   source: BoardSource | undefined;
   /** 1-based number of the file, shown on the page. */
   fileNumber: number;
-  /** Displayed size in points (`null` if unknown), for the shape. */
-  size: Size | null;
   selected: boolean;
   /** The one card that is in the Tab order (roving tabindex). */
   tabbable: boolean;
@@ -99,7 +124,6 @@ interface PageThumbnailProps {
   onPointerDown(event: PointerEvent<HTMLElement>, key: string): void;
   onClick(event: MouseEvent<HTMLElement>, key: string): void;
   onFocus(key: string): void;
-  onKeyDown?(event: KeyboardEvent<HTMLElement>): void;
 }
 
 /**
@@ -116,11 +140,18 @@ interface PageThumbnailProps {
  * screen, at the card's own width in device pixels, and released when it
  * scrolls far away (all by the editor's `PageCanvas`).
  *
+ * It is memoised: every prop is a primitive or keeps its identity while
+ * unchanged (the board passes stable callbacks and the shape as strings),
+ * so a drag, a selection change or rotating one page re-renders only the
+ * thumbnails that actually changed, not the whole board.
+ *
  * @param props The page and its state.
  * @returns The card.
  */
-export function PageThumbnail(props: PageThumbnailProps) {
-  const { page, index, source, size, render } = props;
+export const PageThumbnail = memo(function PageThumbnail(
+  props: PageThumbnailProps,
+) {
+  const { page, index, source, render, landscape } = props;
   const sheetRef = useRef<HTMLDivElement>(null);
   const near = useNearViewport(sheetRef, THUMBNAIL_MARGIN);
   const cssWidth = useElementWidth(sheetRef);
@@ -139,7 +170,6 @@ export function PageThumbnail(props: PageThumbnailProps) {
     [render, sourceId],
   );
   const color = sourceColor(source?.colorIndex ?? 0);
-  const landscape = size !== null && size.width > size.height;
 
   return (
     <div
@@ -152,7 +182,6 @@ export function PageThumbnail(props: PageThumbnailProps) {
       onPointerDown={(e) => props.onPointerDown(e, page.key)}
       onClick={(e) => props.onClick(e, page.key)}
       onFocus={() => props.onFocus(page.key)}
-      onKeyDown={props.onKeyDown}
       className={cn(
         "group bg-card relative flex cursor-grab flex-col gap-2 rounded-lg border-2 p-2 outline-none select-none",
         "focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2",
@@ -180,7 +209,7 @@ export function PageThumbnail(props: PageThumbnailProps) {
             landscape ? "w-full" : "h-full",
           )}
           style={{
-            aspectRatio: size ? `${size.width} / ${size.height}` : "1 / 1.414",
+            aspectRatio: props.aspectRatio ?? "1 / 1.414",
           }}
         >
           {page.kind === "source" && (
@@ -249,4 +278,4 @@ export function PageThumbnail(props: PageThumbnailProps) {
       </div>
     </div>
   );
-}
+});

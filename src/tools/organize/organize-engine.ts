@@ -237,10 +237,11 @@ export class OrganizeEngine {
   /**
    * After a restart, open every kept file again in the new worker.
    *
-   * @returns `null` when ready, or the error that prevented re-opening. The
-   *   kept files are then dropped, so later requests do not retry (and
-   *   fail) on every thumbnail; the board's pages report that their file
-   *   is not open, and the user can start over.
+   * @returns `null` when ready, or an error saying the board's files could
+   *   not be re-opened (with the engine's reason). The kept files are then
+   *   dropped, so later requests do not retry (and fail) on every
+   *   thumbnail; the board's pages report that their file is not open,
+   *   and the user can start over.
    */
   private async reopenIfStale(): Promise<ErrorResult | null> {
     if (!this.stale) return null;
@@ -253,14 +254,14 @@ export class OrganizeEngine {
       );
       if (result.status === "opened") continue;
       this.sources.clear();
-      return result.status === "error"
-        ? result
-        : {
-            status: "error",
-            reason: "failed",
-            message:
-              "Could not reopen the files. Start over and add them again.",
-          };
+      // Say what failed: this error is returned to whichever request came
+      // next, which may be about another file entirely (opening a new one).
+      const detail = result.status === "error" ? ` ${result.message}` : "";
+      return {
+        status: "error",
+        reason: result.status === "error" ? result.reason : "failed",
+        message: `The PDF engine restarted and could not reopen the files already on the board.${detail} Start over and add them again.`,
+      };
     }
     return null;
   }

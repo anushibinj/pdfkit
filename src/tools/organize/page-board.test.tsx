@@ -43,14 +43,22 @@ function Harness({
 }) {
   const [state, dispatch] = useReducer(boardReducer, initial);
   return (
-    <PageBoard
-      state={state}
-      dispatch={dispatch}
-      render={() => new Promise(() => {})}
-      zoom={1}
-      disabled={false}
-      onAnnounce={onAnnounce}
-    />
+    <>
+      <button onClick={() => dispatch({ type: "rotate", delta: 1 })}>
+        outside rotate
+      </button>
+      <button onClick={() => dispatch({ type: "delete" })}>
+        outside delete
+      </button>
+      <PageBoard
+        state={state}
+        dispatch={dispatch}
+        render={() => new Promise(() => {})}
+        zoom={1}
+        disabled={false}
+        onAnnounce={onAnnounce}
+      />
+    </>
   );
 }
 
@@ -210,11 +218,62 @@ describe("PageBoard keyboard", () => {
     expect(order()).toBe("3,1,2,4");
   });
 
+  it("a move at the end of the board changes and announces nothing", () => {
+    const { onAnnounce } = show(3);
+    option(2).focus();
+    fireEvent.keyDown(option(2), { key: "ArrowRight", ctrlKey: true });
+    expect(order()).toBe("1,2,3");
+    expect(onAnnounce).not.toHaveBeenCalled();
+  });
+
   it("leaves undo, redo and delete to the window shortcuts", () => {
     show(2);
     fireEvent.click(option(0));
     option(0).focus();
     fireEvent.keyDown(option(0), { key: "Delete" });
     expect(screen.getAllByRole("option")).toHaveLength(2);
+  });
+
+  it("does not pull focus back after a move that changed nothing", () => {
+    show(3);
+    option(0).focus();
+    // Already first: nothing moves, but the page gets selected.
+    fireEvent.keyDown(option(0), { key: "ArrowLeft", ctrlKey: true });
+    const outside = screen.getByRole("button", { name: "outside rotate" });
+    outside.focus();
+    fireEvent.click(outside);
+    expect(option(0)).toHaveAccessibleName(/turned 90°/);
+    expect(document.activeElement).toBe(outside);
+  });
+});
+
+describe("PageBoard focus after deleting", () => {
+  it("moves focus to the page that took the deleted page's place", () => {
+    show(4);
+    fireEvent.click(option(1));
+    option(1).focus();
+    // Delete arrives from the window shortcut; here from a button that
+    // does not take focus away first (like a key press).
+    fireEvent.click(screen.getByRole("button", { name: "outside delete" }));
+    expect(screen.getAllByRole("option")).toHaveLength(3);
+    expect(document.activeElement).toBe(option(1));
+    expect(option(1)).toHaveAttribute("tabindex", "0");
+  });
+
+  it("moves focus to the new last page when the last page was deleted", () => {
+    show(3);
+    fireEvent.click(option(2));
+    option(2).focus();
+    fireEvent.click(screen.getByRole("button", { name: "outside delete" }));
+    expect(document.activeElement).toBe(option(1));
+  });
+
+  it("leaves focus alone when it was outside the board", () => {
+    show(3);
+    fireEvent.click(option(2));
+    const outside = screen.getByRole("button", { name: "outside delete" });
+    outside.focus();
+    fireEvent.click(outside);
+    expect(document.activeElement).toBe(outside);
   });
 });
