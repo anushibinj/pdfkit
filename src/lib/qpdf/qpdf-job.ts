@@ -18,12 +18,36 @@ export interface QpdfEncryptSettings {
 }
 
 /**
+ * One entry of a page selection (`--pages file [--password=...] range`), as
+ * qpdf's job JSON spells it.
+ */
+export interface QpdfPageSelection {
+  /** A PDF in qpdf's in-memory file system. */
+  file: string;
+  /** The password that opens `file`, if it needs one. */
+  password?: string;
+  /** qpdf page range syntax, e.g. "1-z" (all pages) or "1,3,5-7". */
+  range: string;
+}
+
+/**
+ * Where a job starts from: an input file, or (`empty`, like `--empty`) a
+ * document without pages, which a page selection then fills. Exactly one of
+ * the two; the `never` members make the compiler reject a job with both or
+ * neither.
+ */
+export type QpdfJobInput =
+  { inputFile: string; empty?: never } | { empty: ""; inputFile?: never };
+
+/**
  * The subset of qpdf's job JSON (`qpdf --job-json-help`) that this app uses.
  * Flags that take no value on the command line, such as
  * `--requires-password`, are written as an empty string.
  */
-export interface QpdfJob {
-  inputFile: string;
+export type QpdfJob = QpdfJobInput & QpdfJobOptions;
+
+/** Everything in a {@link QpdfJob} except where it starts from. */
+export interface QpdfJobOptions {
   outputFile?: string;
   /** Password used to open `inputFile`. */
   password?: string;
@@ -36,6 +60,14 @@ export interface QpdfJob {
   requiresPassword?: "";
   /** Like `--encrypt ... --`. */
   encrypt?: QpdfEncryptSettings;
+  /**
+   * Like `--pages ... --`: the output's pages, taken from these files in
+   * this order. Each file's password travels in JSON like every other
+   * password here (see {@link runQpdfJob}).
+   */
+  pages?: QpdfPageSelection[];
+  /** Like `--show-npages`: print the page count on stdout. */
+  showNpages?: "";
 }
 
 /**

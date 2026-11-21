@@ -68,6 +68,27 @@ describe("EmscriptenQpdfRunner", () => {
     expect(module.callMain).toHaveBeenLastCalledWith(["--check", "/x.pdf"]);
   });
 
+  it("run returns this run's stdout when it captures stdout", () => {
+    const stdout = new StderrLog();
+    const { module } = fakeModule(() => 0);
+    vi.mocked(module.callMain).mockImplementation((args) => {
+      stdout.append(`count for ${args.join(" ")}`);
+      return 0;
+    });
+    const runner = new EmscriptenQpdfRunner(module, new StderrLog(), stdout);
+    stdout.append("left over from an earlier run");
+    expect(runner.run(["--show-npages", "/a.pdf"])).toEqual({
+      code: 0,
+      stderr: "",
+      stdout: "count for --show-npages /a.pdf",
+    });
+  });
+
+  it("run leaves stdout out when it does not capture it", () => {
+    const { runner } = fakeModule(() => 0);
+    expect(runner.run(["--version"])).not.toHaveProperty("stdout");
+  });
+
   it("run passes a copy of the arguments", () => {
     const { runner, module } = fakeModule(() => 0);
     const args = Object.freeze(["--version"]);

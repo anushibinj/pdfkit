@@ -1,5 +1,6 @@
 import {
   CodeXml,
+  Combine,
   FileCode,
   FilePen,
   Lock,
@@ -141,6 +142,24 @@ export const tools: ToolDefinition[] = [
     icon: Stamp,
     beta: true,
     component: () => import("./watermark"),
+  },
+  {
+    slug: "merge",
+    name: "Merge PDFs",
+    tagline: "Combine several PDFs into one, in any order, locally.",
+    description:
+      "Free PDF merger that runs in your browser. Combine several PDFs into one file in any order, including password-protected ones. Files never leave your device.",
+    keywords: [
+      "merge pdf",
+      "combine pdf",
+      "join pdf files",
+      "merge pdf offline",
+      "merge password protected pdf",
+      "private pdf merger",
+    ],
+    icon: Combine,
+    beta: true,
+    component: () => import("./merge"),
   },
 ];
 

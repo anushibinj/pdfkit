@@ -81,6 +81,12 @@ export interface QpdfLoadOptions {
    * every load (see the note on reloading below).
    */
   stderr: StderrLog;
+  /**
+   * Receives qpdf's stdout, for tools that read it (for example the page
+   * count printed by `--show-npages`). Optional: without it, stdout is
+   * discarded. Like `stderr`, create one per worker and reuse it.
+   */
+  stdout?: StderrLog;
 }
 
 /**
@@ -92,13 +98,14 @@ export interface QpdfLoadOptions {
  *   factory binds `console.log` and `console.warn` itself, each time it runs,
  *   and writes stdout and stderr through them.
  * - So, before the factory runs, `console.warn` is replaced with a function
- *   that appends to `stderr`, and `console.log` (qpdf's stdout, which no tool
- *   reads) with a no-op. This only affects the worker's console, never the
- *   page's.
+ *   that appends to `stderr`, and `console.log` (qpdf's stdout) with one that
+ *   appends to `stdout` when the tool passed that log, or with a no-op when
+ *   it did not. This only affects the worker's console, never the page's.
  * - A worker reloads qpdf after a crash. Passing the same `stderr` log every
  *   time means that even a build which bound the console only once, on its
  *   first evaluation, would still write into the log the new runner reads.
- *   `printErr` is wired to the log as well, for builds that do honour it.
+ *   `printErr` and `print` are wired to the logs as well, for builds that
+ *   do honour them.
  *
  * Why the load races against `loadFailed`: when `instantiateWasm` is
  * supplied, Emscripten leaves instantiation entirely to us, and if it fails
@@ -107,14 +114,16 @@ export interface QpdfLoadOptions {
  * callers can retry, instead of a promise that hangs forever.
  *
  * @param options The directory, the importer, the instantiator, the console
- *   and the stderr log.
+ *   and the output logs.
  * @returns A runner over a fresh qpdf instance.
  */
 export async function loadQpdf(options: QpdfLoadOptions): Promise<QpdfRunner> {
-  const { wasmDir, importModule, instantiate, stderr } = options;
+  const { wasmDir, importModule, instantiate, stderr, stdout } = options;
   options.console.warn = (...args: unknown[]) =>
     stderr.append(args.map(String).join(" "));
-  options.console.log = () => {};
+  options.console.log = stdout
+    ? (...args: unknown[]) => stdout.append(args.map(String).join(" "))
+    : () => {};
 
   const glue = (await importModule(`${wasmDir}qpdf.mjs`)) as QpdfGlue;
   let failLoad: (reason: unknown) => void = () => {};
@@ -123,7 +132,7 @@ export async function loadQpdf(options: QpdfLoadOptions): Promise<QpdfRunner> {
   });
   const ready = glue.default({
     noInitialRun: true,
-    print: () => {},
+    print: (line) => stdout?.append(line),
     printErr: (line) => stderr.append(line),
     locateFile: (file) => `${wasmDir}${file}`,
     instantiateWasm(imports, done) {
@@ -134,5 +143,5 @@ export async function loadQpdf(options: QpdfLoadOptions): Promise<QpdfRunner> {
     },
   });
   const qpdfModule = await Promise.race([ready, loadFailed]);
-  return new EmscriptenQpdfRunner(qpdfModule, stderr);
+  return new EmscriptenQpdfRunner(qpdfModule, stderr, stdout);
 }

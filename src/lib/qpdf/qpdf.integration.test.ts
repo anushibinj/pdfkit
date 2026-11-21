@@ -32,6 +32,17 @@ describe("qpdf runner (real WASM)", () => {
     expect(result.stderr).toMatch(/does-not-exist\.pdf/);
   });
 
+  it("captures stdout, such as the page count from a job", () => {
+    const count = withInput(readFixture("user-password.pdf"), (input) =>
+      runQpdfJob(qpdf, "/count-job.json", {
+        inputFile: input,
+        password: "hunter2",
+        showNpages: "",
+      }),
+    );
+    expect(count).toMatchObject({ code: EXIT_OK, stdout: "1" });
+  });
+
   it("keeps each run's stderr separate", () => {
     qpdf.run(["--check", "/missing-a.pdf"]);
     const second = qpdf.run(["--check", "/missing-b.pdf"]);
