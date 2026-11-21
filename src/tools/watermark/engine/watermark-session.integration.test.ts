@@ -280,6 +280,27 @@ describe("WatermarkSession with real PDFium and qpdf", () => {
     expect(box.top).toBeLessThan(50 + 36 + 10);
   });
 
+  it("places anchors inside an offset CropBox, as the page is shown", async () => {
+    const cropped = await makePdf((doc) => {
+      const page = doc.addPage([400, 500]);
+      page.setCropBox(50, 60, 300, 400); // 300 x 400, offset by (50, 60)
+    });
+    session.open(cropped, "");
+    const out = session.apply(
+      textSettings({ position: "bottom-right" }, { fontSize: 40 }),
+      [0],
+    );
+    const img = render(out, 0);
+    expect([img.width, img.height]).toEqual([300, 400]); // the crop is shown
+    const box = redBox(img)!;
+    const margin = pageMargin({ width: 300, height: 400 });
+    // ink ends just inside the margin (plus padding) at the bottom right
+    expect(box.right).toBeLessThanOrEqual(300 - margin);
+    expect(box.right).toBeGreaterThan(300 - margin - 10);
+    expect(box.bottom).toBeLessThanOrEqual(400 - margin);
+    expect(box.bottom).toBeGreaterThan(400 - margin - 10);
+  });
+
   it("keeps gradients and the original content streams intact", async () => {
     // A page drawing an axial shading with `sh`, which PDFium's own content
     // regeneration would drop.
@@ -346,6 +367,20 @@ describe("WatermarkSession with real PDFium and qpdf", () => {
     );
     const img = render(out, 0, "hunter2");
     expect(redBox(img)).not.toBeNull();
+  });
+
+  it("previews a password-protected PDF", async () => {
+    const encrypted = new Uint8Array(
+      readFileSync(
+        new URL("../../../../fixtures/user-password.pdf", import.meta.url),
+      ),
+    );
+    session.open(encrypted, "hunter2");
+    const page = session.preview(0, 200, textSettings({}, { fontSize: 30 }));
+    expect(page.width).toBe(200);
+    expect(redBox(page)).not.toBeNull();
+    const plain = session.preview(0, 200);
+    expect(redBox(plain)).toBeNull();
   });
 
   it("tiles across the page, storing the watermark once per page size", async () => {

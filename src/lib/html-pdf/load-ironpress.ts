@@ -1,3 +1,4 @@
+import type { ModuleImporter } from "@/lib/module-importer";
 import type { IronpressApi } from "./ironpress-engine";
 
 /**
@@ -7,9 +8,6 @@ import type { IronpressApi } from "./ironpress-engine";
 export interface IronpressGlue extends IronpressApi {
   default(options: { module_or_path: string }): Promise<unknown>;
 }
-
-/** Imports a module by URL; the worker passes a real dynamic `import()`. */
-export type ModuleImporter = (url: string) => Promise<unknown>;
 
 /**
  * Load and initialise ironpress from our own origin.

@@ -130,6 +130,18 @@ describe("PreviewPane", () => {
     }));
     await act(() => vi.advanceTimersByTimeAsync(PREVIEW_DELAY_MS));
     expect(screen.getByRole("alert")).toHaveTextContent("cannot be written");
+    // the previous bitmap is dimmed so it is not taken for the current one
+    expect(screen.getByRole("img")).toHaveClass("opacity-30");
+  });
+
+  it("shows that it is updating without announcing it", () => {
+    renderPane(vi.fn(() => new Promise<PreviewResult>(() => {})));
+    const updating = screen.getByText(/updating/);
+    expect(updating).toHaveAttribute("aria-hidden", "true");
+    expect(screen.getByText(/Page 2 of 3/)).toHaveAttribute(
+      "aria-live",
+      "polite",
+    );
   });
 
   it("moves between pages and says when a page gets no watermark", () => {

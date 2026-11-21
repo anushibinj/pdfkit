@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { drawPixels } from "@/lib/draw-pixels";
+import { cn } from "@/lib/utils";
 import type { WatermarkSettings } from "./core/model";
 import type { PreviewResult } from "./messages";
 
@@ -126,7 +127,14 @@ export function PreviewPane({
         </Button>
         <p className="text-sm" aria-live="polite">
           Page {pageIndex + 1} of {pageCount}
-          {busy && <span className="text-muted-foreground"> · updating…</span>}
+          {/* Hidden from screen readers: this live region announces page
+              changes, and "updating" on every slider move would be noise. */}
+          {busy && (
+            <span aria-hidden="true" className="text-muted-foreground">
+              {" "}
+              · updating…
+            </span>
+          )}
         </p>
         <Button
           variant="outline"
@@ -149,7 +157,12 @@ export function PreviewPane({
           ref={canvasRef}
           role="img"
           aria-label={`Preview of page ${pageIndex + 1}`}
-          className="mx-auto block h-auto w-full bg-white shadow-sm"
+          // A failed render leaves the previous bitmap in place; dim it so
+          // it is not mistaken for a preview of the current settings.
+          className={cn(
+            "mx-auto block h-auto w-full bg-white shadow-sm transition-opacity",
+            error && "opacity-30",
+          )}
           width={0}
           height={0}
         />

@@ -51,6 +51,17 @@ describe("friendlyQpdfMessage", () => {
     );
   });
 
+  it("strips any internal file path, with qpdf's byte offset", () => {
+    expect(
+      friendlyQpdfMessage(
+        "qpdf: /job-1-in.pdf (offset 1234): object 7 0 has unexpected xref entry type",
+      ),
+    ).toBe("Object 7 0 has unexpected xref entry type");
+    expect(
+      friendlyQpdfMessage("qpdf: /watermark-source.pdf: file is damaged"),
+    ).toBe("File is damaged");
+  });
+
   it("strips program and scratch-file prefixes and capitalises", () => {
     expect(
       friendlyQpdfMessage("this.program: /job-2-x.pdf: something odd happened"),
