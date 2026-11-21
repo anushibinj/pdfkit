@@ -106,3 +106,62 @@ export function ColorField({
     </div>
   );
 }
+
+interface RangeFieldProps {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  /** Shows the value next to the label, e.g. 0.3 -> "30%". */
+  format(value: number): string;
+  onChange(value: number): void;
+}
+
+/**
+ * A labelled slider that shows its current value.
+ *
+ * The value is also given to assistive technology through
+ * `aria-valuetext`, so a screen reader says "30%" rather than "0.3".
+ *
+ * @param props Label, range, formatter and change handler.
+ * @returns The field.
+ */
+export function RangeField({
+  label,
+  value,
+  min,
+  max,
+  step = 1,
+  format,
+  onChange,
+}: RangeFieldProps) {
+  const id = useId();
+  const text = format(value);
+  return (
+    <div className="flex min-w-0 flex-col gap-1">
+      <div className="flex items-baseline justify-between gap-2">
+        <label htmlFor={id} className="text-sm font-medium">
+          {label}
+        </label>
+        <output
+          htmlFor={id}
+          className="text-muted-foreground text-sm tabular-nums"
+        >
+          {text}
+        </output>
+      </div>
+      <input
+        id={id}
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        aria-valuetext={text}
+        className="accent-primary h-11 w-full cursor-pointer"
+        onChange={(e) => onChange(e.target.valueAsNumber)}
+      />
+    </div>
+  );
+}

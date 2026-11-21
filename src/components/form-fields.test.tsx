@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { ColorField, NumberField } from "./form-fields";
+import { ColorField, NumberField, RangeField } from "./form-fields";
 
 describe("NumberField", () => {
   it("reports clamped numbers and tolerates an empty field while typing", () => {
@@ -38,5 +38,27 @@ describe("ColorField", () => {
     expect(input).toHaveValue("#ff0000");
     fireEvent.change(input, { target: { value: "#00ff00" } });
     expect(onChange).toHaveBeenCalledWith({ r: 0, g: 255, b: 0 });
+  });
+});
+
+describe("RangeField", () => {
+  it("shows the formatted value and reports changes as numbers", () => {
+    const onChange = vi.fn();
+    render(
+      <RangeField
+        label="Opacity"
+        value={0.3}
+        min={0.05}
+        max={1}
+        step={0.05}
+        format={(v) => `${Math.round(v * 100)}%`}
+        onChange={onChange}
+      />,
+    );
+    const slider = screen.getByLabelText("Opacity");
+    expect(slider).toHaveAttribute("aria-valuetext", "30%");
+    expect(screen.getByText("30%")).toBeInTheDocument();
+    fireEvent.change(slider, { target: { value: "0.5" } });
+    expect(onChange).toHaveBeenCalledWith(0.5);
   });
 });
