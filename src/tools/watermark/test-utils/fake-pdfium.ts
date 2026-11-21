@@ -18,7 +18,8 @@ export type MockedWatermarkPdfium = MockedApi<WatermarkPdfiumApi>;
 
 /**
  * A watermark PDFium API where every function succeeds harmlessly
- * (handles 101, 102, ...; booleans true; no TrimBox).
+ * (handles 101, 102, ...; booleans true; no TrimBox; pictures decode
+ * to 1 x 1).
  *
  * @param runtime The fake memory to use.
  * @returns The mocked API and its runtime.
@@ -40,6 +41,12 @@ export function fakeWatermarkPdfium(runtime = new FakeRuntime()): {
     FPDFPageObj_NewImageObj: nextHandle,
     EPDFImageObj_SetPng: ok,
     EPDFImageObj_SetJpeg: ok,
+    // A decoded 1 x 1 picture, so pictures load unless a test says otherwise.
+    FPDFImageObj_GetImagePixelSize: (_image, widthPtr, heightPtr) => {
+      runtime.setValue(widthPtr, 1);
+      runtime.setValue(heightPtr, 1);
+      return true;
+    },
     FPDFPageObj_SetFillColor: ok,
     FPDFPageObj_GetBounds: ok,
     FPDFPageObj_Transform: none,

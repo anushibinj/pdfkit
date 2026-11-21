@@ -6,8 +6,10 @@ import { fakeWatermarkPdfium } from "../../test-utils/fake-pdfium";
 import {
   IMAGE_NATURAL_SIDE,
   ImagePainter,
+  PICTURE_UNREADABLE,
   imageNaturalSize,
   imageSizeOn,
+  readDecodedSize,
 } from "./image-painter";
 import { painterFor, toAlpha } from "./painter";
 import { createPainterRegistry } from "./registry";
@@ -159,6 +161,36 @@ describe("imageNaturalSize / imageSizeOn", () => {
   });
 });
 
+describe("readDecodedSize", () => {
+  it("returns the decoded size and frees its memory", () => {
+    const { api, runtime, ctx } = setup();
+    api.FPDFImageObj_GetImagePixelSize.mockImplementation((_i, w, h) => {
+      runtime.setValue(w, 37);
+      runtime.setValue(h, 21);
+      return true;
+    });
+    expect(readDecodedSize(ctx, 7)).toEqual({ width: 37, height: 21 });
+    expect(api.FPDFImageObj_GetImagePixelSize).toHaveBeenCalledWith(
+      7,
+      expect.any(Number),
+      expect.any(Number),
+    );
+    expect(runtime.leaks()).toEqual([]);
+  });
+
+  it("returns null for a picture PDFium could not decode (0 x 0) or a failed call", () => {
+    const { api, runtime, ctx } = setup();
+    api.FPDFImageObj_GetImagePixelSize.mockImplementation((_i, w, h) => {
+      runtime.setValue(w, 0);
+      runtime.setValue(h, 0);
+      return true;
+    });
+    expect(readDecodedSize(ctx, 7)).toBeNull();
+    api.FPDFImageObj_GetImagePixelSize.mockReturnValue(false);
+    expect(readDecodedSize(ctx, 7)).toBeNull();
+  });
+});
+
 describe("ImagePainter", () => {
   it("embeds a PNG, sets the opacity and stretches it over the natural box", () => {
     const { api, runtime, ctx } = setup();
@@ -204,6 +236,17 @@ describe("ImagePainter", () => {
       .draw(PAGE);
     expect(api.EPDFImageObj_SetJpeg).toHaveBeenCalled();
     expect(api.EPDFImageObj_SetPng).not.toHaveBeenCalled();
+  });
+
+  it("refuses a picture that loads but decodes to nothing (a damaged file)", () => {
+    const { api, runtime, ctx } = setup();
+    api.FPDFImageObj_GetImagePixelSize.mockReturnValue(false);
+    expect(() => new ImagePainter().prepare(image, 1, ctx).draw(PAGE)).toThrow(
+      PICTURE_UNREADABLE,
+    );
+    expect(api.FPDFPageObj_Destroy).toHaveBeenCalledTimes(1);
+    expect(api.FPDFPage_InsertObject).not.toHaveBeenCalled();
+    expect(runtime.leaks()).toEqual([]);
   });
 
   it("destroys the object and explains when the picture cannot be decoded", () => {

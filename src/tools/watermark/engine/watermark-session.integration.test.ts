@@ -32,6 +32,7 @@ import { pageMargin } from "../core/layout";
 import type { TextContent, WatermarkSettings } from "../core/model";
 import { InvalidSettingsError } from "../core/sanitize-settings";
 import { asWatermarkPdfiumApi } from "../worker/load-engines";
+import { PICTURE_UNREADABLE } from "./painters/image-painter";
 import { createPainterRegistry } from "./painters/registry";
 import { WatermarkSession } from "./watermark-session";
 
@@ -411,6 +412,31 @@ describe("WatermarkSession with real PDFium and qpdf", () => {
     const pictures = images.filter(([ref]) => !masks.has(ref.toString()));
     expect(pictures).toHaveLength(1);
     expect(redBox(render(tiled, 1))).not.toBeNull();
+  });
+
+  it("refuses a damaged picture instead of adding an empty watermark", async () => {
+    session.open(await letterPdf(1), "");
+    // A PNG whose header is fine but whose compressed data fails its
+    // checksum: PDFium's loader accepts it, yet it would draw nothing.
+    const png = makePng(4, 4, () => [255, 0, 0, 255]);
+    const idat = Buffer.from(png).indexOf("IDAT") + 4;
+    png[idat + 6] ^= 0xff;
+    const settings: WatermarkSettings = {
+      content: {
+        kind: "image",
+        bytes: png.buffer.slice(
+          png.byteOffset,
+          png.byteOffset + png.byteLength,
+        ) as ArrayBuffer,
+        scale: 0.5,
+      },
+      opacity: 1,
+      rotation: 0,
+      position: "center",
+      layer: "over",
+    };
+    expect(() => session.apply(settings, [0])).toThrow(PICTURE_UNREADABLE);
+    expect(() => session.preview(0, 100, settings)).toThrow(PICTURE_UNREADABLE);
   });
 
   it("tags every copy as an artifact", async () => {

@@ -39,6 +39,16 @@ export interface WatermarkPdfiumApi extends PdfiumCoreApi {
     dataPtr: number,
     size: number,
   ): boolean;
+  /**
+   * The decoded image's size. The EPDFImageObj_Set* loaders return true
+   * even for a damaged file; the size is then 0 x 0 (checked against the
+   * real build), which is how a broken picture is detected.
+   */
+  FPDFImageObj_GetImagePixelSize(
+    image: number,
+    widthPtr: number,
+    heightPtr: number,
+  ): boolean;
   /** An alpha below 255 makes PDFium write an ExtGState with /ca. */
   FPDFPageObj_SetFillColor(
     object: number,

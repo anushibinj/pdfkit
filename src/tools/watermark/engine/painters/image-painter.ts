@@ -48,6 +48,35 @@ export function imageSizeOn(image: ImageSpec, page: Size): Size {
   return { width, height: (width * image.pixelHeight) / image.pixelWidth };
 }
 
+/** Shown when PDFium cannot decode the picture. */
+export const PICTURE_UNREADABLE =
+  "The picture could not be read. It may be damaged; try another PNG or JPEG file.";
+
+/**
+ * The size PDFium decoded a loaded picture to.
+ *
+ * `EPDFImageObj_SetPng` / `SetJpeg` return true even when the file is
+ * damaged (a bad checksum, a truncated file): PDFium then holds an image
+ * it cannot decode, which draws nothing. Its decoded size is 0 x 0 in that
+ * case, while a good picture reports its real size (checked against the
+ * WebAssembly build), so a zero size means "unreadable".
+ *
+ * @param ctx The document and PDFium.
+ * @param image The image object, after loading the picture into it.
+ * @returns The size, or `null` when the picture could not be decoded.
+ */
+export function readDecodedSize(
+  ctx: PainterContext,
+  image: number,
+): Size | null {
+  const { api, heap } = ctx;
+  return heap.using(heap.alloc(8), (ptr) => {
+    if (!api.FPDFImageObj_GetImagePixelSize(image, ptr, ptr + 4)) return null;
+    const [width, height] = heap.readInts(ptr, 2);
+    return width > 0 && height > 0 ? { width, height } : null;
+  });
+}
+
 /** Draws PNG and JPEG watermarks. */
 export class ImagePainter implements Painter<ImageSpec> {
   /**
@@ -82,6 +111,8 @@ export class ImagePainter implements Painter<ImageSpec> {
  *   on a transparent background does not paint a rectangle.
  * - JPEG: embedded as is (DCTDecode), without quality loss.
  * PDFium copies the bytes, so our copy is freed right after the call.
+ * The loaders accept damaged files, so the decoded size is checked too
+ * (see {@link readDecodedSize}).
  * A PDF image fills the unit square, so the matrix [w, 0, 0, h, 0, 0]
  * stretches it over the box. The alpha goes on the image object; PDFium
  * writes it as an ExtGState (/ca) in front of the image.
@@ -91,7 +122,7 @@ export class ImagePainter implements Painter<ImageSpec> {
  * @param image The picture.
  * @param alpha 0..255.
  * @param box The natural box.
- * @throws When PDFium cannot decode the picture.
+ * @throws {Error} {@link PICTURE_UNREADABLE} when PDFium cannot decode it.
  */
 function drawImage(
   ctx: PainterContext,
@@ -110,10 +141,8 @@ function drawImage(
           ? api.EPDFImageObj_SetPng(page, 0, object, ptr, image.bytes.length)
           : api.EPDFImageObj_SetJpeg(page, 0, object, ptr, image.bytes.length),
       );
-      if (!ok)
-        throw new Error(
-          "The picture could not be read. Use a PNG or JPEG file.",
-        );
+      if (!ok || !readDecodedSize(ctx, object))
+        throw new Error(PICTURE_UNREADABLE);
       check(
         api.FPDFPageObj_SetFillColor(object, 0, 0, 0, alpha),
         "set the picture's opacity",
