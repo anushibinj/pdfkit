@@ -122,8 +122,9 @@ export class QpdfRunner {
    * Read a file from the in-memory file system.
    *
    * @param path Absolute path.
-   * @returns The bytes (a view owned by the file system: copy it before
-   *   deleting the file if it must outlive it).
+   * @returns A new array holding a copy of the file (Emscripten's
+   *   `FS.readFile` allocates it), so it stays valid after the file is
+   *   deleted and its buffer can be transferred.
    */
   readFile(path: string): Uint8Array {
     return this.module.FS.readFile(path);
