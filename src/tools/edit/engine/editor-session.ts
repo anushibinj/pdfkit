@@ -1,5 +1,6 @@
 import type { PageInfo, QuarterTurns, TextEditOutcome } from "../core/model";
-import { addTurns, viewSize, type Size } from "../core/page-geometry";
+import { viewSize, type Size } from "@/lib/pdfium/page-box";
+import { addTurns } from "../core/page-geometry";
 import { sanitizeSavePlan, sanitizeTextEdits } from "../core/sanitize-plan";
 import type { FontMetricsSource } from "../core/text-layout";
 import { groupFragments, type TextRun } from "../core/text-runs";

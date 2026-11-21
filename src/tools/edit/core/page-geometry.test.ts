@@ -1,13 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { applyToPoint } from "@/lib/affine";
+import { viewSize } from "@/lib/pdfium/page-box";
 import type { PageBox, QuarterTurns } from "./model";
-import {
-  addTurns,
-  boxSize,
-  userToView,
-  viewSize,
-  viewToUser,
-} from "./page-geometry";
+import { addTurns, userToView, viewToUser } from "./page-geometry";
 
 // A box that does not start at the origin, to catch offset mistakes.
 const box: PageBox = { left: 100, bottom: 50, right: 700, top: 450 }; // 600 x 400
@@ -26,16 +21,6 @@ describe("addTurns", () => {
     [2, 6, 0],
   ])("%d + %d -> %d", (a, b, expected) => {
     expect(addTurns(a, b)).toBe(expected);
-  });
-});
-
-describe("boxSize and viewSize", () => {
-  it("measures the box and swaps the sides for odd turns", () => {
-    expect(boxSize(box)).toEqual({ width: 600, height: 400 });
-    expect(viewSize(box, 0)).toEqual({ width: 600, height: 400 });
-    expect(viewSize(box, 1)).toEqual({ width: 400, height: 600 });
-    expect(viewSize(box, 2)).toEqual({ width: 600, height: 400 });
-    expect(viewSize(box, 3)).toEqual({ width: 400, height: 600 });
   });
 });
 

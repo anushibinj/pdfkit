@@ -20,7 +20,8 @@ import {
   type TextObject,
 } from "./model";
 import { uprightFrameAt, viewToObject } from "./object-frame";
-import { viewSize, viewToUser } from "./page-geometry";
+import { viewSize } from "@/lib/pdfium/page-box";
+import { viewToUser } from "./page-geometry";
 
 /** Tools that react to pointer input on a page. */
 export type DrawingTool =

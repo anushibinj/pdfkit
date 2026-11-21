@@ -25,7 +25,8 @@ import {
 import type { EditObject, PageInfo, TextEdit } from "../core/model";
 import { localBounds } from "../core/object-bounds";
 import { uprightFrameAt } from "../core/object-frame";
-import { addTurns, userToView, viewSize } from "../core/page-geometry";
+import { viewSize } from "@/lib/pdfium/page-box";
+import { addTurns, userToView } from "../core/page-geometry";
 import type { SavePage, SavePlan } from "../core/save-plan";
 import { InvalidPlanError } from "../core/sanitize-plan";
 import { StandardFontMetricsSource } from "../core/standard-font-metrics";

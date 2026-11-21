@@ -1,11 +1,9 @@
 import { compose, invert, type Matrix } from "@/lib/affine";
-import type { PageBox, QuarterTurns } from "./model";
-
-/** A width and a height, in points unless stated otherwise. */
-export interface Size {
-  width: number;
-  height: number;
-}
+import {
+  boxSize,
+  type PageBox,
+  type QuarterTurns,
+} from "@/lib/pdfium/page-box";
 
 /**
  * Add two rotations and wrap the result into 0..3.
@@ -20,31 +18,6 @@ export interface Size {
  */
 export function addTurns(a: number, b: number): QuarterTurns {
   return ((((a + b) % 4) + 4) % 4) as QuarterTurns;
-}
-
-/**
- * The size of a page box before any rotation.
- *
- * @param box The page's visible area in user space.
- * @returns Its width and height in points.
- */
-export function boxSize(box: PageBox): Size {
-  return { width: box.right - box.left, height: box.top - box.bottom };
-}
-
-/**
- * The size of a page as it is displayed after rotating it.
- *
- * An odd number of quarter turns lays the page on its side, which swaps
- * width and height.
- *
- * @param box The page's visible area in user space.
- * @param turns Clockwise display rotation (page /Rotate plus user turns).
- * @returns The displayed width and height in points.
- */
-export function viewSize(box: PageBox, turns: QuarterTurns): Size {
-  const { width, height } = boxSize(box);
-  return turns % 2 === 0 ? { width, height } : { width: height, height: width };
 }
 
 /**
