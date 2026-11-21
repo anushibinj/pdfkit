@@ -1,4 +1,5 @@
-import type { ImageMime } from "./model";
+/** Image formats PDFium can embed directly. */
+export type ImageMime = "image/png" | "image/jpeg";
 
 /** An image's format and size, read from its header. */
 export interface ImageInfo {

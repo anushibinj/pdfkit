@@ -30,7 +30,7 @@ import type { SavePage, SavePlan } from "../core/save-plan";
 import { InvalidPlanError } from "../core/sanitize-plan";
 import { StandardFontMetricsSource } from "../core/standard-font-metrics";
 import type { TextRun } from "../core/text-runs";
-import { GREEN_JPEG, makePng } from "../test-utils/images";
+import { GREEN_JPEG, makePng } from "@/lib/test-utils/images";
 import {
   extractText,
   loadNodePdfium,

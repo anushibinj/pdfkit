@@ -14,7 +14,7 @@ import {
   type DrawingTool,
   type ToolStyle,
 } from "./core/gestures";
-import { MAX_IMAGE_BYTES, readImageInfo } from "./core/image-info";
+import { MAX_IMAGE_BYTES, readImageInfo } from "@/lib/image-info";
 import type {
   EditObject,
   EditorDocument,

@@ -3,7 +3,7 @@
 import { Trash2, X } from "lucide-react";
 import { useId, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
-import { hexToRgb, rgbToHex } from "./core/colors";
+import { hexToRgb, rgbToHex } from "@/lib/color";
 import type { ObjectPatch } from "./core/editor-state";
 import type { DrawingTool, ToolStyle } from "./core/gestures";
 import {

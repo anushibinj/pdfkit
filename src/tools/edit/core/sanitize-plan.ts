@@ -1,4 +1,4 @@
-import { clampChannel } from "./colors";
+import { clampChannel } from "@/lib/color";
 import {
   FONT_SIZE_LIMITS,
   MAX_COORDINATE,
