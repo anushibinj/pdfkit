@@ -1,6 +1,6 @@
 import { errorMessage } from "@/lib/errors";
 import { WorkerClient, type RequestOptions } from "@/lib/worker-client";
-import type { QuarterTurns } from "@/tools/edit/core/model";
+import type { QuarterTurns } from "@/lib/pdfium/page-box";
 import type { OutputPage } from "./core/output-plan";
 import type {
   ErrorResult,

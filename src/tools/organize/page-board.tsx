@@ -11,7 +11,7 @@ import {
   type KeyboardEvent,
   type MouseEvent,
 } from "react";
-import { isEditableTarget } from "@/tools/edit/core/keyboard";
+import { isEditableTarget } from "@/lib/keyboard";
 import { cn } from "@/lib/utils";
 import { displayedSize, sourceMap } from "./core/board";
 import {

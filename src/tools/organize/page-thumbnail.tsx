@@ -1,55 +1,21 @@
 "use client";
 
 import { Check, GripVertical, RotateCw } from "lucide-react";
-import {
-  memo,
-  useCallback,
-  useRef,
-  type MouseEvent,
-  type PointerEvent,
-} from "react";
-import { renderWidthFor } from "@/tools/edit/core/render-width";
-import type { QuarterTurns } from "@/tools/edit/core/model";
-import type { RenderOptions } from "@/tools/edit/editor-engine";
-import type { RenderResult as CanvasRenderResult } from "@/tools/edit/messages";
-import { PageCanvas } from "@/tools/edit/page-canvas";
-import {
-  useElementWidth,
-  useNearViewport,
-} from "@/tools/edit/use-element-observers";
+import { memo, useRef, type MouseEvent, type PointerEvent } from "react";
+import type { Size } from "@/lib/pdfium/page-box";
+import { renderWidthFor } from "@/lib/render-width";
+import { useElementWidth, useNearViewport } from "@/lib/use-element-observers";
 import { cn } from "@/lib/utils";
 import { TURN_DEGREES } from "./core/arrange";
 import type { BoardPage, BoardSource } from "./core/board";
-import type { Size } from "@/tools/edit/core/page-geometry";
 import { sourceColor } from "./core/source-colors";
 import { THUMBNAIL_RENDER_LIMITS } from "./core/zoom";
-import type { RenderResult } from "./messages";
+import { ThumbnailCanvas, type ThumbnailRenderer } from "./thumbnail-canvas";
+
+export type { ThumbnailRenderer } from "./thumbnail-canvas";
 
 /** How far off screen a thumbnail still renders (and keeps its bitmap). */
 export const THUMBNAIL_MARGIN = "600px 0px";
-
-/** Renders a page of an open file (the organizer's `render`). */
-export type ThumbnailRenderer = (
-  sourceId: string,
-  pageIndex: number,
-  rotation: QuarterTurns,
-  width: number,
-  signal?: AbortSignal,
-) => Promise<RenderResult>;
-
-/**
- * Adapt an organizer render result to the shape the editor's `PageCanvas`
- * expects. The canvas also reports text-edit outcomes; thumbnails have no
- * text edits, so the list is always empty.
- *
- * @param result The organizer's result.
- * @returns The same result in the canvas's shape.
- */
-export function toCanvasResult(result: RenderResult): CanvasRenderResult {
-  return result.status === "rendered"
-    ? { ...result, textOutcomes: [] }
-    : result;
-}
 
 /**
  * The accessible name of a board page: its position, where it comes from
@@ -102,9 +68,6 @@ export function shapeOf(size: Size | null): ThumbnailShape {
     : { aspectRatio: null, landscape: false };
 }
 
-/** No text edits on thumbnails (a constant, so `PageCanvas` never re-renders for it). */
-const NO_TEXT_EDITS = [] as const;
-
 export interface PageThumbnailProps extends ThumbnailShape {
   page: BoardPage;
   /** 0-based position on the board. */
@@ -138,7 +101,7 @@ export interface PageThumbnailProps extends ThumbnailShape {
  *
  * The page bitmap is rendered by PDFium only while the card is near the
  * screen, at the card's own width in device pixels, and released when it
- * scrolls far away (all by the editor's `PageCanvas`).
+ * scrolls far away (see `ThumbnailCanvas`).
  *
  * It is memoised: every prop is a primitive or keeps its identity while
  * unchanged (the board passes stable callbacks and the shape as strings),
@@ -156,19 +119,6 @@ export const PageThumbnail = memo(function PageThumbnail(
   const near = useNearViewport(sheetRef, THUMBNAIL_MARGIN);
   const cssWidth = useElementWidth(sheetRef);
   const ratio = typeof window === "undefined" ? 1 : window.devicePixelRatio;
-  const sourceId = page.kind === "source" ? page.sourceId : "";
-  const renderPage = useCallback(
-    (
-      pageIndex: number,
-      rotation: QuarterTurns,
-      width: number,
-      options?: RenderOptions,
-    ) =>
-      render(sourceId, pageIndex, rotation, width, options?.signal).then(
-        toCanvasResult,
-      ),
-    [render, sourceId],
-  );
   const color = sourceColor(source?.colorIndex ?? 0);
 
   return (
@@ -213,12 +163,12 @@ export const PageThumbnail = memo(function PageThumbnail(
           }}
         >
           {page.kind === "source" && (
-            <PageCanvas
-              renderPage={renderPage}
-              sourceIndex={page.pageIndex}
+            <ThumbnailCanvas
+              render={render}
+              sourceId={page.sourceId}
+              pageIndex={page.pageIndex}
               rotation={page.rotation}
               width={renderWidthFor(cssWidth, ratio, THUMBNAIL_RENDER_LIMITS)}
-              textEdits={NO_TEXT_EDITS}
               active={near}
               className="absolute inset-0 size-full"
             />

@@ -1,13 +1,13 @@
 import { addTurns } from "../core/page-geometry";
-import { planPageOperations } from "../core/page-order";
+import { planPageOperations } from "@/lib/pdfium/page-order";
 import type { SavePlan } from "../core/save-plan";
 import type { FontMetricsSource } from "../core/text-layout";
 import { PdfiumPageText } from "./page-text";
 import type { PdfiumApi } from "./pdfium-api";
-import type { PdfiumDocument } from "./pdfium-document";
+import type { PdfiumDocument } from "@/lib/pdfium/pdfium-document";
 import { applyTextEdits } from "./text-edits";
-import type { WasmHeap } from "./wasm-heap";
-import { check } from "./writers/object-writer";
+import type { WasmHeap } from "@/lib/pdfium/wasm-heap";
+import { check } from "@/lib/pdfium/page-objects";
 import { writePageObjects, type WriterRegistry } from "./writers/registry";
 
 /** Collaborators for {@link applySavePlan}. */

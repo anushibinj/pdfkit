@@ -8,6 +8,44 @@ Currently shipped tools:
 - **PDF Unlocker** (`/tools/unlock/`): removes owner restrictions and decrypts
   files whose password you know, using [qpdf](https://github.com/qpdf/qpdf)
   compiled to WASM. It does not crack or guess passwords.
+- **Protect PDF** (`/tools/protect/`, beta): adds an open password to a PDF
+  with AES-256 encryption (PDF 2.0, revision 6), using the same qpdf build.
+  The password is typed twice and is also set as the owner password, so the
+  person who knows it keeps full control (an empty owner password would let
+  anyone open an AES-256 file). Before the file is offered, it is re-opened
+  to check that it is refused without the password and opens with exactly
+  the password typed. Passwords go to qpdf in a job JSON file, never as
+  command line arguments (qpdf reads an argument starting with `@` as a file
+  of arguments). Passwords longer than 127 UTF-8 bytes are refused: qpdf
+  11.0.0 writes them untruncated, while PDF 2.0 readers truncate to 127 bytes,
+  so such a file would not open in qpdf or pdf.js. A PDF that already needs a
+  password is left alone (unlock it first); one with only restrictions gets
+  the password and loses the restrictions, and the page says so. Encrypting
+  rewrites the file, so a digitally signed PDF's signatures are no longer
+  valid in the protected copy; the page warns about that too (signatures are
+  found with the same byte scan as the Signature Verifier).
+- **Merge PDFs** (`/tools/merge/`, beta): combines several PDFs into one, in
+  the order you choose, using the same qpdf build (no extra download). Pages
+  are copied as PDF objects, so nothing is re-rendered or re-compressed;
+  links, comments and form fields stay. Each file is checked when added
+  (its page count, through qpdf's stdout) and password-protected files open
+  with their password, which goes to qpdf in a job JSON file like Protect
+  PDF's. qpdf starts from an empty document (`--empty`), so bookmarks and
+  document properties are not carried over, the result is not encrypted,
+  and digital signatures in the inputs are not valid in it.
+- **Split PDF** (`/tools/split/`, beta): splits a PDF into several files
+  (every N pages, or one file per typed range such as `1-3, 4-8, 9-`),
+  extracts the pages you pick into a new file, or removes the pages you pick.
+  Pages are picked by clicking thumbnails (Shift-click picks a stretch) or by
+  typing page numbers (the same syntax as Add Watermark's page field). Several
+  files download as one ZIP. Each file is made by qpdf with the source as the
+  primary file (`--pages . <range>`, in a job JSON file), so it keeps the
+  original's password, document properties and the form fields of the kept
+  pages; pages left out are not written at all. Bookmarks and links that
+  pointed to a left-out page no longer go anywhere. A long split first copies
+  short stretches into temporary parts, because each qpdf run reads the whole
+  source: 1000 single-page files take about 19 s instead of about 5 minutes.
+  Thumbnails are drawn by PDFium.
 - **Signature Verifier** (`/tools/verify/`, beta): checks that a signed PDF is
   unmodified and its signature is cryptographically correct.
 - **Markdown to PDF** (`/tools/markdown-to-pdf/`, beta): renders Markdown
@@ -16,6 +54,15 @@ Currently shipped tools:
   [ironpress](https://github.com/gastongouron/ironpress) HTML/CSS layout engine
   compiled to WASM. Paper size and margins come from the page settings, or from
   an `@page` rule in the CSS (which wins).
+- **HTML to PDF** (`/tools/html-to-pdf/`, beta): lays out HTML (a full page
+  or a fragment, typed or opened from an `.html`/`.htm`/`.xhtml` file) with its
+  own CSS into a PDF, using the same ironpress engine. Files are read in the
+  encoding they declare (a `<meta charset>`, as in Word's windows-1252 "Save as
+  Web Page" output), elements with the `hidden` attribute and closed
+  `<details>`/`<dialog>` content stay hidden, and an `@page` rule in the HTML
+  sets the paper size and margins. The engine has no network access and runs
+  no JavaScript, so after converting, the page lists what it left out: images
+  that are not PNG/JPEG `data:` URLs, linked stylesheets, and scripts.
 - **PDF Editor** (`/tools/edit/`, beta): changes the PDF's own text in place,
   adds text, freehand drawings, boxes, highlights and images (PNG/JPEG, such
   as a signature), and rotates, reorders or deletes pages, using
@@ -30,6 +77,19 @@ Currently shipped tools:
   password and stay protected after saving. Text in scanned pages or inside
   form XObjects cannot be edited, and new or substituted text is limited to
   the standard PDF fonts (WinAnsi: English and Western European languages).
+- **Add Watermark** (`/tools/watermark/`, beta): adds a text or picture
+  (PNG/JPEG) watermark to every page or to a page range, with opacity, angle,
+  one of nine positions or tiled across the page, over or under the content.
+  [PDFium](https://pdfium.googlesource.com/pdfium/) draws the watermark into a
+  separate one-page-per-size "stamp" PDF, and [qpdf](https://github.com/qpdf/qpdf)
+  lays it onto the pages with `--overlay`/`--underlay`, which adds new content
+  streams and leaves the original ones untouched (PDFium's own content
+  regeneration was ruled out: it rewrites the whole page and drops shadings).
+  Each copy references one form XObject, so a tiled logo is stored once, and
+  copies are tagged as `/Artifact` for screen readers. The live preview is the
+  real output for that page. Password-protected PDFs keep their password.
+  Text uses the standard PDF fonts (WinAnsi); other characters are refused
+  rather than silently replaced.
 - **Organize Pages** (`/tools/organize/`, beta): a thumbnail board for one or
   more PDFs. Pages of every file appear in one grid, numbered and coloured by
   file. Drag (or Ctrl/Cmd + arrow keys) to reorder; rotate, duplicate or
@@ -130,14 +190,23 @@ service worker precache are all derived from `src/tools/registry.ts`.
 3. Done. `pnpm test` validates the entry; `pnpm build` generates
    `/tools/<slug>/`, its OG card, sitemap entry and precache.
 
+A tool that turns something into HTML and then into a PDF can reuse the
+ironpress pipeline in `src/lib/html-pdf/` (engine adapter and loader, page
+setup, worker handler, conversion state and the `usePdfConversion` hook) and
+the converter page components (`CodeEditor`, `PageSettings`,
+`ConversionActions`, `ConversionStatus`, `BetaNotice`), as Markdown to PDF and
+HTML to PDF do.
+
 ## Large engines and the service worker
 
 The service worker precaches every file in `out/` except those listed in
 `ON_FIRST_USE` in `scripts/build-sw.mjs`. The ironpress binary (~15 MB, ~6 MB
 gzipped) and PDFium (binary ~4.6 MB, ~2 MB gzipped, plus its JavaScript glue)
-are on that list: each is cached the first time a tool loads it (PDFium is shared by the PDF
-Editor and Organize Pages), so visitors who never use those tools never download it, and the
-tools still work offline after their first use.
+are on that list: each is cached the first time a tool loads it, so visitors who never use
+those tools never download it, and the tools still work offline after first use. Markdown to PDF
+and HTML to PDF load the same ironpress files, and the PDF Editor, Add Watermark, Split PDF
+(thumbnails) and Organize Pages the same PDFium files, so using any tool of a group caches its
+engine for the others.
 
 ## Manual test checklist (Organize Pages)
 
@@ -205,6 +274,59 @@ Sample files live in `fixtures/` (`user-password.pdf` has password `hunter2`;
 - [ ] At 360px width there is no horizontal scroll and drawing with a finger
       does not scroll the page.
 
+## Manual test checklist (HTML to PDF)
+
+`fixtures/windows-1252.html` is saved in windows-1252, as Word's "Save as Web
+Page" does, with a hidden paragraph and an image that is not embedded.
+
+- [ ] The sample invoice converts to one A4 page; **Download PDF** saves
+      `document.pdf`, and no "Some content is not in the PDF" notice appears.
+- [ ] Opening `fixtures/windows-1252.html` shows `Café “Crème brûlée”` and
+      `4,50 €` in the editor; the PDF shows them too, does not contain the
+      hidden paragraph, is named `windows-1252.pdf`, and the page says
+      "1 image was left out".
+- [ ] `<p hidden>`, a closed `<details>` body and a closed `<dialog>` do not
+      appear in the PDF; `<details open>` and `<dialog open>` do.
+- [ ] An `@page { size: A5; margin: 0 }` rule in the HTML overrides the paper
+      size and margin settings.
+- [ ] A page with `<link rel="stylesheet">`, `<script>` and an
+      `<img src="https://...">` converts, and the notice counts each of them.
+- [ ] A `.md` or `.png` file is rejected with a toast; a file over 10 MB is
+      refused.
+- [ ] Editing the HTML after converting hides the old **Download PDF** button
+      and the notice.
+- [ ] **Cancel** stops a long conversion and the next one works.
+- [ ] DevTools > Console shows no Content Security Policy errors after
+      converting (with `pnpm build && pnpm preview`, which serves the real
+      headers).
+- [ ] Offline after one conversion: reload with DevTools > Network > Offline
+      and convert again.
+
+## Manual test checklist (Add Watermark)
+
+- [ ] Open `fixtures/text-chromium.pdf`: the preview shows a grey diagonal
+      "CONFIDENTIAL" in the middle; **Download PDF** saves
+      `text-chromium-watermarked.pdf`, and its own text can still be
+      selected and copied in a PDF reader.
+- [ ] Each of the nine positions puts the watermark in that place as the page
+      is displayed; **Tile across the page** repeats it over the whole page.
+- [ ] Opacity, angle (slider and 0°/45°/90°/-45°), font, bold, size and colour
+      change the preview after a short pause.
+- [ ] Typing `₹` in the text shows "cannot be written in the standard PDF
+      fonts" and disables **Download PDF**.
+- [ ] **Picture:** pick a PNG with a transparent background; it is placed at
+      40% of the page width and its background stays transparent. Tiled, the
+      download is barely larger than with a single copy.
+- [ ] **Under the content** on a scanned page: the watermark is hidden by the
+      scan (expected); on a text page it shows between the lines.
+- [ ] **Pages** `2-3` watermarks only those pages; the preview of page 1 says
+      it is not watermarked; `9` on a 3-page file shows an error.
+- [ ] `user-password.pdf`: wrong password shows "Wrong password"; `hunter2`
+      opens it; the download still asks for `hunter2`.
+- [ ] Offline after one use: reload with DevTools > Network > Offline, open a
+      PDF and download it.
+- [ ] At 360px width there is no horizontal scroll.
+
 ## Manual test checklist (Markdown to PDF)
 
 - [ ] The sample document converts; **Download PDF** saves `document.pdf`.
@@ -217,6 +339,85 @@ Sample files live in `fixtures/` (`user-password.pdf` has password `hunter2`;
 - [ ] **Cancel** stops a long conversion and the next one works.
 - [ ] Offline after one conversion: reload with DevTools > Network > Offline
       and convert again.
+
+## Manual test checklist (Protect PDF)
+
+Sample files live in `fixtures/` (`plain.pdf`, `owner-restricted.pdf`,
+`user-password.pdf` with password `hunter2`).
+
+- [ ] Choosing `plain.pdf` shows it as "Ready" with the password form; the
+      **Protect PDF** button stays disabled until both fields match.
+- [ ] A typo in **Confirm password** shows "The passwords do not match." as
+      soon as it diverges; typing the right password never shows it.
+- [ ] **Show passwords** reveals both fields; pressing it again hides them.
+- [ ] A 128-character password shows "The password is too long"; `pass²`
+      shows the "Some PDF apps may not accept this password" warning.
+- [ ] **Protect PDF** then **Download protected PDF** saves
+      `plain-protected.pdf`; Chrome, Firefox and a desktop reader ask for the
+      password, refuse a wrong one and open it with the right one.
+- [ ] Editing the password after protecting hides the old download button.
+- [ ] `user-password.pdf` shows "Already protected" with a link to the PDF
+      Unlocker; `owner-restricted.pdf` is protected and the page says its
+      restrictions were replaced; `signed.pdf` is protected and the page warns
+      that its signature is no longer valid in the protected copy.
+- [ ] A `.png` is rejected with a toast; choosing two PDFs opens the first and
+      says "Protect one file at a time".
+- [ ] The protected file unlocks in the PDF Unlocker with its password.
+- [ ] **Network tab** shows no upload and no third-party requests; it works
+      offline after one visit.
+- [ ] At 360px width there is no horizontal scroll.
+
+## Manual test checklist (Merge PDFs)
+
+Use the files in `fixtures/` (`user-password.pdf` has password `hunter2`).
+
+- [ ] Add `plain.pdf` and `text-chromium.pdf`: each shows "Ready" and its page
+      count; with one file, the button is disabled and says to add another.
+- [ ] Move the second file up; the numbers change and focus stays on the
+      moved row. The first row cannot move up, the last cannot move down.
+- [ ] **Merge PDFs**, then **Download merged PDF** saves `plain-merged.pdf`;
+      it opens with every page in the chosen order and text is selectable.
+- [ ] Add `user-password.pdf`: the password prompt opens; a wrong password
+      shows "Wrong password"; `hunter2` makes it "Ready". **Cancel** leaves an
+      **Enter password** button and blocks merging until it is unlocked or
+      removed.
+- [ ] A `.txt` file is rejected with a toast; a renamed non-PDF shows
+      "Cannot open" and blocks merging until removed.
+- [ ] Changing the list after merging hides the old download button.
+- [ ] While merging, the drop area and every list button are disabled.
+- [ ] **Network tab** shows no upload and no third-party requests; it works
+      offline after one visit.
+- [ ] At 360px width there is no horizontal scroll.
+
+## Manual test checklist (Split PDF)
+
+Sample files live in `fixtures/` (`user-password.pdf` has password `hunter2`).
+
+- [ ] Opening a PDF shows its name, page count and size, the three modes and
+      a thumbnail per page; thumbnails far off screen are drawn when scrolled
+      to, and stay drawn when switching modes.
+- [ ] **Split, every 1 page** of a 3-page PDF: "Split into 3 files" makes
+      `<name>-page-1.pdf` ... `-page-3.pdf`; **Download all (.zip)** saves
+      `<name>-split.zip`, which unzips (Explorer, Finder, `unzip -t`) into the
+      three files, each opening with the right page.
+- [ ] **Split, custom ranges** `1-2, 9` on a 3-page file says "There is no
+      page 9" and disables the button; `1-2, 3` makes two files.
+- [ ] **Extract pages:** clicking pages 1 and 3 fills the field with `1, 3`;
+      Shift-click picks a stretch; typing `2-3` selects those thumbnails.
+      "Extract 2 pages" makes `<name>-extracted.pdf` with only those pages.
+- [ ] **Remove pages:** picked pages show a red cross; picking every page is
+      refused; "Remove 1 page" makes `<name>-pages-removed.pdf`, and text of the
+      removed page cannot be found in it.
+- [ ] Changing any setting after making files hides the old results.
+- [ ] A fillable form: the extracted pages' fields can still be filled in.
+- [ ] `user-password.pdf`: the password dialog appears, `hunter2` opens it,
+      and the made file still asks for `hunter2`.
+- [ ] Splitting a long file (300+ pages) every page shows progress; **Cancel**
+      stops it and the next split works.
+- [ ] Offline after one use: reload with DevTools > Network > Offline, open a
+      PDF and split it.
+- [ ] At 360px width there is no horizontal scroll and thumbnails show two
+      per row.
 
 ## Manual test checklist (PDF Unlocker)
 
@@ -245,21 +446,22 @@ Sample files live in `fixtures/` (`plain.pdf`, `owner-restricted.pdf`,
 
 ## Licences
 
-PDF unlocking uses **qpdf**, Copyright (c) Jay Berkenbilt, licensed under the
+PDF unlocking, password protection, watermarking, merging and splitting use **qpdf**, Copyright (c) Jay Berkenbilt, licensed under the
 **Apache License 2.0** (qpdf is also available under the Artistic License 2.0).
 The WebAssembly build is [`@jspawn/qpdf-wasm`](https://github.com/jsscheller/qpdf-wasm)
 (Apache-2.0). The licence text ships at `/wasm/LICENSE.txt`, a notice at
 `/wasm/NOTICE.txt`. qpdf is credited here.
 
-Markdown to PDF uses **ironpress**, Copyright (c) 2026 Gaston Gouron, licensed
-under the **MIT License** (licence at `/wasm/LICENSE-ironpress.txt`), and
-**marked**, licensed under the **MIT License**. Fonts: Geist and
+Markdown to PDF and HTML to PDF use **ironpress**, Copyright (c) 2026 Gaston
+Gouron, licensed under the **MIT License** (licence at
+`/wasm/LICENSE-ironpress.txt`); Markdown to PDF also uses **marked**, licensed
+under the **MIT License**. Fonts: Geist and
 Inter (SIL Open Font License 1.1), bundled locally.
 
-The PDF Editor and Organize Pages use **PDFium**, Copyright The PDFium
-Authors, licensed under the **BSD 3-Clause License** and the **Apache License
-2.0** (licence at `/wasm/LICENSE-pdfium.txt`), compiled to WebAssembly by
-**@embedpdf/pdfium**, Copyright (c) 2024 CloudPDF, Ji Chang, licensed under the
-**MIT License** (licence at `/wasm/LICENSE-embedpdf-pdfium.txt`). Text
-measurements come from Adobe's standard font metrics via
-**@pdf-lib/standard-fonts** (MIT License).
+The PDF Editor, Add Watermark, Split PDF's thumbnails and Organize Pages use
+**PDFium**, Copyright The PDFium Authors, licensed under the **BSD 3-Clause
+License** and the **Apache License 2.0** (licence at
+`/wasm/LICENSE-pdfium.txt`), compiled to WebAssembly by **@embedpdf/pdfium**,
+Copyright (c) 2024 CloudPDF, Ji Chang, licensed under the **MIT License**
+(licence at `/wasm/LICENSE-embedpdf-pdfium.txt`). Text measurements come from
+Adobe's standard font metrics via **@pdf-lib/standard-fonts** (MIT License).

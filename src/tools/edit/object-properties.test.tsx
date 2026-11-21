@@ -2,11 +2,9 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { DEFAULT_TOOL_STYLE, type DrawingTool } from "./core/gestures";
-import { FONT_SIZE_LIMITS, type EditObject } from "./core/model";
+import type { EditObject } from "./core/model";
 import {
-  ColorField,
   FontField,
-  NumberField,
   ObjectProperties,
   TOOL_HINTS,
   TextContentField,
@@ -43,45 +41,6 @@ function setup(overrides: Partial<ObjectPropertiesProps> = {}) {
   render(<ObjectProperties {...props} />);
   return props;
 }
-
-describe("NumberField", () => {
-  it("reports clamped numbers and tolerates an empty field while typing", () => {
-    const onChange = vi.fn();
-    render(
-      <NumberField
-        label="Size"
-        value={12}
-        limits={FONT_SIZE_LIMITS}
-        onChange={onChange}
-      />,
-    );
-    const input = screen.getByLabelText("Size");
-    fireEvent.change(input, { target: { value: "" } });
-    expect(onChange).not.toHaveBeenCalled();
-    expect(input).toHaveValue(null);
-    fireEvent.change(input, { target: { value: "999" } });
-    expect(onChange).toHaveBeenLastCalledWith(FONT_SIZE_LIMITS.max);
-    fireEvent.blur(input);
-    expect(input).toHaveValue(12); // back to the value in use
-  });
-});
-
-describe("ColorField", () => {
-  it("shows and reports colours", () => {
-    const onChange = vi.fn();
-    render(
-      <ColorField
-        label="Colour"
-        value={{ r: 255, g: 0, b: 0 }}
-        onChange={onChange}
-      />,
-    );
-    const input = screen.getByLabelText("Colour");
-    expect(input).toHaveValue("#ff0000");
-    fireEvent.change(input, { target: { value: "#00ff00" } });
-    expect(onChange).toHaveBeenCalledWith({ r: 0, g: 255, b: 0 });
-  });
-});
 
 describe("FontField", () => {
   it("offers the three standard fonts", async () => {

@@ -9,8 +9,8 @@
  * - **Board pages** are the output, in order. This list is what undo and
  *   redo step through.
  */
-import type { PageInfo, QuarterTurns } from "@/tools/edit/core/model";
-import { addTurns, viewSize, type Size } from "@/tools/edit/core/page-geometry";
+import type { PageInfo, QuarterTurns } from "@/lib/pdfium/page-box";
+import { addTurns, viewSize, type Size } from "@/lib/pdfium/page-box";
 
 /** A page of one of the opened files, placed on the board. */
 export interface SourcePage {

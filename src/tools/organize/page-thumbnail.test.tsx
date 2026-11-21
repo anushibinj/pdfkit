@@ -6,7 +6,6 @@ import {
   PageThumbnail,
   shapeOf,
   thumbnailLabel,
-  toCanvasResult,
   type PageThumbnailProps,
 } from "./page-thumbnail";
 
@@ -70,17 +69,6 @@ function show(props: Partial<PageThumbnailProps> = {}) {
   );
   return handlers;
 }
-
-describe("toCanvasResult", () => {
-  it("adds an empty text-outcome list to a rendered result", () => {
-    expect(toCanvasResult(rendered)).toEqual({ ...rendered, textOutcomes: [] });
-  });
-
-  it("passes errors through", () => {
-    const error = { status: "error", reason: "failed", message: "x" } as const;
-    expect(toCanvasResult(error)).toBe(error);
-  });
-});
 
 describe("shapeOf", () => {
   it("describes the size as an aspect ratio and an orientation", () => {

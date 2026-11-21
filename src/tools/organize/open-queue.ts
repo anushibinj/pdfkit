@@ -1,4 +1,4 @@
-import type { PageInfo } from "@/tools/edit/core/model";
+import type { PageInfo } from "@/lib/pdfium/page-box";
 import { formatBytes } from "@/lib/format";
 import type { OpenResult } from "./messages";
 

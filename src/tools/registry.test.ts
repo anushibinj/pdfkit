@@ -47,6 +47,12 @@ describe("tool registry", () => {
     expect(tool?.beta).toBe(true);
   });
 
+  it("registers the HTML to PDF converter as a beta tool", () => {
+    const tool = getTool("html-to-pdf");
+    expect(tool?.name).toBe("HTML to PDF");
+    expect(tool?.beta).toBe(true);
+  });
+
   it("registers the PDF editor as a beta tool", () => {
     const tool = getTool("edit");
     expect(tool?.name).toBe("PDF Editor");
@@ -55,6 +61,55 @@ describe("tool registry", () => {
 
   it("loads the PDF editor component lazily", async () => {
     const mod = await getTool("edit")!.component();
+    expect(typeof mod.default).toBe("function");
+  });
+
+  it("loads the HTML to PDF component lazily", async () => {
+    const mod = await getTool("html-to-pdf")!.component();
+    expect(typeof mod.default).toBe("function");
+  });
+
+  it("registers Protect PDF as a beta tool", () => {
+    const tool = getTool("protect");
+    expect(tool?.name).toBe("Protect PDF");
+    expect(tool?.beta).toBe(true);
+  });
+
+  it("loads the Protect PDF component lazily", async () => {
+    const mod = await getTool("protect")!.component();
+    expect(typeof mod.default).toBe("function");
+  });
+
+  it("registers the watermark tool as a beta tool", () => {
+    const tool = getTool("watermark");
+    expect(tool?.name).toBe("Add Watermark");
+    expect(tool?.beta).toBe(true);
+  });
+
+  it("loads the watermark component lazily", async () => {
+    const mod = await getTool("watermark")!.component();
+    expect(typeof mod.default).toBe("function");
+  });
+
+  it("registers the PDF splitter as a beta tool", () => {
+    const tool = getTool("split");
+    expect(tool?.name).toBe("Split PDF");
+    expect(tool?.beta).toBe(true);
+  });
+
+  it("loads the PDF splitter component lazily", async () => {
+    const mod = await getTool("split")!.component();
+    expect(typeof mod.default).toBe("function");
+  });
+
+  it("registers Merge PDFs as a beta tool", () => {
+    const tool = getTool("merge");
+    expect(tool?.name).toBe("Merge PDFs");
+    expect(tool?.beta).toBe(true);
+  });
+
+  it("loads the Merge PDFs component lazily", async () => {
+    const mod = await getTool("merge")!.component();
     expect(typeof mod.default).toBe("function");
   });
 

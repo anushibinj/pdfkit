@@ -7,13 +7,7 @@
  * ignores a value that is already present, so no-op actions never create
  * empty undo steps.
  */
-import {
-  commit,
-  createHistory,
-  redo,
-  undo,
-  type History,
-} from "@/tools/edit/core/history";
+import { commit, createHistory, redo, undo, type History } from "@/lib/history";
 import {
   duplicateKeys,
   insertAt,

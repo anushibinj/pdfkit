@@ -1,15 +1,19 @@
-import type { PageInfo, QuarterTurns } from "@/tools/edit/core/model";
-import { addTurns, viewSize } from "@/tools/edit/core/page-geometry";
-import type { PdfiumApi } from "@/tools/edit/engine/pdfium-api";
+import {
+  addTurns,
+  viewSize,
+  type PageInfo,
+  type QuarterTurns,
+} from "@/lib/pdfium/page-box";
 import {
   PdfiumDocument,
   type RenderedPage,
-} from "@/tools/edit/engine/pdfium-document";
-import { fitRenderSize } from "@/tools/edit/engine/render-size";
-import { WasmHeap } from "@/tools/edit/engine/wasm-heap";
+} from "@/lib/pdfium/pdfium-document";
+import { fitRenderSize } from "@/lib/pdfium/render-size";
+import { WasmHeap } from "@/lib/pdfium/wasm-heap";
 import { planImports } from "../core/import-plan";
 import { isSourceId, sanitizeOutputPlan } from "../core/output-plan";
 import { assembleDocument } from "./assemble";
+import type { OrganizePdfiumApi } from "./organize-pdfium-api";
 
 /** One opened file: its PDFium document and its pages' boxes. */
 interface OpenSource {
@@ -35,7 +39,7 @@ export class OrganizeSession {
   private readonly sources = new Map<string, OpenSource>();
 
   /** @param api The initialised PDFium module. */
-  constructor(private readonly api: PdfiumApi) {
+  constructor(private readonly api: OrganizePdfiumApi) {
     this.heap = new WasmHeap(api.pdfium);
   }
 
@@ -102,7 +106,7 @@ export class OrganizeSession {
    *
    * @param rawPages The output pages from the UI (untrusted).
    * @returns The organized PDF's bytes.
-   * @throws {InvalidPlanError} for a bad plan, or a PDFium failure.
+   * @throws {InvalidOutputPlanError} for a bad plan, or a PDFium failure.
    */
   save(rawPages: unknown): Uint8Array {
     const counts = new Map(

@@ -1,13 +1,28 @@
 /** Messages between the page organizer UI and its Web Worker. */
-import type { QuarterTurns } from "@/tools/edit/core/model";
-import type { ErrorResult, OpenResult } from "@/tools/edit/messages";
+import type { PageInfo, QuarterTurns } from "@/lib/pdfium/page-box";
+import type { SessionErrorResult } from "@/lib/session-worker";
 import type { OutputPage } from "./core/output-plan";
 
-export type {
-  ErrorResult,
-  FailureReason,
-  OpenResult,
-} from "@/tools/edit/messages";
+/**
+ * The error every request can answer with (the shape all session workers
+ * share):
+ * - "out-of-memory": the browser could not give the engine more memory;
+ * - "crashed": the engine trapped; the worker must be replaced and the
+ *   files opened again before it is used again;
+ * - "failed": an ordinary error; the worker is still usable.
+ */
+export type ErrorResult = SessionErrorResult;
+
+/** Why a request failed (see {@link ErrorResult}). */
+export type FailureReason = ErrorResult["reason"];
+
+export type OpenResult =
+  | { status: "opened"; pages: PageInfo[] }
+  /** The file is encrypted and no password was given. */
+  | { status: "password-required" }
+  /** A password was given and it is not the right one. */
+  | { status: "wrong-password" }
+  | ErrorResult;
 
 export type OrganizeRequest =
   /** Open a file under `sourceId` (replacing one open under it). `data` is transferred. */

@@ -1,16 +1,16 @@
 /**
  * Pins that the board re-renders only the thumbnails that changed. Every
- * thumbnail renders exactly one `PageCanvas`, so counting the (mocked)
- * canvas renders counts thumbnail renders.
+ * source-page thumbnail renders exactly one `ThumbnailCanvas`, so counting
+ * the (mocked) canvas renders counts thumbnail renders.
  */
 import { fireEvent, render, screen } from "@testing-library/react";
 import { useReducer } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const canvas = vi.hoisted(() => vi.fn(() => null));
-vi.mock("@/tools/edit/page-canvas", () => ({ PageCanvas: canvas }));
+vi.mock("./thumbnail-canvas", () => ({ ThumbnailCanvas: canvas }));
 
-import type { PageInfo } from "@/tools/edit/core/model";
+import type { PageInfo } from "@/lib/pdfium/page-box";
 import { EMPTY_BOARD_STATE, boardReducer } from "./core/board-state";
 import { PageBoard } from "./page-board";
 

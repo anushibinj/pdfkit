@@ -1,4 +1,8 @@
+import type { KeyInput } from "@/lib/keyboard";
 import type { Point } from "./model";
+
+// Shared with other tools; re-exported for the editor's existing imports.
+export { isEditableTarget, type KeyInput } from "@/lib/keyboard";
 
 /** What a key press asks the editor to do. */
 export type KeyCommand =
@@ -8,16 +12,6 @@ export type KeyCommand =
   | { type: "escape" }
   /** Move the selected object by this many points on screen. */
   | { type: "nudge"; delta: Point };
-
-/** The parts of a `KeyboardEvent` the mapping looks at. */
-export interface KeyInput {
-  key: string;
-  ctrlKey: boolean;
-  metaKey: boolean;
-  shiftKey: boolean;
-  /** True when the key went to a text field, select or editable element. */
-  inField: boolean;
-}
 
 /** Points moved per arrow key press (with Shift: {@link NUDGE_LARGE}). */
 export const NUDGE_SMALL = 1;
@@ -29,25 +23,6 @@ const ARROWS: Record<string, Point> = {
   ArrowUp: { x: 0, y: -1 },
   ArrowDown: { x: 0, y: 1 },
 };
-
-/**
- * Decide whether an element is something the user types into, where the
- * editor must leave keys alone (Backspace deletes a character there, not
- * the selected object; Ctrl+Z undoes typing there).
- *
- * @param target The event target.
- * @returns `true` for inputs, text areas, selects and editable content.
- */
-export function isEditableTarget(target: EventTarget | null): boolean {
-  if (!target || typeof (target as Element).tagName !== "string") return false;
-  const el = target as HTMLElement;
-  return (
-    el.tagName === "INPUT" ||
-    el.tagName === "TEXTAREA" ||
-    el.tagName === "SELECT" ||
-    el.isContentEditable === true
-  );
-}
 
 /**
  * Map a key press to an editor command.

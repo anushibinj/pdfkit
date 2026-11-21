@@ -8,10 +8,9 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { downloadBlob } from "@/lib/download";
 import { isPdfFile } from "@/lib/format";
-import { DiscardDialog } from "@/tools/edit/discard-dialog";
-import { PasswordPrompt } from "@/tools/edit/password-prompt";
-import { useEditorShortcuts } from "@/tools/edit/use-editor-shortcuts";
-import { useUnsavedWarning } from "@/tools/edit/use-unsaved-warning";
+import { DiscardDialog } from "@/components/discard-dialog";
+import { PasswordPrompt } from "@/components/password-prompt";
+import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
 import { announcementFor, pageCountLabel } from "./announcements";
 import type { BoardPage } from "./core/board";
 import {
@@ -26,6 +25,7 @@ import { DEFAULT_ZOOM, stepZoom } from "./core/zoom";
 import { BoardToolbar } from "./board-toolbar";
 import { PageBoard } from "./page-board";
 import { SourceLegend } from "./source-legend";
+import { useBoardShortcuts } from "./use-board-shortcuts";
 import { useOrganizer } from "./use-organizer";
 
 const ARRANGE_KINDS: readonly ArrangeKind[] = [
@@ -76,7 +76,7 @@ export default function OrganizeTool() {
     if (message) setAnnouncement(message);
   };
 
-  useEditorShortcuts(hasBoard && !org.saving && !dialogOpen, {
+  useBoardShortcuts(hasBoard && !org.saving && !dialogOpen, {
     undo: () => {
       perform({ type: "undo" });
       return true;
@@ -90,9 +90,6 @@ export default function OrganizeTool() {
       perform({ type: "delete" });
       return true;
     },
-    // Escape (clear the selection) and arrows belong to the board itself.
-    escape: () => false,
-    nudge: () => false,
   });
 
   const download = async () => {
@@ -275,7 +272,7 @@ export default function OrganizeTool() {
           fileName={org.passwordRequest.fileName}
           wrong={org.passwordRequest.wrong}
           busy={org.passwordRequest.checking}
-          note="It is used only on this device. The organized file is a new PDF and is saved without a password."
+          note="The organized file is a new PDF and is saved without a password."
           cancelLabel="Skip this file"
           onSubmit={(password) => org.answerPassword(password)}
           onCancel={() => org.answerPassword(null)}

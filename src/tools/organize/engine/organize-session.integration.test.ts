@@ -19,16 +19,14 @@ import {
   StandardFonts,
 } from "pdf-lib";
 import { beforeAll, describe, expect, it } from "vitest";
-import type { PageInfo } from "@/tools/edit/core/model";
-import { InvalidPlanError } from "@/tools/edit/core/sanitize-plan";
-import type { PdfiumApi } from "@/tools/edit/engine/pdfium-api";
-import { PAGE_OBJECT_TEXT } from "@/tools/edit/engine/pdfium-api";
-import { PdfOpenError } from "@/tools/edit/engine/pdfium-document";
+import type { PageInfo } from "@/lib/pdfium/page-box";
+import { InvalidOutputPlanError } from "../core/output-plan";
+import type { WrappedPdfiumModule } from "@embedpdf/pdfium";
+import { PdfOpenError } from "@/lib/pdfium/pdfium-document";
 import {
   extractText,
-  loadNodePdfium,
-  type FullPdfium,
-} from "@/tools/edit/test-utils/pdfium-node";
+  loadNodePdfiumModule,
+} from "@/lib/pdfium/test-utils/node-pdfium";
 import type { BoardSource } from "../core/board";
 import {
   EMPTY_BOARD_STATE,
@@ -37,17 +35,23 @@ import {
   type BoardState,
 } from "../core/board-state";
 import { buildOutputPlan } from "../core/output-plan";
+import { asOrganizeApi } from "../worker/load-pdfium";
+import type { OrganizePdfiumApi } from "./organize-pdfium-api";
 import { OrganizeSession } from "./organize-session";
 
-let api: PdfiumApi;
-let full: FullPdfium;
+/** `FPDFPageObj_GetType` value of a text object (FPDF_PAGEOBJ_TEXT). */
+const PAGE_OBJECT_TEXT = 1;
+
+let api: OrganizePdfiumApi;
+let full: WrappedPdfiumModule;
 const fixture = (name: string) =>
   new Uint8Array(
     readFileSync(new URL(`../../../../fixtures/${name}`, import.meta.url)),
   );
 
 beforeAll(async () => {
-  ({ api, full } = await loadNodePdfium());
+  full = await loadNodePdfiumModule();
+  api = asOrganizeApi(full);
 });
 
 /**
@@ -321,7 +325,7 @@ describe("OrganizeSession with real PDFium", () => {
     ]);
     session.close("a");
     expect(() => session.save(buildOutputPlan(state.history.present))).toThrow(
-      InvalidPlanError,
+      InvalidOutputPlanError,
     );
   });
 

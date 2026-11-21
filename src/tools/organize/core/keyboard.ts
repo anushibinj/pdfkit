@@ -6,7 +6,7 @@
  * selection, and Ctrl/Cmd+arrows move the selected pages: the same keys
  * presentation editors use for their slide sorters.
  */
-import type { KeyInput } from "@/tools/edit/core/keyboard";
+import type { KeyInput } from "@/lib/keyboard";
 
 /** A direction to move the focus or the selection in. */
 export type GridStep = "previous" | "next" | "up" | "down" | "first" | "last";

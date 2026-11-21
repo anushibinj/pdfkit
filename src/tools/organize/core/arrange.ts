@@ -9,8 +9,8 @@
  * Pages are identified by their `key`, never by position, because a
  * position changes as soon as anything before it moves.
  */
-import type { QuarterTurns } from "@/tools/edit/core/model";
-import { addTurns, type Size } from "@/tools/edit/core/page-geometry";
+import type { QuarterTurns } from "@/lib/pdfium/page-box";
+import { addTurns, type Size } from "@/lib/pdfium/page-box";
 import { isLandscape, type BoardPage } from "./board";
 
 /** Anything with a stable key; the reordering functions need nothing more. */

@@ -8,7 +8,7 @@ function Loading() {
   return (
     <div
       role="status"
-      className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground"
+      className="text-muted-foreground rounded-xl border border-dashed p-8 text-center text-sm"
     >
       Loading tool…
     </div>

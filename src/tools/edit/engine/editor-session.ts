@@ -1,24 +1,20 @@
 import type { PageInfo, QuarterTurns, TextEditOutcome } from "../core/model";
-import { addTurns, viewSize } from "../core/page-geometry";
+import { viewSize } from "@/lib/pdfium/page-box";
+import { fitRenderSize } from "@/lib/pdfium/render-size";
+import { addTurns } from "../core/page-geometry";
 import { sanitizeSavePlan, sanitizeTextEdits } from "../core/sanitize-plan";
 import type { FontMetricsSource } from "../core/text-layout";
 import { groupFragments, type TextRun } from "../core/text-runs";
 import { applySavePlan } from "./apply-plan";
 import { PdfiumPageText } from "./page-text";
 import type { PdfiumApi } from "./pdfium-api";
-import { PdfiumDocument, type RenderedPage } from "./pdfium-document";
-import { fitRenderSize } from "./render-size";
+import {
+  PdfiumDocument,
+  type RenderedPage,
+} from "@/lib/pdfium/pdfium-document";
 import { applyTextEdits } from "./text-edits";
-import { WasmHeap } from "./wasm-heap";
+import { WasmHeap } from "@/lib/pdfium/wasm-heap";
 import { createWriterRegistry, type WriterRegistry } from "./writers/registry";
-
-// Moved to ./render-size so the page organizer can use it without this
-// module; re-exported here for the editor's existing imports.
-export {
-  MAX_RENDER_PIXELS,
-  MAX_RENDER_WIDTH,
-  fitRenderSize,
-} from "./render-size";
 
 /** A rendered page and what happened to each text edit shown on it. */
 export interface PageRender extends RenderedPage {

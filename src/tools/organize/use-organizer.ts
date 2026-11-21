@@ -9,7 +9,7 @@ import {
   type Dispatch,
 } from "react";
 import { errorMessage } from "@/lib/errors";
-import type { QuarterTurns } from "@/tools/edit/core/model";
+import type { QuarterTurns } from "@/lib/pdfium/page-box";
 import { MAX_BOARD_PAGES } from "./core/board";
 import {
   EMPTY_BOARD_STATE,

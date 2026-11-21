@@ -4,7 +4,7 @@ import {
   useEditorShortcuts,
   type ShortcutHandlers,
 } from "./use-editor-shortcuts";
-import { useUnsavedWarning } from "./use-unsaved-warning";
+import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
 
 const handlers = (handled = true): ShortcutHandlers => ({
   undo: vi.fn(() => handled),

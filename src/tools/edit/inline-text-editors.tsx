@@ -8,8 +8,8 @@ import {
   type ReactNode,
   type SyntheticEvent,
 } from "react";
-import { toSvgTransform, type Matrix } from "./core/affine";
-import { rgbToHex } from "./core/colors";
+import { toSvgTransform, type Matrix } from "@/lib/affine";
+import { rgbToHex } from "@/lib/color";
 import {
   RUN_EDITOR_LINE_HEIGHT,
   runEditorBox,

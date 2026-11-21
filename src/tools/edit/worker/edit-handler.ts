@@ -2,17 +2,12 @@ import { errorMessage, isOutOfMemory } from "@/lib/errors";
 import { toTransferableBuffer } from "@/lib/transfer";
 import type { HandlerContext, HandlerResult } from "@/lib/worker-protocol";
 import type { PageInfo, QuarterTurns } from "../core/model";
-import { isQuarterTurns } from "../core/page-geometry";
+import { isQuarterTurns } from "@/lib/pdfium/page-box";
 import { InvalidPlanError } from "../core/sanitize-plan";
 import type { TextRun } from "../core/text-runs";
 import type { PageRender } from "../engine/editor-session";
-import { PdfOpenError } from "../engine/pdfium-document";
-import type {
-  EditorRequest,
-  EditorResult,
-  ErrorResult,
-  OpenResult,
-} from "../messages";
+import { PdfOpenError } from "@/lib/pdfium/pdfium-document";
+import type { EditorRequest, EditorResult, ErrorResult } from "../messages";
 
 /** What the handler needs from the worker's session (`EditorSession`). */
 export interface Session {
@@ -71,47 +66,16 @@ export function toErrorResult(err: unknown): ErrorResult {
 }
 
 /**
- * Open a file and describe the outcome as an {@link OpenResult}. Shared by
- * every PDFium tool's worker (the editor and the page organizer).
- *
- * The password is re-checked because a message can carry anything: a
- * missing or non-string password becomes "" (none). A password error is
- * split in two so the UI can phrase it right: no password given means
- * "this file needs one", a given password that PDFium refuses means "that
- * one is wrong". Any other open failure is an ordinary error, except
- * memory exhaustion and engine traps, classified by {@link toErrorResult}.
- *
- * @param open Opens the file with the given password and returns its pages.
- * @param rawPassword The password as received.
- * @returns The outcome.
- */
-export function openResult(
-  open: (password: string) => PageInfo[],
-  rawPassword: unknown,
-): OpenResult {
-  const password = typeof rawPassword === "string" ? rawPassword : "";
-  try {
-    return { status: "opened", pages: open(password) };
-  } catch (err) {
-    if (err instanceof PdfOpenError) {
-      if (err.reason === "password") {
-        return {
-          status: password === "" ? "password-required" : "wrong-password",
-        };
-      }
-      return { status: "error", reason: "failed", message: err.message };
-    }
-    return toErrorResult(err);
-  }
-}
-
-/**
  * Run one request against the session.
  *
  * Inputs are re-checked here because a message can carry anything: an
  * unknown rotation becomes 0, a missing password becomes "" (none). The
  * save plan and text edits are checked by the session itself
  * (`sanitizeSavePlan`, `sanitizeTextEdits`).
+ *
+ * For "open", a password error is split in two so the UI can phrase it
+ * right: no password given means "this file needs one", a given password
+ * that PDFium refuses means "that one is wrong".
  *
  * @param session The worker's session.
  * @param request The request.
@@ -122,13 +86,33 @@ export function handleRequest(
   request: EditorRequest,
 ): HandlerResult<EditorResult> {
   switch (request.op) {
-    case "open":
-      return {
-        result: openResult(
-          (password) => session.open(new Uint8Array(request.data), password),
-          request.password,
-        ),
-      };
+    case "open": {
+      const password =
+        typeof request.password === "string" ? request.password : "";
+      try {
+        return {
+          result: {
+            status: "opened",
+            pages: session.open(new Uint8Array(request.data), password),
+          },
+        };
+      } catch (err) {
+        if (err instanceof PdfOpenError) {
+          if (err.reason === "password") {
+            return {
+              result: {
+                status:
+                  password === "" ? "password-required" : "wrong-password",
+              },
+            };
+          }
+          return {
+            result: { status: "error", reason: "failed", message: err.message },
+          };
+        }
+        return { result: toErrorResult(err) };
+      }
+    }
     case "render": {
       const turns = isQuarterTurns(request.rotation) ? request.rotation : 0;
       const page = session.render(

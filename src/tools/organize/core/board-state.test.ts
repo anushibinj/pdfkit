@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { PageInfo } from "@/tools/edit/core/model";
+import type { PageInfo } from "@/lib/pdfium/page-box";
 import { A4, MAX_BOARD_PAGES, type BoardPage, type BoardSource } from "./board";
 import {
   ARRANGE_MINIMUM,

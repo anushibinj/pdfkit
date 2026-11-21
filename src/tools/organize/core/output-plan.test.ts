@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { InvalidPlanError } from "@/tools/edit/core/sanitize-plan";
+import { InvalidOutputPlanError } from "./output-plan";
 import { MAX_BOARD_PAGES, type BoardPage } from "./board";
 import {
   MAX_SOURCE_ID_LENGTH,
@@ -63,7 +63,9 @@ describe("sanitizeOutputPlan", () => {
     ["NaN blank", [{ ...ok[1], width: Number.NaN }]],
     ["string blank", [{ ...ok[1], width: "612" }]],
   ])("rejects a plan that is %s", (_name, raw) => {
-    expect(() => sanitizeOutputPlan(raw, counts)).toThrow(InvalidPlanError);
+    expect(() => sanitizeOutputPlan(raw, counts)).toThrow(
+      InvalidOutputPlanError,
+    );
   });
 
   it("rejects a plan that is too long", () => {

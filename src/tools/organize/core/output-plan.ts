@@ -2,9 +2,8 @@
  * The organized file, described page by page: what the UI sends to the
  * worker to save.
  */
-import type { QuarterTurns } from "@/tools/edit/core/model";
-import { isQuarterTurns } from "@/tools/edit/core/page-geometry";
-import { InvalidPlanError } from "@/tools/edit/core/sanitize-plan";
+import type { QuarterTurns } from "@/lib/pdfium/page-box";
+import { isQuarterTurns } from "@/lib/pdfium/page-box";
 import { MAX_BOARD_PAGES, PAGE_SIDE_LIMITS, type BoardPage } from "./board";
 
 /** One page of the output, without UI-only fields (keys). */
@@ -25,6 +24,15 @@ export type OutputPage =
       /** Quarter turns for the new page's /Rotate. */
       rotation: QuarterTurns;
     };
+
+/** The output plan is unusable; the message says which page and why. */
+export class InvalidOutputPlanError extends Error {
+  /** @param message What is wrong with the plan. */
+  constructor(message: string) {
+    super(message);
+    this.name = "InvalidOutputPlanError";
+  }
+}
 
 /** Longest source id accepted; ids are short strings made by the UI. */
 export const MAX_SOURCE_ID_LENGTH = 64;
@@ -79,33 +87,34 @@ export function isSourceId(value: unknown): value is string {
  * @param raw The plan as received.
  * @param pageCounts Number of pages of each open file, by source id.
  * @returns A copy holding only the known fields.
- * @throws {InvalidPlanError} When anything is missing, unknown, out of
+ * @throws {InvalidOutputPlanError} When anything is missing, unknown, out of
  *   range or not an integer, or the plan is empty or too long.
  */
 export function sanitizeOutputPlan(
   raw: unknown,
   pageCounts: ReadonlyMap<string, number>,
 ): OutputPage[] {
-  if (!Array.isArray(raw)) throw new InvalidPlanError("the plan is not a list");
-  if (raw.length === 0) throw new InvalidPlanError("there are no pages");
+  if (!Array.isArray(raw))
+    throw new InvalidOutputPlanError("the plan is not a list");
+  if (raw.length === 0) throw new InvalidOutputPlanError("there are no pages");
   if (raw.length > MAX_BOARD_PAGES) {
-    throw new InvalidPlanError(`more than ${MAX_BOARD_PAGES} pages`);
+    throw new InvalidOutputPlanError(`more than ${MAX_BOARD_PAGES} pages`);
   }
   return raw.map((item: unknown, i): OutputPage => {
     const where = `page ${i + 1}`;
     if (typeof item !== "object" || item === null) {
-      throw new InvalidPlanError(`${where} is not described`);
+      throw new InvalidOutputPlanError(`${where} is not described`);
     }
     const page = item as Record<string, unknown>;
     if (!isQuarterTurns(page.rotation)) {
-      throw new InvalidPlanError(`${where} has an invalid rotation`);
+      throw new InvalidOutputPlanError(`${where} has an invalid rotation`);
     }
     if (page.kind === "source") {
       const count = isSourceId(page.sourceId)
         ? pageCounts.get(page.sourceId)
         : undefined;
       if (count === undefined) {
-        throw new InvalidPlanError(
+        throw new InvalidOutputPlanError(
           `${where} comes from a file that is not open`,
         );
       }
@@ -115,7 +124,7 @@ export function sanitizeOutputPlan(
         (index as number) < 0 ||
         (index as number) >= count
       ) {
-        throw new InvalidPlanError(`${where} does not exist in its file`);
+        throw new InvalidOutputPlanError(`${where} does not exist in its file`);
       }
       return {
         kind: "source",
@@ -131,7 +140,7 @@ export function sanitizeOutputPlan(
         v >= PAGE_SIDE_LIMITS.min &&
         v <= PAGE_SIDE_LIMITS.max;
       if (!sideOk(page.width) || !sideOk(page.height)) {
-        throw new InvalidPlanError(`${where} has an invalid size`);
+        throw new InvalidOutputPlanError(`${where} has an invalid size`);
       }
       return {
         kind: "blank",
@@ -140,6 +149,6 @@ export function sanitizeOutputPlan(
         rotation: page.rotation,
       };
     }
-    throw new InvalidPlanError(`${where} has an unknown kind`);
+    throw new InvalidOutputPlanError(`${where} has an unknown kind`);
   });
 }

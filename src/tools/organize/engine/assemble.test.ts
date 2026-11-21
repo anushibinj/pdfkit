@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { PdfiumDocument } from "@/tools/edit/engine/pdfium-document";
-import { WasmHeap } from "@/tools/edit/engine/wasm-heap";
+import { PdfiumDocument } from "@/lib/pdfium/pdfium-document";
+import { WasmHeap } from "@/lib/pdfium/wasm-heap";
+import type { FakeRuntime } from "@/lib/pdfium/test-utils/fake-pdfium";
 import {
-  fakePdfium,
-  type FakeRuntime,
-  type MockedPdfium,
-} from "@/tools/edit/test-utils/fake-pdfium";
+  fakeOrganizePdfium,
+  type MockedOrganizePdfium,
+} from "../test-utils/fake-pdfium";
 import {
   appendBlankPage,
   assembleDocument,
@@ -21,7 +21,7 @@ import {
  * be checked against what a real document would hold.
  */
 function setup() {
-  const { api, runtime } = fakePdfium();
+  const { api, runtime } = fakeOrganizePdfium();
   const heap = new WasmHeap(runtime);
   let pages = 0;
   api.FPDF_GetPageCount.mockImplementation(() => pages);
@@ -87,16 +87,16 @@ describe("importBatch", () => {
 describe("appendBlankPage", () => {
   it("creates the page at the end with the given size and closes the handle", () => {
     const { api, dest } = setup();
-    appendBlankPage(dest, { width: 612, height: 792 }, api);
+    appendBlankPage(dest, { width: 612, height: 792 });
     expect(api.FPDFPage_New).toHaveBeenCalledWith(dest.handle, 0, 612, 792);
     expect(api.FPDF_ClosePage).toHaveBeenCalledWith(900);
   });
 
-  it("throws when PDFium cannot create the page", () => {
+  it("throws (as out of memory) when PDFium cannot create the page", () => {
     const { api, dest } = setup();
     api.FPDFPage_New.mockReturnValue(0);
-    expect(() => appendBlankPage(dest, { width: 1, height: 1 }, api)).toThrow(
-      "PDFium could not add a blank page",
+    expect(() => appendBlankPage(dest, { width: 1, height: 1 })).toThrow(
+      RangeError,
     );
     expect(api.FPDF_ClosePage).not.toHaveBeenCalled();
   });
@@ -104,7 +104,7 @@ describe("appendBlankPage", () => {
 
 describe("reorderPages", () => {
   /** A document that already holds `n` pages. */
-  function withPages(api: MockedPdfium, n: number) {
+  function withPages(api: MockedOrganizePdfium, n: number) {
     api.FPDF_GetPageCount.mockReturnValue(n);
   }
 

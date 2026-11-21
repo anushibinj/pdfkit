@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { useReducer } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { PageInfo } from "@/tools/edit/core/model";
+import type { PageInfo } from "@/lib/pdfium/page-box";
 import {
   EMPTY_BOARD_STATE,
   boardReducer,

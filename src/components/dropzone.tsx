@@ -61,15 +61,13 @@ export function Dropzone({
       }}
       className={cn(
         "flex min-h-56 flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed p-6 text-center transition-colors",
-        dragging
-          ? "border-primary bg-primary/5"
-          : "border-border bg-muted/30",
+        dragging ? "border-primary bg-primary/5" : "border-border bg-muted/30",
       )}
     >
-      <FileUp className="size-10 text-muted-foreground" aria-hidden="true" />
+      <FileUp className="text-muted-foreground size-10" aria-hidden="true" />
       <div className="space-y-1">
         <p className="text-lg font-medium">{title}</p>
-        <p id={hintId} className="text-sm text-muted-foreground">
+        <p id={hintId} className="text-muted-foreground text-sm">
           {hint}
         </p>
       </div>
@@ -96,7 +94,7 @@ export function Dropzone({
       >
         {buttonLabel}
       </Button>
-      <p className="hidden text-sm text-muted-foreground sm:block">
+      <p className="text-muted-foreground hidden text-sm sm:block">
         or drag and drop
       </p>
     </div>

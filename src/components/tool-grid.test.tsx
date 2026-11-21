@@ -14,7 +14,9 @@ describe("ToolGrid", () => {
     for (const tool of tools) {
       const link = screen.getByRole("link", { name: new RegExp(tool.name) });
       // next/link applies the trailingSlash config at build time, not in tests
-      expect(link.getAttribute("href")).toMatch(new RegExp(`^/tools/${tool.slug}/?$`));
+      expect(link.getAttribute("href")).toMatch(
+        new RegExp(`^/tools/${tool.slug}/?$`),
+      );
     }
   });
 

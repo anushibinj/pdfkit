@@ -5,18 +5,17 @@
  * content is copied as it is, never re-drawn, so text stays text and
  * nothing is rasterised.
  */
-import { addTurns } from "@/tools/edit/core/page-geometry";
-import { planPageOperations } from "@/tools/edit/core/page-order";
-import type { PdfiumApi } from "@/tools/edit/engine/pdfium-api";
-import type { PdfiumDocument } from "@/tools/edit/engine/pdfium-document";
-import type { WasmHeap } from "@/tools/edit/engine/wasm-heap";
-import { check } from "@/tools/edit/engine/writers/object-writer";
-import type { QuarterTurns } from "@/tools/edit/core/model";
+import { addTurns, type QuarterTurns } from "@/lib/pdfium/page-box";
+import { check } from "@/lib/pdfium/page-objects";
+import { planPageOperations } from "@/lib/pdfium/page-order";
+import type { PdfiumDocument } from "@/lib/pdfium/pdfium-document";
+import type { WasmHeap } from "@/lib/pdfium/wasm-heap";
 import type { BlankSpec, ImportBatch, ImportPlan } from "../core/import-plan";
+import type { OrganizePdfiumApi } from "./organize-pdfium-api";
 
 /** Collaborators for {@link assembleDocument}. */
 export interface AssembleDeps {
-  api: PdfiumApi;
+  api: OrganizePdfiumApi;
   heap: WasmHeap;
   /**
    * The open document of a file.
@@ -63,29 +62,17 @@ export function importBatch(
 /**
  * Append an empty page to the end of `dest`.
  *
- * `FPDFPage_New` creates the page in the document *and* returns it loaded;
- * the loaded handle is ours to close (the page itself stays in the
- * document). A blank page has a MediaBox and empty resources but no
- * content stream, which is a valid, empty page.
+ * The shared `withNewPage` creates the page in the document and closes the
+ * loaded handle again (the page itself stays). Nothing is drawn on it: a
+ * page with a MediaBox, empty resources and no content stream is a valid,
+ * empty page, so no content needs generating.
  *
  * @param dest The document being built.
  * @param spec Width and height in points.
- * @param api The PDFium module.
- * @throws When PDFium cannot create the page.
+ * @throws {RangeError} When PDFium cannot create the page.
  */
-export function appendBlankPage(
-  dest: PdfiumDocument,
-  spec: BlankSpec,
-  api: PdfiumApi,
-): void {
-  const page = api.FPDFPage_New(
-    dest.handle,
-    dest.pageCount(),
-    spec.width,
-    spec.height,
-  );
-  check(page, "add a blank page");
-  api.FPDF_ClosePage(page);
+export function appendBlankPage(dest: PdfiumDocument, spec: BlankSpec): void {
+  dest.withNewPage(dest.pageCount(), spec.width, spec.height, () => {});
 }
 
 /**
@@ -94,7 +81,7 @@ export function appendBlankPage(
  *
  * `moveOrder[i]` is the current index of the page that belongs at output
  * position i. Moving *all* pages, in that order, to index 0 leaves them in
- * exactly that order. The editor's `planPageOperations` does the
+ * exactly that order. The shared `planPageOperations` does the
  * validation: it rejects duplicates and out-of-range indices, and reports
  * the order as `null` when the pages are already in place. Because the
  * order lists every page, it must plan no deletions; if it does, the plan
@@ -144,7 +131,7 @@ export function reorderPages(
 export function rotatePages(
   dest: PdfiumDocument,
   rotations: readonly QuarterTurns[],
-  api: PdfiumApi,
+  api: OrganizePdfiumApi,
 ): void {
   rotations.forEach((turns, index) => {
     if (turns === 0) return;
@@ -175,7 +162,7 @@ export function assembleDocument(
   deps: AssembleDeps,
 ): void {
   for (const batch of plan.batches) importBatch(dest, batch, deps);
-  for (const blank of plan.blanks) appendBlankPage(dest, blank, deps.api);
+  for (const blank of plan.blanks) appendBlankPage(dest, blank);
   reorderPages(dest, plan.moveOrder, deps);
   rotatePages(dest, plan.rotations, deps.api);
 }

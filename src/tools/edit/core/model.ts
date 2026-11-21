@@ -10,21 +10,17 @@
  * `object-frame.ts` for the conversions to and from the screen.
  */
 
-/** An sRGB colour with 8-bit channels (0-255). */
-export interface Rgb {
-  r: number;
-  g: number;
-  b: number;
-}
+import type { Point } from "@/lib/affine";
+import type { Rgb } from "@/lib/color";
+import type { ImageMime } from "@/lib/image-info";
+import type { QuarterTurns } from "@/lib/pdfium/page-box";
 
-/** A number of 90 degree turns. */
-export type QuarterTurns = 0 | 1 | 2 | 3;
-
-/** A point or vector in a 2D coordinate space. */
-export interface Point {
-  x: number;
-  y: number;
-}
+// Points, colours, image formats and page geometry are shared with other
+// tools; they are part of the editor's model too, so they are re-exported here.
+export type { Point } from "@/lib/affine";
+export type { Rgb } from "@/lib/color";
+export type { ImageMime } from "@/lib/image-info";
+export type { PageBox, PageInfo, QuarterTurns } from "@/lib/pdfium/page-box";
 
 /**
  * Text font families. Each maps to one of the PDF "standard 14" fonts, which
@@ -112,9 +108,6 @@ export type EditObjectKind = EditObject["kind"];
 /** The objects that are sized by a width and a height. */
 export type BoxObject = RectObject | HighlightObject | ImageObject;
 
-/** Image formats PDFium can embed directly. */
-export type ImageMime = "image/png" | "image/jpeg";
-
 /** The bytes behind an {@link ImageObject}. Kept outside undo history. */
 export interface ImageAsset {
   id: string;
@@ -124,24 +117,6 @@ export interface ImageAsset {
   /** Intrinsic size in pixels, used for the aspect ratio. */
   pixelWidth: number;
   pixelHeight: number;
-}
-
-/**
- * The page's visible area in user space (PDFium's page bounding box: the
- * CropBox clipped to the MediaBox). It does not have to start at (0, 0).
- */
-export interface PageBox {
-  left: number;
-  bottom: number;
-  right: number;
-  top: number;
-}
-
-/** What the worker reports about one page of the opened file. */
-export interface PageInfo {
-  box: PageBox;
-  /** The page's own /Rotate, as clockwise quarter turns. */
-  rotation: QuarterTurns;
 }
 
 /** One page in the editor, in output order. */

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { InvalidPlanError } from "@/tools/edit/core/sanitize-plan";
-import { FPDF_ERR } from "@/tools/edit/engine/pdfium-api";
-import { PdfOpenError } from "@/tools/edit/engine/pdfium-document";
-import { fakePdfium } from "@/tools/edit/test-utils/fake-pdfium";
+import { InvalidOutputPlanError } from "../core/output-plan";
+import { FPDF_ERR } from "@/lib/pdfium/core-api";
+import { PdfOpenError } from "@/lib/pdfium/pdfium-document";
+import { fakeOrganizePdfium } from "../test-utils/fake-pdfium";
 import { OrganizeSession } from "./organize-session";
 
 /**
@@ -10,7 +10,7 @@ import { OrganizeSession } from "./organize-session";
  * pages of 200 x 100 points, and saving yields the bytes [1, 2, 3].
  */
 function setup(pageCount = 2) {
-  const { api, runtime } = fakePdfium();
+  const { api, runtime } = fakeOrganizePdfium();
   api.FPDF_GetPageCount.mockReturnValue(pageCount);
   // FS_RECTF: left, top, right, bottom.
   api.FPDF_GetPageBoundingBox.mockImplementation((_page, rect) => {
@@ -131,7 +131,7 @@ describe("OrganizeSession.save", () => {
       session.save([
         { kind: "source", sourceId: "b", pageIndex: 0, rotation: 0 },
       ]),
-    ).toThrow(InvalidPlanError);
+    ).toThrow(InvalidOutputPlanError);
     expect(api.FPDF_CreateNewDocument).not.toHaveBeenCalled();
   });
 

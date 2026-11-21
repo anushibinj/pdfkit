@@ -1,14 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { applyToPoint } from "./affine";
+import { applyToPoint } from "@/lib/affine";
+import { viewSize } from "@/lib/pdfium/page-box";
 import type { PageBox, QuarterTurns } from "./model";
-import {
-  addTurns,
-  boxSize,
-  isQuarterTurns,
-  userToView,
-  viewSize,
-  viewToUser,
-} from "./page-geometry";
+import { userToView, viewToUser } from "./page-geometry";
 
 // A box that does not start at the origin, to catch offset mistakes.
 const box: PageBox = { left: 100, bottom: 50, right: 700, top: 450 }; // 600 x 400
@@ -17,37 +11,6 @@ const view = (turns: QuarterTurns, x: number, y: number) => {
   const p = applyToPoint(userToView(box, turns), { x, y });
   return { x: Math.round(p.x * 1000) / 1000, y: Math.round(p.y * 1000) / 1000 };
 };
-
-describe("isQuarterTurns", () => {
-  it.each([0, 1, 2, 3])("accepts %d", (n) => {
-    expect(isQuarterTurns(n)).toBe(true);
-  });
-  it.each([4, -1, 1.5, "1", null, undefined])("rejects %j", (v) => {
-    expect(isQuarterTurns(v)).toBe(false);
-  });
-});
-
-describe("addTurns", () => {
-  it.each([
-    [0, 1, 1],
-    [3, 1, 0],
-    [0, -1, 3],
-    [1, -3, 2],
-    [2, 6, 0],
-  ])("%d + %d -> %d", (a, b, expected) => {
-    expect(addTurns(a, b)).toBe(expected);
-  });
-});
-
-describe("boxSize and viewSize", () => {
-  it("measures the box and swaps the sides for odd turns", () => {
-    expect(boxSize(box)).toEqual({ width: 600, height: 400 });
-    expect(viewSize(box, 0)).toEqual({ width: 600, height: 400 });
-    expect(viewSize(box, 1)).toEqual({ width: 400, height: 600 });
-    expect(viewSize(box, 2)).toEqual({ width: 600, height: 400 });
-    expect(viewSize(box, 3)).toEqual({ width: 400, height: 600 });
-  });
-});
 
 describe("userToView", () => {
   // The box's top-left corner (as the unrotated page is read) is (100, 450).

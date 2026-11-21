@@ -2,7 +2,7 @@
  * How to build the organized file with PDFium's page-import API, as a pure
  * plan that can be tested without the engine.
  */
-import type { QuarterTurns } from "@/tools/edit/core/model";
+import type { QuarterTurns } from "@/lib/pdfium/page-box";
 import type { OutputPage } from "./output-plan";
 
 /** One `FPDF_ImportPagesByIndex` call: pages of one file, appended at the end. */

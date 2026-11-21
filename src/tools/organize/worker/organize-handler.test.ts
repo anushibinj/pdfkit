@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
-import { InvalidPlanError } from "@/tools/edit/core/sanitize-plan";
-import { PdfOpenError } from "@/tools/edit/engine/pdfium-document";
+import { InvalidOutputPlanError } from "../core/output-plan";
+import { PdfOpenError } from "@/lib/pdfium/pdfium-document";
 import type { OrganizeRequest } from "../messages";
 import {
   createOrganizeHandler,
   handleRequest,
+  openFile,
   type Session,
 } from "./organize-handler";
 
@@ -27,6 +28,65 @@ function fakeSession(overrides: Partial<Session> = {}): Session {
   };
 }
 const ctx = { progress: vi.fn() };
+
+describe("openFile", () => {
+  const open = (overrides: Record<string, unknown> = {}) =>
+    ({
+      op: "open",
+      sourceId: "s1",
+      data: new ArrayBuffer(1),
+      ...overrides,
+    }) as Extract<OrganizeRequest, { op: "open" }>;
+
+  it("refuses a request without file bytes before PDFium sees it", () => {
+    const session = fakeSession();
+    expect(openFile(session, open({ data: "nope" }))).toEqual({
+      status: "error",
+      reason: "failed",
+      message: "No file was received.",
+    });
+    expect(session.open).not.toHaveBeenCalled();
+  });
+
+  it("treats a missing or non-string password as none", () => {
+    const session = fakeSession();
+    openFile(session, open({ password: 42 }));
+    expect(session.open).toHaveBeenCalledWith("s1", expect.any(Uint8Array), "");
+  });
+
+  it("splits password errors by whether a password was given", () => {
+    const session = fakeSession({
+      open: () => {
+        throw new PdfOpenError("password");
+      },
+    });
+    expect(openFile(session, open())).toEqual({ status: "password-required" });
+    expect(openFile(session, open({ password: "x" }))).toEqual({
+      status: "wrong-password",
+    });
+  });
+
+  it("passes other open failures on, and classifies memory exhaustion", () => {
+    const broken = fakeSession({
+      open: () => {
+        throw new PdfOpenError("format");
+      },
+    });
+    expect(openFile(broken, open())).toMatchObject({
+      status: "error",
+      reason: "failed",
+    });
+    const full = fakeSession({
+      open: () => {
+        throw new RangeError("out of memory");
+      },
+    });
+    expect(openFile(full, open())).toMatchObject({
+      reason: "out-of-memory",
+      message: expect.stringContaining("while opening the PDF"),
+    });
+  });
+});
 
 describe("handleRequest", () => {
   it("opens a file under its id with its password", () => {
@@ -110,7 +170,7 @@ describe("createOrganizeHandler", () => {
     const handler = createOrganizeHandler(async () =>
       fakeSession({
         save: () => {
-          throw new InvalidPlanError("there are no pages");
+          throw new InvalidOutputPlanError("there are no pages");
         },
         render: () => {
           throw new RangeError("out of memory");
@@ -120,7 +180,7 @@ describe("createOrganizeHandler", () => {
     expect((await handler({ op: "save", pages: [] }, ctx)).result).toEqual({
       status: "error",
       reason: "failed",
-      message: "Could not save the edits: there are no pages",
+      message: "Could not build the PDF: there are no pages",
     });
     const render = await handler(
       { op: "render", sourceId: "a", pageIndex: 0, rotation: 0, width: 1 },

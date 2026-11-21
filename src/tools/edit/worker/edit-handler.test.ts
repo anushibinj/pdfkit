@@ -1,11 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import { InvalidPlanError } from "../core/sanitize-plan";
-import { PdfOpenError } from "../engine/pdfium-document";
+import { PdfOpenError } from "@/lib/pdfium/pdfium-document";
 import type { EditorRequest } from "../messages";
 import {
   createEditHandler,
   handleRequest,
-  openResult,
   toErrorResult,
   type Session,
 } from "./edit-handler";
@@ -67,42 +66,6 @@ describe("toErrorResult", () => {
       reason: "failed",
       message: "PDFium could not draw",
     });
-  });
-});
-
-describe("openResult", () => {
-  it("returns the pages and passes the password through", () => {
-    const open = vi.fn(() => [info]);
-    expect(openResult(open, "pw")).toEqual({ status: "opened", pages: [info] });
-    expect(open).toHaveBeenCalledWith("pw");
-  });
-
-  it("treats a missing or non-string password as none", () => {
-    const open = vi.fn(() => [info]);
-    openResult(open, undefined);
-    openResult(open, 42);
-    expect(open.mock.calls).toEqual([[""], [""]]);
-  });
-
-  it("splits password errors by whether a password was given", () => {
-    const refuse = () => {
-      throw new PdfOpenError("password");
-    };
-    expect(openResult(refuse, "")).toEqual({ status: "password-required" });
-    expect(openResult(refuse, "nope")).toEqual({ status: "wrong-password" });
-  });
-
-  it("reports other open failures and classifies the rest", () => {
-    expect(
-      openResult(() => {
-        throw new PdfOpenError("format");
-      }, ""),
-    ).toMatchObject({ status: "error", reason: "failed" });
-    expect(
-      openResult(() => {
-        throw new RangeError("out of memory");
-      }, ""),
-    ).toMatchObject({ status: "error", reason: "out-of-memory" });
   });
 });
 

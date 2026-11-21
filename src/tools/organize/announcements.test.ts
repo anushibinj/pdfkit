@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { PageInfo } from "@/tools/edit/core/model";
+import type { PageInfo } from "@/lib/pdfium/page-box";
 import { announcementFor, pageCountLabel } from "./announcements";
 import {
   EMPTY_BOARD_STATE,
