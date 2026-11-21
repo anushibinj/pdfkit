@@ -10,7 +10,7 @@ import type { RenderOptions } from "./editor-engine";
 import type { RenderResult, TextRunsResult } from "./messages";
 import { PageCanvas } from "./page-canvas";
 import { PageOverlay, type PageOverlayProps } from "./page-overlay";
-import { useElementWidth, useNearViewport } from "./use-element-observers";
+import { useElementWidth, useNearViewport } from "@/lib/use-element-observers";
 import { useTextRuns } from "./use-text-runs";
 
 interface PageControlsProps {

@@ -91,6 +91,17 @@ describe("tool registry", () => {
     expect(typeof mod.default).toBe("function");
   });
 
+  it("registers the PDF splitter as a beta tool", () => {
+    const tool = getTool("split");
+    expect(tool?.name).toBe("Split PDF");
+    expect(tool?.beta).toBe(true);
+  });
+
+  it("loads the PDF splitter component lazily", async () => {
+    const mod = await getTool("split")!.component();
+    expect(typeof mod.default).toBe("function");
+  });
+
   it("registers Merge PDFs as a beta tool", () => {
     const tool = getTool("merge");
     expect(tool?.name).toBe("Merge PDFs");

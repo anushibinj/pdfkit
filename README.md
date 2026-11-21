@@ -33,6 +33,19 @@ Currently shipped tools:
   PDF's. qpdf starts from an empty document (`--empty`), so bookmarks and
   document properties are not carried over, the result is not encrypted,
   and digital signatures in the inputs are not valid in it.
+- **Split PDF** (`/tools/split/`, beta): splits a PDF into several files
+  (every N pages, or one file per typed range such as `1-3, 4-8, 9-`),
+  extracts the pages you pick into a new file, or removes the pages you pick.
+  Pages are picked by clicking thumbnails (Shift-click picks a stretch) or by
+  typing page numbers (the same syntax as Add Watermark's page field). Several
+  files download as one ZIP. Each file is made by qpdf with the source as the
+  primary file (`--pages . <range>`, in a job JSON file), so it keeps the
+  original's password, document properties and the form fields of the kept
+  pages; pages left out are not written at all. Bookmarks and links that
+  pointed to a left-out page no longer go anywhere. A long split first copies
+  short stretches into temporary parts, because each qpdf run reads the whole
+  source: 1000 single-page files take about 19 s instead of about 5 minutes.
+  Thumbnails are drawn by PDFium.
 - **Signature Verifier** (`/tools/verify/`, beta): checks that a signed PDF is
   unmodified and its signature is cryptographically correct.
 - **Markdown to PDF** (`/tools/markdown-to-pdf/`, beta): renders Markdown
@@ -334,6 +347,36 @@ Use the files in `fixtures/` (`user-password.pdf` has password `hunter2`).
       offline after one visit.
 - [ ] At 360px width there is no horizontal scroll.
 
+## Manual test checklist (Split PDF)
+
+Sample files live in `fixtures/` (`user-password.pdf` has password `hunter2`).
+
+- [ ] Opening a PDF shows its name, page count and size, the three modes and
+      a thumbnail per page; thumbnails far off screen are drawn when scrolled
+      to, and stay drawn when switching modes.
+- [ ] **Split, every 1 page** of a 3-page PDF: "Split into 3 files" makes
+      `<name>-page-1.pdf` ... `-page-3.pdf`; **Download all (.zip)** saves
+      `<name>-split.zip`, which unzips (Explorer, Finder, `unzip -t`) into the
+      three files, each opening with the right page.
+- [ ] **Split, custom ranges** `1-2, 9` on a 3-page file says "There is no
+      page 9" and disables the button; `1-2, 3` makes two files.
+- [ ] **Extract pages:** clicking pages 1 and 3 fills the field with `1, 3`;
+      Shift-click picks a stretch; typing `2-3` selects those thumbnails.
+      "Extract 2 pages" makes `<name>-extracted.pdf` with only those pages.
+- [ ] **Remove pages:** picked pages show a red cross; picking every page is
+      refused; "Remove 1 page" makes `<name>-pages-removed.pdf`, and text of the
+      removed page cannot be found in it.
+- [ ] Changing any setting after making files hides the old results.
+- [ ] A fillable form: the extracted pages' fields can still be filled in.
+- [ ] `user-password.pdf`: the password dialog appears, `hunter2` opens it,
+      and the made file still asks for `hunter2`.
+- [ ] Splitting a long file (300+ pages) every page shows progress; **Cancel**
+      stops it and the next split works.
+- [ ] Offline after one use: reload with DevTools > Network > Offline, open a
+      PDF and split it.
+- [ ] At 360px width there is no horizontal scroll and thumbnails show two
+      per row.
+
 ## Manual test checklist (PDF Unlocker)
 
 Sample files live in `fixtures/` (`plain.pdf`, `owner-restricted.pdf`,
@@ -361,7 +404,7 @@ Sample files live in `fixtures/` (`plain.pdf`, `owner-restricted.pdf`,
 
 ## Licences
 
-PDF unlocking, password protection, watermarking and merging use **qpdf**, Copyright (c) Jay Berkenbilt, licensed under the
+PDF unlocking, password protection, watermarking, merging and splitting use **qpdf**, Copyright (c) Jay Berkenbilt, licensed under the
 **Apache License 2.0** (qpdf is also available under the Artistic License 2.0).
 The WebAssembly build is [`@jspawn/qpdf-wasm`](https://github.com/jsscheller/qpdf-wasm)
 (Apache-2.0). The licence text ships at `/wasm/LICENSE.txt`, a notice at
@@ -373,7 +416,7 @@ Gouron, licensed under the **MIT License** (licence at
 under the **MIT License**. Fonts: Geist and
 Inter (SIL Open Font License 1.1), bundled locally.
 
-The PDF Editor and Add Watermark use **PDFium**, Copyright The PDFium Authors, licensed under
+The PDF Editor, Add Watermark and Split PDF's thumbnails use **PDFium**, Copyright The PDFium Authors, licensed under
 the **BSD 3-Clause License** and the **Apache License 2.0** (licence at
 `/wasm/LICENSE-pdfium.txt`), compiled to WebAssembly by **@embedpdf/pdfium**,
 Copyright (c) 2024 CloudPDF, Ji Chang, licensed under the **MIT License**
