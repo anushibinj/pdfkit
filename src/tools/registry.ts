@@ -1,4 +1,10 @@
-import { FileCode, FilePen, LockOpen, ShieldCheck } from "lucide-react";
+import {
+  FileCode,
+  FilePen,
+  LayoutGrid,
+  LockOpen,
+  ShieldCheck,
+} from "lucide-react";
 import type { ToolDefinition } from "./types";
 
 export type { ToolDefinition } from "./types";
@@ -78,6 +84,26 @@ export const tools: ToolDefinition[] = [
     icon: FilePen,
     beta: true,
     component: () => import("./edit"),
+  },
+  {
+    slug: "organize",
+    name: "Organize Pages",
+    tagline: "Reorder, rotate and combine pages from several PDFs, locally.",
+    description:
+      "Free PDF page organizer in your browser. Combine pages from several PDFs, reorder, rotate, duplicate or delete them, and add blank pages. Nothing is uploaded.",
+    keywords: [
+      "organize pdf pages",
+      "reorder pdf pages",
+      "rearrange pdf pages",
+      "combine pdf pages",
+      "interleave pdf pages",
+      "rotate pdf pages",
+      "delete pdf pages",
+      "private pdf organizer",
+    ],
+    icon: LayoutGrid,
+    beta: true,
+    component: () => import("./organize"),
   },
 ];
 

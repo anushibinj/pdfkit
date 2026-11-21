@@ -30,6 +30,17 @@ Currently shipped tools:
   password and stay protected after saving. Text in scanned pages or inside
   form XObjects cannot be edited, and new or substituted text is limited to
   the standard PDF fonts (WinAnsi: English and Western European languages).
+- **Organize Pages** (`/tools/organize/`, beta): a thumbnail board for one or
+  more PDFs. Pages of every file appear in one grid, numbered and coloured by
+  file. Drag (or Ctrl/Cmd + arrow keys) to reorder; rotate, duplicate or
+  delete the selection; insert a blank page sized like its neighbour;
+  "Interleave" a double-sided scan (fronts, then backs in reverse) or reverse
+  the order; turn landscape pages upright; undo and redo everything. Saving
+  builds a new PDF from the pages with
+  [PDFium](https://pdfium.googlesource.com/pdfium/)'s page import, so page
+  content is copied as is and rotation only sets `/Rotate`: text stays text.
+  Bookmarks, form fields and document properties are not carried over, and
+  files opened with a password are saved without one.
 
 Built with Next.js (App Router, static export), TypeScript (strict), Tailwind
 CSS, shadcn/ui, next-themes and Vitest. It is an installable, offline-capable PWA.
@@ -124,8 +135,39 @@ service worker precache are all derived from `src/tools/registry.ts`.
 The service worker precaches every file in `out/` except those listed in
 `ON_FIRST_USE` in `scripts/build-sw.mjs`. The ironpress binary (~15 MB, ~6 MB
 gzipped) and PDFium (binary ~4.6 MB, ~2 MB gzipped, plus its JavaScript glue)
-are on that list: each is cached the first time its tool loads it, so visitors who never use that
-tool never download it, and the tool still works offline after its first use.
+are on that list: each is cached the first time a tool loads it (PDFium is shared by the PDF
+Editor and Organize Pages), so visitors who never use those tools never download it, and the
+tools still work offline after their first use.
+
+## Manual test checklist (Organize Pages)
+
+Sample files live in `fixtures/` (`duplex-scan.pdf`, `duplex-fronts.pdf` and
+`duplex-backs.pdf` are made by `scripts/make-duplex-fixture.mjs`;
+`user-password.pdf` has password `hunter2`).
+
+- [ ] Drop `duplex-fronts.pdf` and `duplex-backs.pdf` together: 10 pages
+      appear, numbered 1 and 2 by file, in two colours; the legend lists both.
+- [ ] **Interleave all** puts them in order 1 to 10; **Undo** restores the
+      scanned order. `duplex-scan.pdf` alone gives the same result.
+- [ ] Click, Ctrl/Cmd+click and Shift+click select pages; the tick on a
+      thumbnail toggles it (touch screens); **Select** in the legend selects a
+      whole file.
+- [ ] Drag a selection to another place; the bar shows where it lands; Escape
+      cancels a drag. On a phone, drag with the grip; swiping elsewhere scrolls.
+- [ ] Keyboard: Tab to the board, arrows move, Shift+arrows select, Space
+      toggles, Ctrl/Cmd+arrows move the selected pages, Delete removes them,
+      Ctrl/Cmd+Z undoes.
+- [ ] **Rotate**, **Duplicate**, **Insert blank page** (same size as the page
+      before it), **Reverse** and **Make portrait** work, and each is undoable.
+- [ ] **Download PDF** saves `organized.pdf` (or `<name>-organized.pdf` for
+      one file); in a PDF reader the text is selectable on rotated pages.
+- [ ] `user-password.pdf`: the password prompt says the result has no
+      password; **Skip this file** skips it; `hunter2` adds it.
+- [ ] **Start over** with changes asks first; closing the tab with changes
+      asks too.
+- [ ] A 500-page PDF: the board scrolls smoothly and thumbnails render as
+      they come into view.
+- [ ] At 360px width there is no horizontal scroll at any thumbnail size.
 
 ## Manual test checklist (PDF Editor)
 
@@ -214,9 +256,10 @@ under the **MIT License** (licence at `/wasm/LICENSE-ironpress.txt`), and
 **marked**, licensed under the **MIT License**. Fonts: Geist and
 Inter (SIL Open Font License 1.1), bundled locally.
 
-The PDF Editor uses **PDFium**, Copyright The PDFium Authors, licensed under
-the **BSD 3-Clause License** and the **Apache License 2.0** (licence at
-`/wasm/LICENSE-pdfium.txt`), compiled to WebAssembly by **@embedpdf/pdfium**,
-Copyright (c) 2024 CloudPDF, Ji Chang, licensed under the **MIT License**
-(licence at `/wasm/LICENSE-embedpdf-pdfium.txt`). Text measurements come from
-Adobe's standard font metrics via **@pdf-lib/standard-fonts** (MIT License).
+The PDF Editor and Organize Pages use **PDFium**, Copyright The PDFium
+Authors, licensed under the **BSD 3-Clause License** and the **Apache License
+2.0** (licence at `/wasm/LICENSE-pdfium.txt`), compiled to WebAssembly by
+**@embedpdf/pdfium**, Copyright (c) 2024 CloudPDF, Ji Chang, licensed under the
+**MIT License** (licence at `/wasm/LICENSE-embedpdf-pdfium.txt`). Text
+measurements come from Adobe's standard font metrics via
+**@pdf-lib/standard-fonts** (MIT License).
