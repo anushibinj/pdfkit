@@ -56,6 +56,8 @@ export const UNCOUNTABLE_MESSAGE = "Could not count the pages of this PDF.";
 export const NO_PAGES_MESSAGE = "This PDF has no pages.";
 /** Shown when merging refused a file's password. */
 export const WRONG_PASSWORD_MESSAGE = "The password for this file is wrong.";
+/** Shown for a merge request without files. */
+export const NOTHING_TO_MERGE_MESSAGE = "Add at least one PDF to merge.";
 
 /**
  * Read the outcome of a page-count job.
@@ -200,12 +202,17 @@ export class PdfMerger {
    * 3. Always delete the inputs, the output and the job file (which holds
    *    the passwords), whatever happened.
    *
-   * @param sources At least one PDF, in output order.
+   * @param sources The PDFs, in output order. None is a failed outcome.
    * @returns The merged PDF, or why merging failed.
-   * @throws When `sources` is empty, or when qpdf itself crashes; the caller
-   *   should then discard this qpdf instance.
+   * @throws Only when qpdf itself crashes (for example out of memory); the
+   *   caller should then discard this qpdf instance.
    */
   merge(sources: readonly PdfSource[]): MergeOutcome {
+    // The UI never asks for this; a request from another thread is not
+    // trusted, and an empty merge is a bad request, not an engine crash.
+    if (sources.length === 0) {
+      return { kind: "failed", message: NOTHING_TO_MERGE_MESSAGE };
+    }
     const files = mergeScratchFiles(this.newToken(), sources.length);
     try {
       const inputs = sources.map(({ bytes, password }, i) => {

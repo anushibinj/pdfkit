@@ -4,8 +4,10 @@ import type { MergeClient } from "./merge-client";
 import type { MergeItem } from "./merge-state";
 import type { InspectResult, MergeResult, MergeSource } from "./messages";
 import {
+  SourceReadError,
   UNREADABLE_FILE_MESSAGE,
   describeMergeError,
+  readSources,
   useMergePdfs,
 } from "./use-merge-pdfs";
 
@@ -189,6 +191,20 @@ describe("useMergePdfs", () => {
     });
   });
 
+  it("names a file that can no longer be read when merging", async () => {
+    const { result, client } = await twoReadyFiles();
+    const gone = result.current.state.items[1].file;
+    gone.arrayBuffer = () => Promise.reject(new DOMException("NotReadable"));
+    act(() => result.current.merge());
+    await settle();
+    expect(client.merge).not.toHaveBeenCalled();
+    expect(result.current.state.outcome).toEqual({
+      kind: "error",
+      reason: "failed",
+      message: `b.pdf: ${UNREADABLE_FILE_MESSAGE}`,
+    });
+  });
+
   it("reports a worker that fails while merging", async () => {
     const { result, client } = await twoReadyFiles();
     vi.mocked(client.merge).mockRejectedValueOnce(
@@ -269,5 +285,34 @@ describe("describeMergeError", () => {
         items,
       ),
     ).toBe("Bad");
+  });
+});
+
+describe("readSources", () => {
+  const ready = (pageCount: number, password?: string) =>
+    ({ kind: "ready", pageCount, password }) as const;
+
+  it("reads every file in order, with the password that opened it", async () => {
+    const sources = await readSources([
+      { id: "1", file: pdfFile("a.pdf", [1]), status: ready(1) },
+      { id: "2", file: pdfFile("b.pdf", [2]), status: ready(1, "pw") },
+    ]);
+    expect(sources.map(bytesOf)).toEqual([[1], [2]]);
+    expect(sources.map((s) => s.password)).toEqual([undefined, "pw"]);
+  });
+
+  it("names the first unreadable file in the list, not the first to fail", async () => {
+    const slowFail = pdfFile("first.pdf");
+    slowFail.arrayBuffer = () =>
+      new Promise((_, reject) => setTimeout(() => reject(new Error("x")), 20));
+    const fastFail = pdfFile("second.pdf");
+    fastFail.arrayBuffer = () => Promise.reject(new Error("y"));
+    const error = await readSources([
+      { id: "1", file: slowFail, status: ready(1) },
+      { id: "2", file: fastFail, status: ready(1) },
+    ]).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(SourceReadError);
+    expect((error as SourceReadError).index).toBe(0);
+    expect((error as SourceReadError).message).toBe(UNREADABLE_FILE_MESSAGE);
   });
 });

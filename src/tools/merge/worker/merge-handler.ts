@@ -99,12 +99,15 @@ export function toCrashResult(err: unknown): ErrorResult {
 
 /**
  * Read the sources of a merge request. The request crossed a thread
- * boundary, so a password that is not a string is treated as none.
+ * boundary, so a `sources` that is not a list counts as no sources (the
+ * merger answers that with a failure), and a password that is not a string
+ * as none.
  *
  * @param request The merge request.
  * @returns The sources for the merger.
  */
 function sourcesOf(request: MergeRequest): PdfSource[] {
+  if (!Array.isArray(request.sources)) return [];
   return request.sources.map(({ data, password }) => ({
     bytes: new Uint8Array(data),
     password: typeof password === "string" ? password : undefined,

@@ -141,6 +141,16 @@ describe("createMergeHandler", () => {
     ]);
   });
 
+  it("passes a malformed source list on as an empty one", async () => {
+    const memo = loaded(fakeMerger());
+    await createMergeHandler(memo)(
+      { op: "merge", sources: "nope" as unknown as [] },
+      ctx(),
+    );
+    expect((await memo.get()).merge).toHaveBeenCalledWith([]);
+    expect(memo.reset).not.toHaveBeenCalled();
+  });
+
   it("reports an engine that cannot be loaded, without resetting", async () => {
     const memo: RetryableOnce<Merger> = {
       get: vi.fn(async () => {

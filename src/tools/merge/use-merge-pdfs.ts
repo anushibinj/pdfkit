@@ -11,7 +11,7 @@ import {
   type MergeItem,
   type MergeState,
 } from "./merge-state";
-import type { InspectResult, MergeResult } from "./messages";
+import type { InspectResult, MergeResult, MergeSource } from "./messages";
 
 /** What the Merge PDFs page can see and do. */
 export interface MergePdfs {
@@ -50,6 +50,44 @@ async function readFile(file: File): Promise<ArrayBuffer> {
   } catch {
     throw new Error(UNREADABLE_FILE_MESSAGE);
   }
+}
+
+/** One of the files to merge could not be read; `index` says which. */
+export class SourceReadError extends Error {
+  /** @param index Position of the file in the merge order. */
+  constructor(readonly index: number) {
+    super(UNREADABLE_FILE_MESSAGE);
+    this.name = "SourceReadError";
+  }
+}
+
+/**
+ * Read every file to merge, in list order, with the password that opened it.
+ *
+ * @param items The list (all files are "ready" when a merge starts).
+ * @returns One source per file, for the worker.
+ * @throws {SourceReadError} Naming the first file in the list that could not
+ *   be read, so the error can say which one it was.
+ */
+export async function readSources(
+  items: readonly MergeItem[],
+): Promise<MergeSource[]> {
+  const reads = items.map(async ({ file, status }, index) => {
+    try {
+      return {
+        data: await readFile(file),
+        password: status.kind === "ready" ? status.password : undefined,
+      };
+    } catch {
+      throw new SourceReadError(index);
+    }
+  });
+  // allSettled, not all: with several unreadable files, `all` would report
+  // whichever read failed first in time; this names the first in the list.
+  const settled = await Promise.allSettled(reads);
+  const failed = settled.find((s) => s.status === "rejected");
+  if (failed) throw failed.reason;
+  return settled.map((s) => (s as PromiseFulfilledResult<MergeSource>).value);
 }
 
 /**
@@ -163,25 +201,21 @@ export function useMergePdfs(
 
   const merge = useCallback(async () => {
     const client = clientRef.current;
+    if (!client) return;
     const before = stateRef.current;
     apply({ type: "merge-started" });
     // The reducer decides whether merging may start; unchanged = refused.
-    if (!client || stateRef.current === before) return;
+    if (stateRef.current === before) return;
     const { items } = before;
     let result: MergeResult;
     try {
-      const sources = await Promise.all(
-        items.map(async ({ file, status }) => ({
-          data: await readFile(file),
-          password: status.kind === "ready" ? status.password : undefined,
-        })),
-      );
-      result = await client.merge(sources);
+      result = await client.merge(await readSources(items));
     } catch (err) {
       result = {
         status: "error",
         reason: "failed",
         message: errorMessage(err),
+        sourceIndex: err instanceof SourceReadError ? err.index : undefined,
       };
     }
     if (clientRef.current !== client) return; // unmounted

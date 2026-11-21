@@ -5,6 +5,7 @@ import {
   type RunScript,
 } from "@/lib/qpdf/test-utils/fake-qpdf";
 import {
+  NOTHING_TO_MERGE_MESSAGE,
   NO_PAGES_MESSAGE,
   PdfMerger,
   UNCOUNTABLE_MESSAGE,
@@ -232,11 +233,13 @@ describe("PdfMerger.merge", () => {
     ).toMatchObject({ kind: "failed" });
   });
 
-  it("refuses to merge nothing, and leaves no files behind", () => {
+  it("answers an empty merge with a failure, without running qpdf", () => {
     const runner = new FakeQpdfRunner();
-    expect(() => new PdfMerger(runner, () => "t").merge([])).toThrow(
-      "Nothing to merge",
-    );
+    expect(new PdfMerger(runner, () => "t").merge([])).toEqual({
+      kind: "failed",
+      message: NOTHING_TO_MERGE_MESSAGE,
+    });
+    expect(runner.runs).toEqual([]);
     expect(runner.files.size).toBe(0);
   });
 });
