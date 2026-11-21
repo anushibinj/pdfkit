@@ -1,4 +1,4 @@
-import { FileCode, FilePen, LockOpen, ShieldCheck } from "lucide-react";
+import { FileCode, FilePen, LockOpen, Scissors, ShieldCheck } from "lucide-react";
 import type { ToolDefinition } from "./types";
 
 export type { ToolDefinition } from "./types";
@@ -78,6 +78,24 @@ export const tools: ToolDefinition[] = [
     icon: FilePen,
     beta: true,
     component: () => import("./edit"),
+  },
+  {
+    slug: "split",
+    name: "Split PDF",
+    tagline: "Split a PDF, extract pages or remove pages, locally.",
+    description:
+      "Free PDF splitter that runs in your browser. Split a PDF into several files, extract the pages you pick, or remove pages. Your files are never uploaded.",
+    keywords: [
+      "split pdf",
+      "extract pdf pages",
+      "remove pages from pdf",
+      "delete pdf pages",
+      "separate pdf pages",
+      "private pdf splitter",
+    ],
+    icon: Scissors,
+    beta: true,
+    component: () => import("./split"),
   },
 ];
 

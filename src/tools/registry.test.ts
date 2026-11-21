@@ -58,6 +58,17 @@ describe("tool registry", () => {
     expect(typeof mod.default).toBe("function");
   });
 
+  it("registers the PDF splitter as a beta tool", () => {
+    const tool = getTool("split");
+    expect(tool?.name).toBe("Split PDF");
+    expect(tool?.beta).toBe(true);
+  });
+
+  it("loads the PDF splitter component lazily", async () => {
+    const mod = await getTool("split")!.component();
+    expect(typeof mod.default).toBe("function");
+  });
+
   it("loads the Markdown to PDF component lazily", async () => {
     const mod = await getTool("markdown-to-pdf")!.component();
     expect(typeof mod.default).toBe("function");

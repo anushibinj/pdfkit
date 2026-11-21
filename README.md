@@ -30,6 +30,16 @@ Currently shipped tools:
   password and stay protected after saving. Text in scanned pages or inside
   form XObjects cannot be edited, and new or substituted text is limited to
   the standard PDF fonts (WinAnsi: English and Western European languages).
+- **Split PDF** (`/tools/split/`, beta): splits a PDF into several files
+  (every N pages, or one file per typed range such as `1-3, 4-8, 9-`),
+  extracts the pages you pick into a new file, or removes the pages you pick.
+  Pages are picked by clicking thumbnails (Shift-click picks a stretch) or by
+  typing page numbers. Several files download as one ZIP. The files are made
+  by [qpdf](https://github.com/qpdf/qpdf) (`qpdf --pages`), so they keep the
+  original's password, document information and the form fields of the kept
+  pages, and contain nothing of the pages left out; thumbnails are drawn by
+  PDFium. Bookmarks are kept, but those that pointed to a page left out no
+  longer go anywhere, and links to such pages stop working.
 
 Built with Next.js (App Router, static export), TypeScript (strict), Tailwind
 CSS, shadcn/ui, next-themes and Vitest. It is an installable, offline-capable PWA.
@@ -127,6 +137,35 @@ gzipped) and PDFium (binary ~4.6 MB, ~2 MB gzipped, plus its JavaScript glue)
 are on that list: each is cached the first time its tool loads it, so visitors who never use that
 tool never download it, and the tool still works offline after its first use.
 
+## Manual test checklist (Split PDF)
+
+Sample files live in `fixtures/` (`user-password.pdf` has password `hunter2`).
+
+- [ ] Opening a PDF shows its name, page count and size, the three modes and
+      a thumbnail per page; thumbnails far off screen are drawn when scrolled to.
+- [ ] **Split, every 1 page** of a 3-page PDF: "Split into 3 files" makes
+      `<name>-page-1.pdf` ... `-page-3.pdf`; **Download all (.zip)** saves
+      `<name>-split.zip`, which unzips (Explorer, Finder, `unzip -t`) into the
+      three files, each opening with the right page.
+- [ ] **Split, custom ranges** `1-2, 9` on a 3-page file says "only 3 pages"
+      and disables the button; `1-2, 3` makes two files.
+- [ ] **Extract pages:** clicking pages 1 and 3 fills the field with `1, 3`;
+      Shift-click picks a stretch; typing `2-3` selects those thumbnails.
+      "Extract 2 pages" makes `<name>-extracted.pdf` with only those pages.
+- [ ] **Remove pages:** picked pages show a red cross; picking every page is
+      refused; "Remove 1 page" makes `<name>-pages-removed.pdf`, and text of the
+      removed page cannot be found in it.
+- [ ] Changing any setting after making files hides the old results.
+- [ ] A fillable form: the extracted pages' fields can still be filled in.
+- [ ] `user-password.pdf`: the password dialog appears, `hunter2` opens it,
+      and the made file still asks for `hunter2`.
+- [ ] Splitting a long file (300+ pages) every page shows progress; **Cancel**
+      stops it and the next split works.
+- [ ] Offline after one use: reload with DevTools > Network > Offline, open a
+      PDF and split it.
+- [ ] At 360px width there is no horizontal scroll and thumbnails show two
+      per row.
+
 ## Manual test checklist (PDF Editor)
 
 Sample files live in `fixtures/` (`user-password.pdf` has password `hunter2`;
@@ -203,7 +242,7 @@ Sample files live in `fixtures/` (`plain.pdf`, `owner-restricted.pdf`,
 
 ## Licences
 
-PDF unlocking uses **qpdf**, Copyright (c) Jay Berkenbilt, licensed under the
+PDF unlocking and the page splitter use **qpdf**, Copyright (c) Jay Berkenbilt, licensed under the
 **Apache License 2.0** (qpdf is also available under the Artistic License 2.0).
 The WebAssembly build is [`@jspawn/qpdf-wasm`](https://github.com/jsscheller/qpdf-wasm)
 (Apache-2.0). The licence text ships at `/wasm/LICENSE.txt`, a notice at
@@ -214,7 +253,7 @@ under the **MIT License** (licence at `/wasm/LICENSE-ironpress.txt`), and
 **marked**, licensed under the **MIT License**. Fonts: Geist and
 Inter (SIL Open Font License 1.1), bundled locally.
 
-The PDF Editor uses **PDFium**, Copyright The PDFium Authors, licensed under
+The PDF Editor and the page splitter's thumbnails use **PDFium**, Copyright The PDFium Authors, licensed under
 the **BSD 3-Clause License** and the **Apache License 2.0** (licence at
 `/wasm/LICENSE-pdfium.txt`), compiled to WebAssembly by **@embedpdf/pdfium**,
 Copyright (c) 2024 CloudPDF, Ji Chang, licensed under the **MIT License**
