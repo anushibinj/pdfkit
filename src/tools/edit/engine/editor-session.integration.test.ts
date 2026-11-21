@@ -11,7 +11,7 @@
 import { readFileSync } from "node:fs";
 import { PDFDocument, StandardFonts, degrees, rgb } from "pdf-lib";
 import { beforeAll, describe, expect, it } from "vitest";
-import { applyToPoint } from "../core/affine";
+import { applyToPoint } from "@/lib/affine";
 import {
   DEFAULT_TOOL_STYLE,
   boxFromDrag,

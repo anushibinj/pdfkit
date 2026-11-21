@@ -1,4 +1,4 @@
-import { compose } from "../../core/affine";
+import { compose } from "@/lib/affine";
 import type { TextObject } from "../../core/model";
 import { objectToUser } from "../../core/object-frame";
 import { STANDARD_FONT_NAME } from "../../core/standard-font-metrics";

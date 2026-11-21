@@ -10,21 +10,17 @@
  * `object-frame.ts` for the conversions to and from the screen.
  */
 
+import type { Point } from "@/lib/affine";
 import type { Rgb } from "@/lib/color";
 import type { ImageMime } from "@/lib/image-info";
 import type { QuarterTurns } from "@/lib/pdfium/page-box";
 
-// Colours, image formats and page geometry are shared with other tools; they
-// are part of the editor's model too, so they are re-exported here.
+// Points, colours, image formats and page geometry are shared with other
+// tools; they are part of the editor's model too, so they are re-exported here.
+export type { Point } from "@/lib/affine";
 export type { Rgb } from "@/lib/color";
 export type { ImageMime } from "@/lib/image-info";
 export type { PageBox, PageInfo, QuarterTurns } from "@/lib/pdfium/page-box";
-
-/** A point or vector in a 2D coordinate space. */
-export interface Point {
-  x: number;
-  y: number;
-}
 
 /**
  * Text font families. Each maps to one of the PDF "standard 14" fonts, which

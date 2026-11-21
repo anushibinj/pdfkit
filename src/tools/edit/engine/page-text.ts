@@ -1,4 +1,4 @@
-import type { Matrix } from "../core/affine";
+import type { Matrix } from "@/lib/affine";
 import type { Rgb } from "../core/model";
 import {
   observedCharacters,

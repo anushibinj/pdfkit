@@ -1,4 +1,4 @@
-import { compose, invert, type Matrix } from "./affine";
+import { compose, invert, type Matrix } from "@/lib/affine";
 import type { PageBox, QuarterTurns } from "./model";
 
 /** A width and a height, in points unless stated otherwise. */

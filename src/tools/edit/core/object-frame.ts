@@ -1,4 +1,4 @@
-import { applyToPoint, compose, invert, type Matrix } from "./affine";
+import { applyToPoint, compose, invert, type Matrix } from "@/lib/affine";
 import type { ObjectFrame, PageBox, Point, QuarterTurns } from "./model";
 import { userToView, viewToUser } from "./page-geometry";
 

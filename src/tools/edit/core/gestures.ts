@@ -1,4 +1,4 @@
-import { applyToPoint, applyToVector } from "./affine";
+import { applyToPoint, applyToVector } from "@/lib/affine";
 import {
   DEFAULT_HIGHLIGHT_COLOR,
   DEFAULT_INK_COLOR,

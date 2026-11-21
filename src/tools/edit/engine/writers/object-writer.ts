@@ -1,4 +1,4 @@
-import type { Matrix } from "../../core/affine";
+import type { Matrix } from "@/lib/affine";
 import type { EditObject } from "../../core/model";
 import type { SaveImage } from "../../core/save-plan";
 import type { PdfiumApi } from "../pdfium-api";
