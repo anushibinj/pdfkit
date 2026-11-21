@@ -1,12 +1,8 @@
 import type { InkObject } from "../../core/model";
 import { objectToUser } from "../../core/object-frame";
 import { FILL_MODE, ROUND } from "../pdfium-api";
-import {
-  check,
-  insertNewObject,
-  type ObjectWriter,
-  type WriteContext,
-} from "./object-writer";
+import { check, insertNewObject } from "@/lib/pdfium/page-objects";
+import type { ObjectWriter, WriteContext } from "./object-writer";
 
 /** Writes freehand strokes as stroked PDF paths with round ends and joins. */
 export class InkWriter implements ObjectWriter<InkObject> {

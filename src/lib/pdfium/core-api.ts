@@ -47,6 +47,13 @@ export interface PdfiumCoreApi {
   FPDF_CloseDocument(doc: number): void;
   FPDF_GetPageCount(doc: number): number;
   FPDF_LoadPage(doc: number, index: number): number;
+  /** Insert a new, empty page and return it loaded (close it when done). */
+  FPDFPage_New(
+    doc: number,
+    index: number,
+    width: number,
+    height: number,
+  ): number;
   FPDF_ClosePage(page: number): void;
   FPDF_GetPageBoundingBox(page: number, rectPtr: number): boolean;
   FPDFPage_GetRotation(page: number): number;

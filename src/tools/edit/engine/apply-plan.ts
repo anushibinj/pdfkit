@@ -7,7 +7,7 @@ import type { PdfiumApi } from "./pdfium-api";
 import type { PdfiumDocument } from "@/lib/pdfium/pdfium-document";
 import { applyTextEdits } from "./text-edits";
 import type { WasmHeap } from "@/lib/pdfium/wasm-heap";
-import { check } from "./writers/object-writer";
+import { check } from "@/lib/pdfium/page-objects";
 import { writePageObjects, type WriterRegistry } from "./writers/registry";
 
 /** Collaborators for {@link applySavePlan}. */

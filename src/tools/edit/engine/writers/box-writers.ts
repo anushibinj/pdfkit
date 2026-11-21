@@ -6,12 +6,8 @@ import {
 } from "../../core/model";
 import { objectToUser } from "../../core/object-frame";
 import { FILL_MODE } from "../pdfium-api";
-import {
-  check,
-  insertNewObject,
-  type ObjectWriter,
-  type WriteContext,
-} from "./object-writer";
+import { check, insertNewObject } from "@/lib/pdfium/page-objects";
+import type { ObjectWriter, WriteContext } from "./object-writer";
 
 /**
  * Add a rectangle path covering a box's local area [0, width] x [0, height],

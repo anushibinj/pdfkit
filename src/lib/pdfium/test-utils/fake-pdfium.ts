@@ -152,6 +152,7 @@ export function coreDefaults(
     FPDF_CloseDocument: none,
     FPDF_GetPageCount: () => 1,
     FPDF_LoadPage: nextHandle,
+    FPDFPage_New: nextHandle,
     FPDF_ClosePage: none,
     FPDF_GetPageBoundingBox: ok,
     FPDFPage_GetRotation: () => 0,

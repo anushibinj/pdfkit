@@ -100,6 +100,22 @@ describe("PdfiumDocument", () => {
     expect(() => doc.withPage(3, () => 1)).toThrow("Could not load page 4");
   });
 
+  it("withNewPage inserts a page of the given size and always closes it", () => {
+    const { api, heap } = setup();
+    const doc = PdfiumDocument.create(api, heap);
+    api.FPDFPage_New.mockReturnValue(31);
+    expect(doc.withNewPage(0, 200, 100, (page) => page + 1)).toBe(32);
+    expect(api.FPDFPage_New).toHaveBeenCalledWith(doc.handle, 0, 200, 100);
+    expect(() =>
+      doc.withNewPage(1, 200, 100, () => {
+        throw new Error("draw failed");
+      }),
+    ).toThrow("draw failed");
+    expect(api.FPDF_ClosePage).toHaveBeenCalledTimes(2);
+    api.FPDFPage_New.mockReturnValue(0);
+    expect(() => doc.withNewPage(2, 1, 1, () => 0)).toThrow(RangeError);
+  });
+
   it("pageInfo reads the bounding box floats and the rotation", () => {
     const { api, runtime, heap } = setup();
     api.FPDF_GetPageBoundingBox.mockImplementation((_page, rect) => {

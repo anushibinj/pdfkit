@@ -151,6 +151,37 @@ export class PdfiumDocument {
   }
 
   /**
+   * Insert a new, empty page, run `fn` with it and close it again, even if
+   * `fn` throws.
+   *
+   * The page stays in the document after closing: closing only releases
+   * PDFium's loaded copy. Changes `fn` makes to the page's objects must be
+   * written into its content with `FPDFPage_GenerateContent` before it is
+   * closed, or they are lost.
+   *
+   * @param index Where to insert the page (0 = first).
+   * @param width Page width in points.
+   * @param height Page height in points.
+   * @param fn Receives the `FPDF_PAGE` handle.
+   * @returns What `fn` returns.
+   * @throws {RangeError} When PDFium could not create the page.
+   */
+  withNewPage<T>(
+    index: number,
+    width: number,
+    height: number,
+    fn: (page: number) => T,
+  ): T {
+    const page = this.api.FPDFPage_New(this.handle, index, width, height);
+    if (!page) throw new RangeError("out of memory: could not add a page");
+    try {
+      return fn(page);
+    } finally {
+      this.api.FPDF_ClosePage(page);
+    }
+  }
+
+  /**
    * Read a page's visible area and its own rotation.
    *
    * `FPDF_GetPageBoundingBox` writes an `FS_RECTF` (four floats: left, top,
