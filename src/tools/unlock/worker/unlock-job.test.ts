@@ -22,6 +22,7 @@ function scriptedQpdf(answers: QpdfRun[], out = new Uint8Array([37, 80])) {
     writeFile: (path, bytes) => void files.set(path, bytes),
     readFile: (path) => files.get(path)!,
     exists: (path) => files.has(path),
+    remove: (path) => void files.delete(path),
     withJob: (fn) => {
       try {
         return fn(new QpdfJob("/job-1"));

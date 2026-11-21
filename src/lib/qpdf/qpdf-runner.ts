@@ -50,6 +50,7 @@ export interface QpdfEngine {
   writeFile(path: string, bytes: Uint8Array): void;
   readFile(path: string): Uint8Array;
   exists(path: string): boolean;
+  remove(path: string): void;
   withJob<T>(fn: (job: QpdfJob) => T): T;
 }
 
@@ -96,8 +97,10 @@ export class QpdfRunner implements QpdfEngine {
 
   /**
    * @param path The file to read.
-   * @returns Its content (a view into WebAssembly memory: copy or transfer
-   *   it with `toTransferableBuffer` before the file is deleted).
+   * @returns A new array with the file's content. Emscripten's
+   *   `FS.readFile` copies the bytes out (checked in the glue), so the
+   *   array stays valid after the file is deleted and its whole buffer can
+   *   be transferred.
    */
   readFile(path: string): Uint8Array {
     return this.module.FS.readFile(path);
