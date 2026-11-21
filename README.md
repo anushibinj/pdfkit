@@ -30,6 +30,19 @@ Currently shipped tools:
   password and stay protected after saving. Text in scanned pages or inside
   form XObjects cannot be edited, and new or substituted text is limited to
   the standard PDF fonts (WinAnsi: English and Western European languages).
+- **Add Watermark** (`/tools/watermark/`, beta): adds a text or picture
+  (PNG/JPEG) watermark to every page or to a page range, with opacity, angle,
+  one of nine positions or tiled across the page, over or under the content.
+  [PDFium](https://pdfium.googlesource.com/pdfium/) draws the watermark into a
+  separate one-page-per-size "stamp" PDF, and [qpdf](https://github.com/qpdf/qpdf)
+  lays it onto the pages with `--overlay`/`--underlay`, which adds new content
+  streams and leaves the original ones untouched (PDFium's own content
+  regeneration was ruled out: it rewrites the whole page and drops shadings).
+  Each copy references one form XObject, so a tiled logo is stored once, and
+  copies are tagged as `/Artifact` for screen readers. The live preview is the
+  real output for that page. Password-protected PDFs keep their password.
+  Text uses the standard PDF fonts (WinAnsi); other characters are refused
+  rather than silently replaced.
 
 Built with Next.js (App Router, static export), TypeScript (strict), Tailwind
 CSS, shadcn/ui, next-themes and Vitest. It is an installable, offline-capable PWA.
@@ -124,8 +137,9 @@ service worker precache are all derived from `src/tools/registry.ts`.
 The service worker precaches every file in `out/` except those listed in
 `ON_FIRST_USE` in `scripts/build-sw.mjs`. The ironpress binary (~15 MB, ~6 MB
 gzipped) and PDFium (binary ~4.6 MB, ~2 MB gzipped, plus its JavaScript glue)
-are on that list: each is cached the first time its tool loads it, so visitors who never use that
-tool never download it, and the tool still works offline after its first use.
+are on that list: each is cached the first time a tool loads it (PDFium is
+shared by the PDF Editor and Add Watermark), so visitors who never use those
+tools never download it, and the tools still work offline after first use.
 
 ## Manual test checklist (PDF Editor)
 
@@ -162,6 +176,31 @@ Sample files live in `fixtures/` (`user-password.pdf` has password `hunter2`;
       PDF and download it.
 - [ ] At 360px width there is no horizontal scroll and drawing with a finger
       does not scroll the page.
+
+## Manual test checklist (Add Watermark)
+
+- [ ] Open `fixtures/text-chromium.pdf`: the preview shows a grey diagonal
+      "CONFIDENTIAL" in the middle; **Download PDF** saves
+      `text-chromium-watermarked.pdf`, and its own text can still be
+      selected and copied in a PDF reader.
+- [ ] Each of the nine positions puts the watermark in that place as the page
+      is displayed; **Tile across the page** repeats it over the whole page.
+- [ ] Opacity, angle (slider and 0°/45°/90°/-45°), font, bold, size and colour
+      change the preview after a short pause.
+- [ ] Typing `₹` in the text shows "cannot be written in the standard PDF
+      fonts" and disables **Download PDF**.
+- [ ] **Picture:** pick a PNG with a transparent background; it is placed at
+      40% of the page width and its background stays transparent. Tiled, the
+      download is barely larger than with a single copy.
+- [ ] **Under the content** on a scanned page: the watermark is hidden by the
+      scan (expected); on a text page it shows between the lines.
+- [ ] **Pages** `2-3` watermarks only those pages; the preview of page 1 says
+      it is not watermarked; `9` on a 3-page file shows an error.
+- [ ] `user-password.pdf`: wrong password shows "Wrong password"; `hunter2`
+      opens it; the download still asks for `hunter2`.
+- [ ] Offline after one use: reload with DevTools > Network > Offline, open a
+      PDF and download it.
+- [ ] At 360px width there is no horizontal scroll.
 
 ## Manual test checklist (Markdown to PDF)
 
@@ -203,7 +242,7 @@ Sample files live in `fixtures/` (`plain.pdf`, `owner-restricted.pdf`,
 
 ## Licences
 
-PDF unlocking uses **qpdf**, Copyright (c) Jay Berkenbilt, licensed under the
+PDF unlocking and watermarking use **qpdf**, Copyright (c) Jay Berkenbilt, licensed under the
 **Apache License 2.0** (qpdf is also available under the Artistic License 2.0).
 The WebAssembly build is [`@jspawn/qpdf-wasm`](https://github.com/jsscheller/qpdf-wasm)
 (Apache-2.0). The licence text ships at `/wasm/LICENSE.txt`, a notice at
@@ -214,7 +253,7 @@ under the **MIT License** (licence at `/wasm/LICENSE-ironpress.txt`), and
 **marked**, licensed under the **MIT License**. Fonts: Geist and
 Inter (SIL Open Font License 1.1), bundled locally.
 
-The PDF Editor uses **PDFium**, Copyright The PDFium Authors, licensed under
+The PDF Editor and Add Watermark use **PDFium**, Copyright The PDFium Authors, licensed under
 the **BSD 3-Clause License** and the **Apache License 2.0** (licence at
 `/wasm/LICENSE-pdfium.txt`), compiled to WebAssembly by **@embedpdf/pdfium**,
 Copyright (c) 2024 CloudPDF, Ji Chang, licensed under the **MIT License**
