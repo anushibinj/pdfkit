@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { readSingleFile } from "./read-single-file";
 
+/** A notifier whose messages the test can inspect. */
 const notifier = () => ({ info: vi.fn(), error: vi.fn() });
+/** The plain-text reader, as the Markdown page uses it. */
 const text = (file: File) => file.text();
 
 describe("readSingleFile", () => {
@@ -42,6 +44,7 @@ describe("readSingleFile", () => {
 
   it("reports a read failure instead of throwing", async () => {
     const notify = notifier();
+    /** A reader that fails like a file removed after it was picked. */
     const failing = async () => {
       throw new DOMException("gone", "NotFoundError");
     };

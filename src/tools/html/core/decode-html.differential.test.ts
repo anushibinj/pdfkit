@@ -138,6 +138,7 @@ function segment(pick: Picker): string {
  * @returns The input as latin1 bytes.
  */
 function randomInput(random: () => number): Uint8Array {
+  /** Choose one element with the seeded generator. */
   const pick: Picker = (list) => list[Math.floor(random() * list.length)];
   let text = "";
   const count = 1 + Math.floor(random() * 4);

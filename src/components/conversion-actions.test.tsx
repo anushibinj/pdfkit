@@ -4,6 +4,13 @@ import { describe, expect, it, vi } from "vitest";
 import type { ConversionState } from "@/lib/html-pdf/conversion-state";
 import { ConversionActions } from "./conversion-actions";
 
+/**
+ * Render the buttons for a state, with spy callbacks.
+ *
+ * @param state The conversion state to show.
+ * @param canConvert Whether Convert is enabled.
+ * @returns The props, so a test can inspect the spies.
+ */
 function setup(state: ConversionState, canConvert = true) {
   const props = {
     state,

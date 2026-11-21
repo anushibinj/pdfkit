@@ -62,6 +62,7 @@ describe("rawTextEnd", () => {
 });
 
 describe("scriptDataEnd", () => {
+  /** Where the script that starts `html` ends, scanning from its first ">". */
   const end = (html: string) => scriptDataEnd(html, html.indexOf(">") + 1);
 
   it("ends at the first </script> normally", () => {
@@ -89,6 +90,7 @@ describe("scriptDataEnd", () => {
 });
 
 describe("readTag", () => {
+  /** Read the tag that starts `html` (its name begins at index 1). */
   const read = (html: string) => readTag(html, 1);
 
   it("reads a lowercased name and attributes in every quoting style", () => {

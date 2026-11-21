@@ -133,6 +133,37 @@ describe("usePdfConversion", () => {
     expect(clients[1].client.request).toHaveBeenCalledTimes(1);
   });
 
+  it("never offers a cancelled job's late PDF as the next job's result", async () => {
+    // A worker can finish in the instant the user presses Cancel, so its
+    // answer resolves instead of being rejected by terminate. If the user has
+    // already started a new conversion, that late PDF (of the old input) must
+    // not be shown as the new one's result.
+    const resolvers: ((r: ConvertResult) => void)[] = [];
+    const factory = vi.fn((): ConversionClient<FakeRequest> => ({
+      request: () =>
+        new Promise<ConvertResult>((resolve) => resolvers.push(resolve)),
+      terminate: () => {},
+    }));
+    const { result } = renderHook(() => usePdfConversion(factory));
+    act(() => result.current.convert(request));
+    act(() => result.current.cancel());
+    act(() => result.current.convert(request));
+    expect(resolvers).toHaveLength(2);
+
+    await act(async () => {
+      resolvers[0]({ status: "converted", data: new ArrayBuffer(1) });
+    });
+    expect(result.current.state.kind).toBe("converting");
+
+    await act(async () => {
+      resolvers[1]({ status: "converted", data: new ArrayBuffer(2) });
+    });
+    const state = result.current.state;
+    if (state.kind !== "done")
+      throw new Error(`expected done, got ${state.kind}`);
+    expect(state.pdf.size).toBe(2);
+  });
+
   it("cancel does nothing when idle", () => {
     const { factory } = fakeClients();
     const { result } = renderHook(() => usePdfConversion(factory));

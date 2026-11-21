@@ -73,6 +73,12 @@ export default function HtmlTool() {
       inputChanged();
     };
 
+  /**
+   * Open a picked or dropped file into the editor, decoded in the encoding
+   * it declares; the previous PDF becomes stale.
+   *
+   * @param files The accepted files (only the first is opened).
+   */
   const openFiles = async (files: File[]) => {
     const opened = await readSingleFile(
       files,
@@ -86,6 +92,10 @@ export default function HtmlTool() {
     inputChanged();
   };
 
+  /**
+   * Remember the HTML being converted (for the "left out" notice) and send
+   * it, with the page settings, to the worker.
+   */
   const startConversion = () => {
     setConvertedHtml(html);
     convert({ html, page });
@@ -160,7 +170,12 @@ export default function HtmlTool() {
         busyMessage="Creating the PDF… The first conversion downloads the PDF engine (about 15 MB), so it takes a little longer. Long documents take longer too; you can cancel at any time."
       />
 
-      <SkippedResourcesNotice skipped={skipped} />
+      {/* A live region that is always rendered (screen readers only announce
+          changes inside a region that already exists), so the notice is read
+          out when it appears after a conversion. */}
+      <div aria-live="polite" data-testid="skipped-resources-region">
+        <SkippedResourcesNotice skipped={skipped} />
+      </div>
     </div>
   );
 }

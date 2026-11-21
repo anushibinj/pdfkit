@@ -49,6 +49,7 @@ beforeAll(async () => {
   converter = new HtmlToPdfConverter(engine);
 }, 60_000);
 
+/** Convert HTML with the real engine (A4, 20 mm by default). */
 const convert = (html: string, page: PageSetup = A4) =>
   converter.convert({ html, page });
 
