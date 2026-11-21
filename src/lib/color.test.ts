@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clampChannel, hexToRgb, rgbToHex } from "./colors";
+import { clampChannel, hexToRgb, rgbToHex } from "./color";
 
 describe("hexToRgb", () => {
   it("parses #rrggbb in any letter case", () => {

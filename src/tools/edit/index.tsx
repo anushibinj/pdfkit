@@ -4,6 +4,7 @@ import { TriangleAlert } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Dropzone } from "@/components/dropzone";
+import { PasswordPrompt } from "@/components/password-prompt";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { downloadBlob } from "@/lib/download";
 import { formatBytes, isPdfFile, suffixedPdfName } from "@/lib/format";
@@ -14,7 +15,7 @@ import {
   type DrawingTool,
   type ToolStyle,
 } from "./core/gestures";
-import { MAX_IMAGE_BYTES, readImageInfo } from "./core/image-info";
+import { MAX_IMAGE_BYTES, readImageInfo } from "@/lib/image-info";
 import type {
   EditObject,
   EditorDocument,
@@ -30,7 +31,6 @@ import { DiscardDialog } from "./discard-dialog";
 import { EditorToolbar } from "./editor-toolbar";
 import { ObjectProperties } from "./object-properties";
 import { PageView } from "./page-view";
-import { PasswordPrompt } from "./password-prompt";
 import { useEditorShortcuts } from "./use-editor-shortcuts";
 import { usePdfEditor } from "./use-pdf-editor";
 import { useUnsavedWarning } from "./use-unsaved-warning";
@@ -328,6 +328,7 @@ export default function EditTool() {
           key={status.fileName}
           fileName={status.fileName}
           wrong={status.wrong}
+          note="The edited file keeps the same password."
           onSubmit={(password) => void pdf.submitPassword(password)}
           onCancel={closeFile}
         />

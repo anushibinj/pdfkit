@@ -7,22 +7,22 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import type { QpdfRunner } from "@/lib/qpdf/qpdf-runner";
 import { loadNodeQpdf, readFixture } from "@/lib/qpdf/test-utils/node-qpdf";
-import { FPDF_ERR } from "@/tools/edit/engine/pdfium-api";
+import type { WrappedPdfiumModule } from "@embedpdf/pdfium";
+import { FPDF_ERR } from "@/lib/pdfium/core-api";
 import {
   extractText,
-  loadNodePdfium,
-  type FullPdfium,
-} from "@/tools/edit/test-utils/pdfium-node";
+  loadNodePdfiumModule,
+} from "@/lib/pdfium/test-utils/node-pdfium";
 import { verifyPdf } from "@/tools/verify/verify-core";
 import { PdfProtector, type ProtectOutcome } from "./pdf-protector";
 
 let qpdf: QpdfRunner;
-let pdfium: FullPdfium;
+let pdfium: WrappedPdfiumModule;
 let protector: PdfProtector;
 
 beforeAll(async () => {
   qpdf = await loadNodeQpdf();
-  pdfium = (await loadNodePdfium()).full;
+  pdfium = await loadNodePdfiumModule();
   protector = new PdfProtector(qpdf);
 }, 60_000);
 

@@ -1,4 +1,4 @@
-import type { PdfiumRuntime } from "./pdfium-api";
+import type { PdfiumRuntime } from "./core-api";
 
 /**
  * Allocates, fills and reads WebAssembly memory for PDFium calls.

@@ -46,7 +46,9 @@ export function friendlyQpdfMessage(stderr: string): string {
     .map((l) =>
       l
         .replace(/^(this\.program|qpdf|WARNING):?\s*/i, "")
-        .replace(/^\/job-[\w-]+\.pdf:\s*/i, ""),
+        // Any internal path (scratch files, a kept source file), with the
+        // byte offset qpdf adds for damaged objects: "/x.pdf (offset 12): ".
+        .replace(/^\/[^\s:]+\.pdf(?: \(offset \d+\))?:\s*/i, ""),
     );
   if (lines.length === 0) return "qpdf could not process this file.";
   const text = lines.join(" ");

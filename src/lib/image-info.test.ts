@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { GREEN_JPEG, makePng } from "../test-utils/images";
+import { GREEN_JPEG, makePng } from "@/lib/test-utils/images";
 import { jpegSize, pngSize, readImageInfo } from "./image-info";
 
 describe("pngSize", () => {

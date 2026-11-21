@@ -10,7 +10,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TextRun } from "./core/text-runs";
 import type { OpenResult, RenderResult, SaveResult } from "./messages";
-import { makePng } from "./test-utils/images";
+import { makePng } from "@/lib/test-utils/images";
 
 // The worker boundary is the only fake: the real hook, reducers and
 // components run on top of it.

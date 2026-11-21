@@ -5,6 +5,7 @@ import {
   Lock,
   LockOpen,
   ShieldCheck,
+  Stamp,
 } from "lucide-react";
 import type { ToolDefinition } from "./types";
 
@@ -122,6 +123,24 @@ export const tools: ToolDefinition[] = [
     icon: FilePen,
     beta: true,
     component: () => import("./edit"),
+  },
+  {
+    slug: "watermark",
+    name: "Add Watermark",
+    tagline: "Stamp text or a logo on PDF pages, locally.",
+    description:
+      "Free PDF watermark tool in your browser. Add text or a logo to every page or chosen pages, set opacity, angle and position, then download. Nothing is uploaded.",
+    keywords: [
+      "add watermark to pdf",
+      "pdf watermark",
+      "watermark pdf online",
+      "confidential watermark pdf",
+      "add logo to pdf",
+      "private pdf watermark",
+    ],
+    icon: Stamp,
+    beta: true,
+    component: () => import("./watermark"),
   },
 ];
 

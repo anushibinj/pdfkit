@@ -1,4 +1,8 @@
-import type { Point } from "./model";
+/** A point or vector in a 2D coordinate space. */
+export interface Point {
+  x: number;
+  y: number;
+}
 
 /**
  * A 2D affine transform in PDF order `[a, b, c, d, e, f]`, mapping a point

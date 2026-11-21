@@ -2,7 +2,7 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RenderOptions } from "./editor-engine";
 import type { RenderResult } from "./messages";
-import { PageCanvas, drawPixels } from "./page-canvas";
+import { PageCanvas } from "./page-canvas";
 
 const noEdits = [] as const;
 
@@ -36,25 +36,6 @@ const rendered = (w = 2, h = 1) => ({
   height: h,
   pixels: new ArrayBuffer(w * h * 4),
   textOutcomes: [],
-});
-
-describe("drawPixels", () => {
-  it("sizes the canvas and puts the pixels at the origin", () => {
-    const canvas = document.createElement("canvas");
-    drawPixels(canvas, 2, 1, new ArrayBuffer(8));
-    expect([canvas.width, canvas.height]).toEqual([2, 1]);
-    expect(putImageData).toHaveBeenCalledWith(
-      expect.objectContaining({ width: 2, height: 1 }),
-      0,
-      0,
-    );
-  });
-
-  it("does nothing more without a 2D context", () => {
-    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
-    const canvas = document.createElement("canvas");
-    expect(() => drawPixels(canvas, 1, 1, new ArrayBuffer(4))).not.toThrow();
-  });
 });
 
 describe("PageCanvas", () => {
