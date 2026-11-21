@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import type { ToolMode } from "./core/output-plan";
 
 /** The modes, in the order shown. */
-export const MODES: readonly { mode: ToolMode; label: string; icon: LucideIcon }[] = [
+const MODES: readonly { mode: ToolMode; label: string; icon: LucideIcon }[] = [
   { mode: "split", label: "Split", icon: Scissors },
   { mode: "extract", label: "Extract pages", icon: FileOutput },
   { mode: "remove", label: "Remove pages", icon: FileMinus },

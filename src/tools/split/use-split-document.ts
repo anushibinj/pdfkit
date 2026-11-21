@@ -88,6 +88,9 @@ export function useSplitDocument(
     const engine = engineRef.current;
     if (!pending || !engine) return;
     const seq = ++openSeq.current;
+    // The status stops showing the previous file here, so its source goes
+    // now too: status and source always describe the same file.
+    sourceRef.current = null;
     dispatch({
       type: "opening",
       fileName: pending.name,
@@ -105,13 +108,18 @@ export function useSplitDocument(
 
   const openFile = useCallback(
     async (file: File) => {
-      sourceRef.current = null;
+      // While the new file is read, the previous one (if any) stays open
+      // and usable: nothing changes until reading succeeds or fails.
       let data: ArrayBuffer;
       try {
         data = await file.arrayBuffer();
       } catch (err) {
+        // The status moves to "failed", so the previous file is closed,
+        // here and in the worker, instead of staying in memory unseen.
         openSeq.current++;
         pendingRef.current = null;
+        sourceRef.current = null;
+        void engineRef.current?.close();
         dispatch({ type: "read-failed", fileName: file.name, message: errorMessage(err) });
         return;
       }

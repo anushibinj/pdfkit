@@ -79,6 +79,38 @@ describe("useSplitDocument", () => {
     expect(engine.open).not.toHaveBeenCalled();
   });
 
+  it("keeps the open file usable while the next one is being read", async () => {
+    const { result } = setup();
+    await act(() => result.current.openFile(pdf("first.pdf", [1])));
+    let finishRead: (data: ArrayBuffer) => void = () => {};
+    const next = pdf("second.pdf", [2]);
+    next.arrayBuffer = () => new Promise((r) => (finishRead = r));
+    let opening: Promise<void> = Promise.resolve();
+    act(() => {
+      opening = result.current.openFile(next);
+    });
+    // still reading: the first file is shown and its bytes are available
+    expect(result.current.status).toMatchObject({ kind: "ready", fileName: "first.pdf" });
+    expect(Array.from(new Uint8Array(result.current.getSource()!.data))).toEqual([1]);
+    await act(async () => {
+      finishRead(new Uint8Array([2]).buffer);
+      await opening;
+    });
+    expect(result.current.status).toMatchObject({ kind: "ready", fileName: "second.pdf" });
+    expect(Array.from(new Uint8Array(result.current.getSource()!.data))).toEqual([2]);
+  });
+
+  it("closes the previous file when the next one cannot be read", async () => {
+    const { result, engine } = setup();
+    await act(() => result.current.openFile(pdf()));
+    const broken = pdf("broken.pdf");
+    broken.arrayBuffer = () => Promise.reject(new Error("NotReadableError"));
+    await act(() => result.current.openFile(broken));
+    expect(result.current.status).toMatchObject({ kind: "failed", fileName: "broken.pdf" });
+    expect(result.current.getSource()).toBeNull();
+    expect(engine.close).toHaveBeenCalledTimes(1);
+  });
+
   it("ignores a slow first file once a second one was picked", async () => {
     let finishFirst: (r: OpenResult) => void = () => {};
     const first = new Promise<OpenResult>((r) => (finishFirst = r));

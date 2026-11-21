@@ -13,7 +13,7 @@ import type { PageRun } from "./page-ranges";
  *     N = 1: 4.6 ms     N = 300: 79 ms     N = 1000: 330 ms
  *
  * Splitting a 1000-page file into single pages directly is 1000 runs over
- * 1000 pages each: about 5.5 minutes. That is what this module avoids.
+ * 1000 pages each: about 5 minutes. That is what this module avoids.
  *
  * The idea: first copy a short stretch of the source into a temporary
  * "part" (one run over the big file), then make the outputs of that stretch
@@ -23,10 +23,11 @@ import type { PageRun } from "./page-ranges";
  *     n/k runs over the whole file  +  n runs over parts of ~k·N/n pages
  *
  * which is smallest when k ≈ √n. For 1000 single-page outputs that is
- * 32 groups of 32: 32 runs over 1000 pages plus 1000 runs over 32 pages,
- * roughly 15 s instead of 5.5 minutes, and the files are identical (the
- * part is made by the same qpdf command, so it keeps everything an output
- * made from the source would keep).
+ * 32 groups of 32: 32 runs over 1000 pages plus 1000 runs over 32 pages.
+ * Measured with this qpdf build in Node: 19 s instead of ~310 s for 1000
+ * pages, 3.1 s instead of ~31 s for 300. The files are identical (the part
+ * is made by the same qpdf command, so it keeps everything an output made
+ * from the source would keep).
  *
  * A part only helps when its stretch is clearly shorter than the source.
  * Typed ranges can be in any order ("90-100, 1-5"), so a group's stretch

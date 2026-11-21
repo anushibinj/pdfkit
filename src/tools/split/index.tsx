@@ -12,9 +12,14 @@ import { downloadBlob } from "@/lib/download";
 import { errorMessage } from "@/lib/errors";
 import { formatBytes, isPdfFile } from "@/lib/format";
 import { outputFileNames, zipFileName } from "./core/file-names";
-import { planOutputs, type SplitMethod, type ToolMode } from "./core/output-plan";
-import { EMPTY_SELECTION, selectionReducer } from "./core/page-selection";
+import { planOutputs } from "./core/output-plan";
+import type { SelectionAction } from "./core/page-selection";
 import { actionLabel, filesLabel, filesPerPage, planKey } from "./core/plan-view";
+import {
+  INITIAL_SETTINGS,
+  settingsReducer,
+  toPlanSettings,
+} from "./core/split-settings";
 import { createZip } from "./core/zip";
 import { ModePicker } from "./mode-picker";
 import { PageField } from "./page-field";
@@ -39,29 +44,17 @@ export const MAX_PDF_BYTES = 200 * 1024 * 1024;
 export default function SplitTool() {
   const doc = useSplitDocument();
   const outputs = useSplitOutputs();
-  const [mode, setMode] = useState<ToolMode>("split");
-  const [splitMethod, setSplitMethod] = useState<SplitMethod>("every");
-  const [everyN, setEveryN] = useState("1");
-  const [rangesText, setRangesText] = useState("");
-  const [selection, dispatchSelection] = useReducer(selectionReducer, EMPTY_SELECTION);
+  const [settings, dispatchSettings] = useReducer(settingsReducer, INITIAL_SETTINGS);
+  const { mode, splitMethod, everyN, rangesText, selection } = settings;
+  const select = (action: SelectionAction) =>
+    dispatchSettings({ type: "selection", action });
   const [announcement, setAnnouncement] = useState("");
 
   const ready = doc.status.kind === "ready" ? doc.status : null;
   const pageCount = ready?.pages.length ?? 0;
   const plan = useMemo(
-    () =>
-      ready
-        ? planOutputs({
-            mode,
-            pageCount,
-            splitMethod,
-            // An empty field is not 0 pages per file: it is "not entered".
-            everyN: everyN.trim() === "" ? Number.NaN : Number(everyN),
-            rangesText,
-            selection,
-          })
-        : null,
-    [ready, mode, pageCount, splitMethod, everyN, rangesText, selection],
+    () => (ready ? planOutputs(toPlanSettings(settings, pageCount)) : null),
+    [ready, settings, pageCount],
   );
   const key = plan?.ok ? planKey(mode, plan.outputs) : null;
   const pageFiles = useMemo(
@@ -73,13 +66,7 @@ export default function SplitTool() {
   // Results are shown only while they match the current settings.
   const result = state.kind !== "idle" && state.key === key ? state : null;
 
-  const resetSettings = () => {
-    setMode("split");
-    setSplitMethod("every");
-    setEveryN("1");
-    setRangesText("");
-    dispatchSelection({ type: "clear" });
-  };
+  const resetSettings = () => dispatchSettings({ type: "reset" });
 
   const openFiles = async (files: File[]) => {
     const [file] = files;
@@ -223,16 +210,22 @@ export default function SplitTool() {
             </Button>
           </div>
 
-          <ModePicker mode={mode} onChange={setMode} disabled={working} />
+          <ModePicker
+            mode={mode}
+            onChange={(next) => dispatchSettings({ type: "set-mode", mode: next })}
+            disabled={working}
+          />
 
           {mode === "split" ? (
             <SplitOptions
               method={splitMethod}
-              onMethodChange={setSplitMethod}
+              onMethodChange={(method) =>
+                dispatchSettings({ type: "set-split-method", method })
+              }
               everyN={everyN}
-              onEveryNChange={setEveryN}
+              onEveryNChange={(value) => dispatchSettings({ type: "set-every", value })}
               ranges={rangesText}
-              onRangesChange={setRangesText}
+              onRangesChange={(value) => dispatchSettings({ type: "set-ranges", value })}
               error={plan.ok ? null : plan.error}
               disabled={working}
             />
@@ -240,8 +233,8 @@ export default function SplitTool() {
             <PageField
               label={mode === "extract" ? "Pages to extract" : "Pages to remove"}
               value={selection.text}
-              onChange={(text) => dispatchSelection({ type: "type", text, pageCount })}
-              onClear={() => dispatchSelection({ type: "clear" })}
+              onChange={(text) => select({ type: "type", text, pageCount })}
+              onClear={() => select({ type: "clear" })}
               error={selection.error}
               disabled={working}
             />
@@ -307,7 +300,7 @@ export default function SplitTool() {
             captionOf={pageFiles ? (i) => filesLabel(pageFiles[i]) : undefined}
             onToggle={
               picking
-                ? (index, extend) => dispatchSelection({ type: "toggle", index, extend })
+                ? (index, extend) => select({ type: "toggle", index, extend })
                 : undefined
             }
             disabled={working}

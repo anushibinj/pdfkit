@@ -57,8 +57,11 @@ export type AssemblyProgress = (done: number, total: number) => void;
  *
  * The "." makes the input the "primary" file, whose document-level data
  * qpdf keeps: the password and encryption, document information, and the
- * form fields that belong to the kept pages. Pages left out are replaced by
- * null, so their content does not end up in the file. Large splits go
+ * form fields that belong to the kept pages. qpdf writes only objects the
+ * kept pages (and the document itself) still reach, so a page left out is
+ * not written at all; anything that still referred to it, such as a
+ * bookmark or a link, now points to a null object. None of its content ends
+ * up in the file (checked in the integration test). Large splits go
  * through temporary parts (see `assembly-jobs.ts`), made by the same
  * command, so the result is identical either way.
  *
