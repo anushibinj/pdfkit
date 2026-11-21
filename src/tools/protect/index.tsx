@@ -41,6 +41,19 @@ function StatusFor({ state }: { state: ProtectionState }) {
 }
 
 /**
+ * Explain that the protected copy's digital signatures no longer verify.
+ *
+ * @param count How many signatures the original had (at least 1).
+ * @returns The sentence, with singular or plural wording.
+ */
+export function signatureNotice(count: number): string {
+  const what =
+    count === 1 ? "a digital signature" : `${count} digital signatures`;
+  const it = count === 1 ? "it is" : "they are";
+  return `This PDF had ${what}. Protecting it rewrites the file, so in the protected copy ${it} no longer valid. Keep the original if you need the signed version.`;
+}
+
+/**
  * What screen readers hear when the job's state changes.
  *
  * @param state The protection state.
@@ -83,6 +96,12 @@ export default function ProtectTool() {
     !protecting &&
     findPasswordPairProblem(password, confirmation) === null;
 
+  /**
+   * Take the first picked or dropped PDF (one file at a time), warn about
+   * very large files, and mark any previous result as stale.
+   *
+   * @param files The accepted files (the dropzone already filtered non-PDFs).
+   */
   const chooseFile = (files: File[]) => {
     const [first] = files;
     if (files.length > 1) {
@@ -97,6 +116,7 @@ export default function ProtectTool() {
     fileChanged();
   };
 
+  /** Forget the chosen file and any result for it. */
   const removeFile = () => {
     setFile(null);
     fileChanged();
@@ -108,6 +128,13 @@ export default function ProtectTool() {
     passwordChanged();
   };
 
+  /**
+   * Start protecting, unless the form is not ready. The disabled button
+   * already prevents submitting; the check is repeated so the handler never
+   * depends on the markup alone.
+   *
+   * @param event The form's submit event (its page reload is prevented).
+   */
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (file && canProtect) protect(file, password);
@@ -162,6 +189,11 @@ export default function ProtectTool() {
                     <p className="text-amber-700 dark:text-amber-300">
                       Large file: it is processed in memory and may fail on
                       devices with limited RAM.
+                    </p>
+                  )}
+                  {state.kind === "done" && state.invalidatedSignatures > 0 && (
+                    <p className="text-amber-700 dark:text-amber-300">
+                      {signatureNotice(state.invalidatedSignatures)}
                     </p>
                   )}
                   {state.kind === "done" && state.replacedRestrictions && (

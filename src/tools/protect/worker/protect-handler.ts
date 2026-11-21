@@ -33,6 +33,7 @@ export function toProtectResult(
           status: "protected",
           data,
           replacedRestrictions: outcome.replacedRestrictions,
+          invalidatedSignatures: outcome.invalidatedSignatures,
           warnings: outcome.warnings,
         },
         transfer: [data],

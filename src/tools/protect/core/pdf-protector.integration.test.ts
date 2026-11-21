@@ -13,6 +13,7 @@ import {
   loadNodePdfium,
   type FullPdfium,
 } from "@/tools/edit/test-utils/pdfium-node";
+import { verifyPdf } from "@/tools/verify/verify-core";
 import { PdfProtector, type ProtectOutcome } from "./pdf-protector";
 
 let qpdf: QpdfRunner;
@@ -58,6 +59,7 @@ describe("PdfProtector with real qpdf, checked by PDFium", () => {
     const original = readFixture("plain.pdf");
     const result = protectedPdf(protector.protect(original, "hunter2"));
     expect(result.replacedRestrictions).toBe(false);
+    expect(result.invalidatedSignatures).toBe(0);
     expect(openWithPdfium(result.pdf, "hunter2")).toEqual({
       pages: openWithPdfium(original, "").pages,
     });
@@ -97,6 +99,30 @@ describe("PdfProtector with real qpdf, checked by PDFium", () => {
     expect(openWithPdfium(result.pdf, "")).toEqual({
       error: FPDF_ERR.PASSWORD,
     });
+  });
+
+  it("reports that a signed PDF's signature is not valid in the protected copy", async () => {
+    const signed = readFixture("signed.pdf");
+    expect((await verifyPdf(signed))[0].status).toBe("valid");
+    const result = protectedPdf(protector.protect(signed, "pw"));
+    expect(result.invalidatedSignatures).toBe(1);
+    // Remove the password again and ask the Verifier: the signature no
+    // longer verifies, because encrypting rewrote the bytes it covers.
+    qpdf.writeFile("/sig-in.pdf", result.pdf);
+    try {
+      const run = qpdf.run([
+        "--decrypt",
+        "--password=pw",
+        "/sig-in.pdf",
+        "/sig-out.pdf",
+      ]);
+      expect(run.code).toBe(0);
+      const [report] = await verifyPdf(qpdf.readFile("/sig-out.pdf"));
+      expect(report.status).not.toBe("valid");
+    } finally {
+      qpdf.remove("/sig-in.pdf");
+      qpdf.remove("/sig-out.pdf");
+    }
   });
 
   it("leaves a PDF that already has an open password alone", () => {

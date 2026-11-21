@@ -13,6 +13,7 @@ const done: ProtectionState = {
   kind: "done",
   pdf,
   replacedRestrictions: false,
+  invalidatedSignatures: 0,
 };
 const already: ProtectionState = { kind: "already-protected" };
 const error: ProtectionState = {
@@ -26,6 +27,7 @@ const succeed: ProtectionAction = {
   type: "succeed",
   pdf,
   replacedRestrictions: true,
+  invalidatedSignatures: 4,
   warnings: "w",
 };
 const fail: ProtectionAction = {
@@ -54,6 +56,7 @@ describe("protectionReducer", () => {
       kind: "done",
       pdf,
       replacedRestrictions: true,
+      invalidatedSignatures: 4,
       warnings: "w",
     });
     expect(protectionReducer(idle, succeed)).toBe(idle);

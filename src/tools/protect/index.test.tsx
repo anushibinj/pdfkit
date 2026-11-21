@@ -20,7 +20,11 @@ const toast = vi.hoisted(() => ({
 }));
 vi.mock("sonner", () => ({ toast }));
 
-import ProtectTool, { LARGE_FILE_BYTES, announcementFor } from "./index";
+import ProtectTool, {
+  LARGE_FILE_BYTES,
+  announcementFor,
+  signatureNotice,
+} from "./index";
 
 beforeEach(() => {
   hook.state = { kind: "idle" };
@@ -139,7 +143,12 @@ describe("ProtectTool", () => {
 
   it("downloads the protected PDF as <name>-protected.pdf", async () => {
     const pdf = new Blob(["%PDF-1.7 encrypted"], { type: "application/pdf" });
-    hook.state = { kind: "done", pdf, replacedRestrictions: false };
+    hook.state = {
+      kind: "done",
+      pdf,
+      replacedRestrictions: false,
+      invalidatedSignatures: 0,
+    };
     const user = userEvent.setup();
     renderWithFiles(pdfFile());
     expect(screen.getByText("Protected")).toBeInTheDocument();
@@ -155,6 +164,7 @@ describe("ProtectTool", () => {
       kind: "done",
       pdf: new Blob(["x"]),
       replacedRestrictions: true,
+      invalidatedSignatures: 0,
       warnings: "File was repaired",
     };
     renderWithFiles(pdfFile());
@@ -162,6 +172,28 @@ describe("ProtectTool", () => {
       screen.getByText(/had printing, copying or editing restrictions/),
     ).toBeInTheDocument();
     expect(screen.getByText(/File was repaired/)).toBeInTheDocument();
+  });
+
+  it("warns that the protected copy's signatures are no longer valid", () => {
+    hook.state = {
+      kind: "done",
+      pdf: new Blob(["x"]),
+      replacedRestrictions: false,
+      invalidatedSignatures: 1,
+    };
+    renderWithFiles(pdfFile());
+    expect(screen.getByText(signatureNotice(1))).toBeInTheDocument();
+  });
+
+  it("says nothing about signatures for an unsigned PDF", () => {
+    hook.state = {
+      kind: "done",
+      pdf: new Blob(["x"]),
+      replacedRestrictions: false,
+      invalidatedSignatures: 0,
+    };
+    renderWithFiles(pdfFile());
+    expect(screen.queryByText(/digital signature/)).toBeNull();
   });
 
   it("points to the PDF Unlocker for a PDF that already has a password", () => {
@@ -199,7 +231,12 @@ describe("announcementFor", () => {
     [{ kind: "idle" }, ""],
     [{ kind: "protecting" }, "Protecting a.pdf…"],
     [
-      { kind: "done", pdf: new Blob(), replacedRestrictions: false },
+      {
+        kind: "done",
+        pdf: new Blob(),
+        replacedRestrictions: false,
+        invalidatedSignatures: 0,
+      },
       "a.pdf is protected. Ready to download.",
     ],
     [{ kind: "already-protected" }, "a.pdf already needs a password to open."],
@@ -209,5 +246,19 @@ describe("announcementFor", () => {
     ],
   ])("%j", (state, text) => {
     expect(announcementFor(state, "a.pdf")).toBe(text);
+  });
+});
+
+describe("signatureNotice", () => {
+  it("uses singular wording for one signature", () => {
+    expect(signatureNotice(1)).toBe(
+      "This PDF had a digital signature. Protecting it rewrites the file, so in the protected copy it is no longer valid. Keep the original if you need the signed version.",
+    );
+  });
+
+  it("uses plural wording and the count for several", () => {
+    expect(signatureNotice(3)).toMatch(
+      /^This PDF had 3 digital signatures\..* they are no longer valid\./,
+    );
   });
 });

@@ -20,7 +20,10 @@ Currently shipped tools:
   11.0.0 writes them untruncated, while PDF 2.0 readers truncate to 127 bytes,
   so such a file would not open in qpdf or pdf.js. A PDF that already needs a
   password is left alone (unlock it first); one with only restrictions gets
-  the password and loses the restrictions, and the page says so.
+  the password and loses the restrictions, and the page says so. Encrypting
+  rewrites the file, so a digitally signed PDF's signatures are no longer
+  valid in the protected copy; the page warns about that too (signatures are
+  found with the same byte scan as the Signature Verifier).
 - **Signature Verifier** (`/tools/verify/`, beta): checks that a signed PDF is
   unmodified and its signature is cryptographically correct.
 - **Markdown to PDF** (`/tools/markdown-to-pdf/`, beta): renders Markdown
@@ -252,7 +255,8 @@ Sample files live in `fixtures/` (`plain.pdf`, `owner-restricted.pdf`,
 - [ ] Editing the password after protecting hides the old download button.
 - [ ] `user-password.pdf` shows "Already protected" with a link to the PDF
       Unlocker; `owner-restricted.pdf` is protected and the page says its
-      restrictions were replaced.
+      restrictions were replaced; `signed.pdf` is protected and the page warns
+      that its signature is no longer valid in the protected copy.
 - [ ] A `.png` is rejected with a toast; choosing two PDFs opens the first and
       says "Protect one file at a time".
 - [ ] The protected file unlocks in the PDF Unlocker with its password.
