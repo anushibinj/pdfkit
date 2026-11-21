@@ -5,7 +5,6 @@ import { formatPageRuns, toPageRuns } from "./page-ranges";
  * Characters Windows, macOS or common ZIP tools refuse or misread in file
  * names: path separators, the reserved `<>:"|?*`, and control characters.
  */
-// eslint-disable-next-line no-control-regex
 const UNSAFE = /[<>:"/\\|?*\u0000-\u001f\u007f]/g;
 
 /**
