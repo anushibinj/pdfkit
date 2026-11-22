@@ -10,7 +10,7 @@ import {
 import { fakeMetrics } from "../../test-utils/fake-metrics";
 import { fakePdfium } from "../../test-utils/fake-pdfium";
 import { FILL_MODE, ROUND } from "../pdfium-api";
-import { WasmHeap } from "../wasm-heap";
+import { WasmHeap } from "@/lib/pdfium/wasm-heap";
 import { HighlightWriter, RectWriter } from "./box-writers";
 import { ImageWriter } from "./image-writer";
 import { InkWriter } from "./ink-writer";

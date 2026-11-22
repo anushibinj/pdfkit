@@ -1,15 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { fakePdfium } from "../test-utils/fake-pdfium";
-import { FPDF_ERR, RENDER_FLAGS } from "./pdfium-api";
 import {
+  FPDF_ERR,
   PdfOpenError,
   PdfiumDocument,
+  RENDER_FLAGS,
   classifyOpenError,
-} from "./pdfium-document";
+} from "./document";
+import { fakeDocumentPdfium } from "./test-utils/fake-api";
 import { WasmHeap } from "./wasm-heap";
 
 function setup() {
-  const { api, runtime } = fakePdfium();
+  const { api, runtime } = fakeDocumentPdfium();
   const heap = new WasmHeap(runtime);
   return { api, runtime, heap };
 }
@@ -176,23 +177,5 @@ describe("PdfiumDocument", () => {
     ).toThrow("bad edit");
     expect(order.at(-1)).toBe("close");
     expect(api.FPDFBitmap_Create).toHaveBeenCalledTimes(1);
-  });
-
-  it("save copies the writer's bytes and always closes the writer", () => {
-    const { api, runtime, heap } = setup();
-    const doc = PdfiumDocument.open(api, heap, new Uint8Array(1), "");
-    api.PDFiumExt_GetFileWriterSize.mockReturnValue(3);
-    api.PDFiumExt_GetFileWriterData.mockImplementation((_w, ptr) => {
-      runtime.HEAPU8.set([37, 80, 68], ptr);
-      return 3;
-    });
-    expect(Array.from(doc.save())).toEqual([37, 80, 68]);
-    api.PDFiumExt_SaveAsCopy.mockReturnValue(0);
-    expect(() => doc.save()).toThrow("could not save");
-    expect(api.PDFiumExt_CloseFileWriter).toHaveBeenCalledTimes(2);
-    api.PDFiumExt_OpenFileWriter.mockReturnValue(0);
-    expect(() => doc.save()).toThrow(RangeError);
-    doc.close();
-    expect(runtime.leaks()).toEqual([]);
   });
 });

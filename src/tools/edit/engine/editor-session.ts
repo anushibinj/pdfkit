@@ -1,3 +1,6 @@
+import { PdfiumDocument, type RenderedPage } from "@/lib/pdfium/document";
+import { saveDocumentCopy } from "@/lib/pdfium/save";
+import { WasmHeap } from "@/lib/pdfium/wasm-heap";
 import type { PageInfo, QuarterTurns, TextEditOutcome } from "../core/model";
 import { addTurns, viewSize, type Size } from "../core/page-geometry";
 import { sanitizeSavePlan, sanitizeTextEdits } from "../core/sanitize-plan";
@@ -6,9 +9,7 @@ import { groupFragments, type TextRun } from "../core/text-runs";
 import { applySavePlan } from "./apply-plan";
 import { PdfiumPageText } from "./page-text";
 import type { PdfiumApi } from "./pdfium-api";
-import { PdfiumDocument, type RenderedPage } from "./pdfium-document";
 import { applyTextEdits } from "./text-edits";
-import { WasmHeap } from "./wasm-heap";
 import { createWriterRegistry, type WriterRegistry } from "./writers/registry";
 
 /** Widest page bitmap the worker renders, in pixels. */
@@ -205,7 +206,7 @@ export class EditorSession {
         writers: this.writers,
         metrics: this.metrics,
       });
-      return doc.save();
+      return saveDocumentCopy(this.api, this.heap, doc);
     } finally {
       doc.close();
     }

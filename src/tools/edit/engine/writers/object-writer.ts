@@ -2,7 +2,7 @@ import type { Matrix } from "../../core/affine";
 import type { EditObject } from "../../core/model";
 import type { SaveImage } from "../../core/save-plan";
 import type { PdfiumApi } from "../pdfium-api";
-import type { WasmHeap } from "../wasm-heap";
+import type { WasmHeap } from "@/lib/pdfium/wasm-heap";
 
 /** What a writer needs to add objects to one page. */
 export interface WriteContext {

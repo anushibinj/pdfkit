@@ -1,6 +1,7 @@
 import type { WrappedPdfiumModule } from "@embedpdf/pdfium";
 import { describe, expect, it, vi } from "vitest";
-import { asPdfiumApi, loadPdfium, type PdfiumGlue } from "./load-pdfium";
+import type { PdfiumGlue } from "@/lib/pdfium/load";
+import { asPdfiumApi, loadPdfium } from "./load-pdfium";
 
 describe("asPdfiumApi", () => {
   it("returns the module unchanged (the check happens at compile time)", () => {
@@ -12,7 +13,7 @@ describe("asPdfiumApi", () => {
 });
 
 describe("loadPdfium", () => {
-  it("imports the glue and points Emscripten at the binary in the same directory", async () => {
+  it("loads the shared module from the given directory and returns it as the editor API", async () => {
     const pdfium = {
       PDFiumExt_Init: vi.fn(),
     } as unknown as WrappedPdfiumModule;
@@ -22,10 +23,6 @@ describe("loadPdfium", () => {
     const api = await loadPdfium("https://site.test/wasm/", importer);
 
     expect(importer).toHaveBeenCalledWith("https://site.test/wasm/pdfium.js");
-    const { locateFile } = init.mock.calls[0][0];
-    expect(locateFile("pdfium.wasm")).toBe(
-      "https://site.test/wasm/pdfium.wasm",
-    );
     expect(pdfium.PDFiumExt_Init).toHaveBeenCalledTimes(1);
     expect(api).toBe(pdfium);
   });

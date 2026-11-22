@@ -1,7 +1,67 @@
-import type { PageInfo, QuarterTurns } from "../core/model";
-import { isQuarterTurns } from "../core/page-geometry";
-import { FPDF_ERR, RENDER_FLAGS, type PdfiumApi } from "./pdfium-api";
+import { isQuarterTurns, type PageInfo, type QuarterTurns } from "./page";
+import type { PdfiumRuntime } from "./runtime";
 import type { WasmHeap } from "./wasm-heap";
+
+/**
+ * The PDFium functions {@link PdfiumDocument} calls (signatures from PDFium's
+ * C API). Each tool's own API slice extends this one, so a tool depends only
+ * on the functions it actually uses.
+ *
+ * All handles (documents, pages, bitmaps) and pointers are plain numbers:
+ * addresses inside the WebAssembly memory. 0 means "failed".
+ */
+export interface PdfiumDocumentApi {
+  pdfium: PdfiumRuntime;
+
+  FPDF_GetLastError(): number;
+  FPDF_LoadMemDocument(dataPtr: number, size: number, password: string): number;
+  FPDF_CloseDocument(doc: number): void;
+  FPDF_GetPageCount(doc: number): number;
+  FPDF_LoadPage(doc: number, index: number): number;
+  FPDF_ClosePage(page: number): void;
+  FPDF_GetPageBoundingBox(page: number, rectPtr: number): boolean;
+  FPDFPage_GetRotation(page: number): number;
+  FPDF_RenderPageBitmap(
+    bitmap: number,
+    page: number,
+    startX: number,
+    startY: number,
+    sizeX: number,
+    sizeY: number,
+    rotate: number,
+    flags: number,
+  ): void;
+  FPDFBitmap_Create(width: number, height: number, alpha: number): number;
+  FPDFBitmap_FillRect(
+    bitmap: number,
+    left: number,
+    top: number,
+    width: number,
+    height: number,
+    color: number,
+  ): boolean;
+  FPDFBitmap_GetBuffer(bitmap: number): number;
+  FPDFBitmap_GetStride(bitmap: number): number;
+  FPDFBitmap_Destroy(bitmap: number): void;
+}
+
+/** `FPDF_GetLastError` codes (fpdfview.h). */
+export const FPDF_ERR = {
+  SUCCESS: 0,
+  UNKNOWN: 1,
+  FILE: 2,
+  FORMAT: 3,
+  PASSWORD: 4,
+  SECURITY: 5,
+  PAGE: 6,
+} as const;
+
+/** Render annotations (form fields, stamps, comments) as readers do. */
+const FPDF_ANNOT = 0x01;
+/** Write pixels as R, G, B, A instead of PDFium's native B, G, R, A. */
+const FPDF_REVERSE_BYTE_ORDER = 0x10;
+/** Flags for page rendering: RGBA output, ready for canvas `ImageData`. */
+export const RENDER_FLAGS = FPDF_ANNOT | FPDF_REVERSE_BYTE_ORDER;
 
 /** Why a file could not be opened, from PDFium's error code. */
 export type OpenFailure = "password" | "format" | "security" | "unknown";
@@ -58,8 +118,8 @@ export interface RenderedPage {
  *   given memory for as long as the document is open. The file's block is
  *   therefore kept until {@link close}, and freed only after the document
  *   is closed.
- * - Every page, bitmap and writer opened by a method is closed by that same
- *   method in a `finally` block, so an exception can never leak them.
+ * - Every page and bitmap opened by a method is closed by that same method
+ *   in a `finally` block, so an exception can never leak them.
  */
 export class PdfiumDocument {
   private closed = false;
@@ -73,7 +133,7 @@ export class PdfiumDocument {
    * @param dataPtr Address of the file bytes the document reads from.
    */
   private constructor(
-    private readonly api: PdfiumApi,
+    private readonly api: PdfiumDocumentApi,
     private readonly heap: WasmHeap,
     readonly handle: number,
     private readonly dataPtr: number,
@@ -90,7 +150,7 @@ export class PdfiumDocument {
    * @throws {PdfOpenError} When PDFium refuses the file.
    */
   static open(
-    api: PdfiumApi,
+    api: PdfiumDocumentApi,
     heap: WasmHeap,
     bytes: Uint8Array,
     password: string,
@@ -225,36 +285,6 @@ export class PdfiumDocument {
         this.api.FPDFBitmap_Destroy(bitmap);
       }
     });
-  }
-
-  /**
-   * Serialise the document (with every change made so far) to PDF bytes.
-   *
-   * The EmbedPDF extension collects PDFium's output in a growable buffer
-   * ("file writer"): save into it, ask its size, copy that many bytes into a
-   * block we own, then copy them out to JavaScript. The writer is closed and
-   * the block freed whatever happens. An encrypted document is written
-   * encrypted again with its original security handler, so a file that
-   * needed a password still needs it.
-   *
-   * @returns The PDF file's bytes.
-   * @throws When PDFium reports a failure.
-   */
-  save(): Uint8Array {
-    const writer = this.api.PDFiumExt_OpenFileWriter();
-    if (!writer) throw new RangeError("out of memory: could not start saving");
-    try {
-      if (!this.api.PDFiumExt_SaveAsCopy(this.handle, writer)) {
-        throw new Error("PDFium could not save the document");
-      }
-      const size = this.api.PDFiumExt_GetFileWriterSize(writer);
-      return this.heap.using(this.heap.alloc(size), (ptr) => {
-        this.api.PDFiumExt_GetFileWriterData(writer, ptr, size);
-        return this.heap.copyOut(ptr, size);
-      });
-    } finally {
-      this.api.PDFiumExt_CloseFileWriter(writer);
-    }
   }
 
   /**
