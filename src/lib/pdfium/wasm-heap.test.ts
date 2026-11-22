@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FakeRuntime } from "../test-utils/fake-pdfium";
+import { FakeRuntime } from "./test-utils/fake-pdfium-core";
 import { WasmHeap } from "./wasm-heap";
 
 describe("WasmHeap", () => {

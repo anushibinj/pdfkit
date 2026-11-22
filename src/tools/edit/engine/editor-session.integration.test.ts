@@ -11,7 +11,7 @@
 import { readFileSync } from "node:fs";
 import { PDFDocument, StandardFonts, degrees, rgb } from "pdf-lib";
 import { beforeAll, describe, expect, it } from "vitest";
-import { applyToPoint } from "../core/affine";
+import { applyToPoint } from "@/lib/geometry/affine";
 import {
   DEFAULT_TOOL_STYLE,
   boxFromDrag,
@@ -25,7 +25,7 @@ import {
 import type { EditObject, PageInfo, TextEdit } from "../core/model";
 import { localBounds } from "../core/object-bounds";
 import { uprightFrameAt } from "../core/object-frame";
-import { addTurns, userToView, viewSize } from "../core/page-geometry";
+import { addTurns, userToView, viewSize } from "@/lib/geometry/page-geometry";
 import type { SavePage, SavePlan } from "../core/save-plan";
 import { InvalidPlanError } from "../core/sanitize-plan";
 import { StandardFontMetricsSource } from "../core/standard-font-metrics";
@@ -40,7 +40,7 @@ import {
 } from "../test-utils/pdfium-node";
 import { EditorSession, MAX_RENDER_WIDTH } from "./editor-session";
 import type { PdfiumApi } from "./pdfium-api";
-import { PdfOpenError } from "./pdfium-document";
+import { PdfOpenError } from "@/lib/pdfium/pdfium-document";
 
 let api: PdfiumApi;
 let full: FullPdfium;

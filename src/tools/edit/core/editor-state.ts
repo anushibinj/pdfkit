@@ -1,6 +1,6 @@
 import { commit, createHistory, redo, undo, type History } from "./history";
 import type { EditObject, EditorDocument, EditorPage } from "./model";
-import { addTurns } from "./page-geometry";
+import { addTurns } from "@/lib/geometry/page-geometry";
 
 /** The selected object, identified by its page and id. */
 export interface Selection {

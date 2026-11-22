@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { fakePdfium, type MockedPdfium } from "../test-utils/fake-pdfium";
 import { PdfiumPageText } from "./page-text";
 import { PAGE_OBJECT_TEXT } from "./pdfium-api";
-import { WasmHeap } from "./wasm-heap";
+import { WasmHeap } from "@/lib/pdfium/wasm-heap";
 
 const DOC = 1;
 const PAGE = 2;

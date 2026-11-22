@@ -1,14 +1,17 @@
 import type { PageInfo, QuarterTurns, TextEditOutcome } from "../core/model";
-import { addTurns, viewSize, type Size } from "../core/page-geometry";
+import { addTurns, viewSize, type Size } from "@/lib/geometry/page-geometry";
 import { sanitizeSavePlan, sanitizeTextEdits } from "../core/sanitize-plan";
 import type { FontMetricsSource } from "../core/text-layout";
 import { groupFragments, type TextRun } from "../core/text-runs";
 import { applySavePlan } from "./apply-plan";
 import { PdfiumPageText } from "./page-text";
 import type { PdfiumApi } from "./pdfium-api";
-import { PdfiumDocument, type RenderedPage } from "./pdfium-document";
+import {
+  PdfiumDocument,
+  type RenderedPage,
+} from "@/lib/pdfium/pdfium-document";
 import { applyTextEdits } from "./text-edits";
-import { WasmHeap } from "./wasm-heap";
+import { WasmHeap } from "@/lib/pdfium/wasm-heap";
 import { createWriterRegistry, type WriterRegistry } from "./writers/registry";
 
 /** Widest page bitmap the worker renders, in pixels. */

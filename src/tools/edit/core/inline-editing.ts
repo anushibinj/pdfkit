@@ -1,6 +1,11 @@
-import { applyToPoint, compose, invert, type Matrix } from "./affine";
+import {
+  applyToPoint,
+  compose,
+  invert,
+  type Matrix,
+} from "@/lib/geometry/affine";
 import type { FontFamily, PageBox, QuarterTurns, TextObject } from "./model";
-import { userToView } from "./page-geometry";
+import { userToView } from "@/lib/geometry/page-geometry";
 import { LINE_HEIGHT, layoutText, type FontMetricsSource } from "./text-layout";
 import type { TextRun } from "./text-runs";
 

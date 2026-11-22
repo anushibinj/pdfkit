@@ -1,7 +1,17 @@
-import type { PageInfo, QuarterTurns } from "../core/model";
-import { isQuarterTurns } from "../core/page-geometry";
-import { FPDF_ERR, RENDER_FLAGS, type PdfiumApi } from "./pdfium-api";
+import {
+  isQuarterTurns,
+  type PageBox,
+  type QuarterTurns,
+} from "../geometry/page-geometry";
+import { FPDF_ERR, RENDER_FLAGS, type PdfiumCoreApi } from "./pdfium-core-api";
 import type { WasmHeap } from "./wasm-heap";
+
+/** What PDFium reports about one page of an opened file. */
+export interface PageInfo {
+  box: PageBox;
+  /** The page's own /Rotate, as clockwise quarter turns. */
+  rotation: QuarterTurns;
+}
 
 /** Why a file could not be opened, from PDFium's error code. */
 export type OpenFailure = "password" | "format" | "security" | "unknown";
@@ -73,7 +83,7 @@ export class PdfiumDocument {
    * @param dataPtr Address of the file bytes the document reads from.
    */
   private constructor(
-    private readonly api: PdfiumApi,
+    private readonly api: PdfiumCoreApi,
     private readonly heap: WasmHeap,
     readonly handle: number,
     private readonly dataPtr: number,
@@ -90,7 +100,7 @@ export class PdfiumDocument {
    * @throws {PdfOpenError} When PDFium refuses the file.
    */
   static open(
-    api: PdfiumApi,
+    api: PdfiumCoreApi,
     heap: WasmHeap,
     bytes: Uint8Array,
     password: string,

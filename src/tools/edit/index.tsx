@@ -23,7 +23,7 @@ import type {
   TextEdit,
   TextEditOutcome,
 } from "./core/model";
-import { addTurns } from "./core/page-geometry";
+import { addTurns } from "@/lib/geometry/page-geometry";
 import { StandardFontMetricsSource } from "./core/standard-font-metrics";
 import { describeTextOutcome } from "./core/text-edit-notices";
 import { DiscardDialog } from "./discard-dialog";

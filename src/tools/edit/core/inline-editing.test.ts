@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { fakeMetrics } from "../test-utils/fake-metrics";
-import { applyToPoint } from "./affine";
+import { applyToPoint } from "@/lib/geometry/affine";
 import {
   RUN_EDITOR_LINE_HEIGHT,
   SCREEN_FONT_METRICS,

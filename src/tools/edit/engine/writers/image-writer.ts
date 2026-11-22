@@ -1,4 +1,4 @@
-import { compose } from "../../core/affine";
+import { compose } from "@/lib/geometry/affine";
 import type { ImageObject } from "../../core/model";
 import { objectToUser } from "../../core/object-frame";
 import {

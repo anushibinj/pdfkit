@@ -14,7 +14,7 @@ import {
   type Rgb,
   type TextEdit,
 } from "./model";
-import { isQuarterTurns } from "./page-geometry";
+import { isQuarterTurns } from "@/lib/geometry/page-geometry";
 import type { SaveImage, SavePage, SavePlan } from "./save-plan";
 import {
   normalizeTextInput,

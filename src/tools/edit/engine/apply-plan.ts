@@ -1,12 +1,12 @@
-import { addTurns } from "../core/page-geometry";
+import { addTurns } from "@/lib/geometry/page-geometry";
 import { planPageOperations } from "../core/page-order";
 import type { SavePlan } from "../core/save-plan";
 import type { FontMetricsSource } from "../core/text-layout";
 import { PdfiumPageText } from "./page-text";
 import type { PdfiumApi } from "./pdfium-api";
-import type { PdfiumDocument } from "./pdfium-document";
+import type { PdfiumDocument } from "@/lib/pdfium/pdfium-document";
 import { applyTextEdits } from "./text-edits";
-import type { WasmHeap } from "./wasm-heap";
+import type { WasmHeap } from "@/lib/pdfium/wasm-heap";
 import { check } from "./writers/object-writer";
 import { writePageObjects, type WriterRegistry } from "./writers/registry";
 

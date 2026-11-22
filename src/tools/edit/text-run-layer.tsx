@@ -1,6 +1,6 @@
 "use client";
 
-import { toSvgTransform, type Matrix } from "./core/affine";
+import { toSvgTransform, type Matrix } from "@/lib/geometry/affine";
 import { runHitArea } from "./core/inline-editing";
 import type { TextRun } from "./core/text-runs";
 import { cn } from "@/lib/utils";

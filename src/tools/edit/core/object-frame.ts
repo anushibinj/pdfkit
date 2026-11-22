@@ -1,6 +1,11 @@
-import { applyToPoint, compose, invert, type Matrix } from "./affine";
+import {
+  applyToPoint,
+  compose,
+  invert,
+  type Matrix,
+} from "@/lib/geometry/affine";
 import type { ObjectFrame, PageBox, Point, QuarterTurns } from "./model";
-import { userToView, viewToUser } from "./page-geometry";
+import { userToView, viewToUser } from "@/lib/geometry/page-geometry";
 
 /**
  * Where an object's local axes point in user space, per rotation.

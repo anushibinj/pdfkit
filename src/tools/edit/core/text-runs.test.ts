@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { fakeMetrics } from "../test-utils/fake-metrics";
-import type { Matrix } from "./affine";
+import type { Matrix } from "@/lib/geometry/affine";
 import {
   continuesLine,
   describeFontStyle,

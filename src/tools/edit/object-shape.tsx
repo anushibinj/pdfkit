@@ -1,7 +1,7 @@
 "use client";
 
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { toSvgTransform, type Matrix } from "./core/affine";
+import { toSvgTransform, type Matrix } from "@/lib/geometry/affine";
 import { rgbToHex } from "./core/colors";
 import {
   HIGHLIGHT_OPACITY,

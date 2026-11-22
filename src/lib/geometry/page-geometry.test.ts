@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { applyToPoint } from "./affine";
-import type { PageBox, QuarterTurns } from "./model";
+import type { PageBox, QuarterTurns } from "./page-geometry";
 import {
   addTurns,
   boxSize,

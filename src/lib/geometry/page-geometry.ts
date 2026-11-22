@@ -1,5 +1,18 @@
 import { compose, invert, type Matrix } from "./affine";
-import type { PageBox, QuarterTurns } from "./model";
+
+/** A number of 90 degree turns. */
+export type QuarterTurns = 0 | 1 | 2 | 3;
+
+/**
+ * The page's visible area in user space (PDFium's page bounding box: the
+ * CropBox clipped to the MediaBox). It does not have to start at (0, 0).
+ */
+export interface PageBox {
+  left: number;
+  bottom: number;
+  right: number;
+  top: number;
+}
 
 /** A width and a height, in points unless stated otherwise. */
 export interface Size {
