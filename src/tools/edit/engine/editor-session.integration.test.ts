@@ -38,7 +38,8 @@ import {
   toArrayBuffer,
   type FullPdfium,
 } from "../test-utils/pdfium-node";
-import { EditorSession, MAX_RENDER_WIDTH } from "./editor-session";
+import { MAX_RENDER_WIDTH } from "@/lib/pdfium/render-size";
+import { EditorSession } from "./editor-session";
 import type { PdfiumApi } from "./pdfium-api";
 import { PdfOpenError } from "@/lib/pdfium/pdfium-document";
 
