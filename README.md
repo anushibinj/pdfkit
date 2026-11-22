@@ -101,6 +101,19 @@ Currently shipped tools:
   content is copied as is and rotation only sets `/Rotate`: text stays text.
   Bookmarks, form fields and document properties are not carried over, and
   files opened with a password are saved without one.
+- **PDF to Images** (`/tools/pdf-to-images/`, beta): saves pages as PNG or
+  JPEG at the resolution you choose (72 to 600 DPI; a page larger than
+  4096 x 4096 = 16.7 million pixels, the iOS canvas limit, is scaled down to
+  fit), or extracts the images embedded in the PDF at their own pixel size,
+  using [PDFium](https://pdfium.googlesource.com/pdfium/). JPEG photos are
+  saved as their original bytes (no re-encoding) when their colours are gray
+  or RGB and they have no transparency; every other image, a JPEG with a
+  soft mask included, is decoded and saved as a lossless PNG with its
+  transparency. An image used on many pages is extracted once. Files
+  download one by one or as a ZIP. Images cropped by a clip path come out
+  whole but without transparency, images inside annotations or patterns are
+  not extracted, and a gray or RGB JPEG stored with an inverting /Decode
+  array (rare) is kept as stored.
 
 Built with Next.js (App Router, static export), TypeScript (strict), Tailwind
 CSS, shadcn/ui, next-themes and Vitest. It is an installable, offline-capable PWA.
@@ -207,6 +220,33 @@ those tools never download it, and the tools still work offline after first use.
 and HTML to PDF load the same ironpress files, and the PDF Editor, Add Watermark, Split PDF
 (thumbnails) and Organize Pages the same PDFium files, so using any tool of a group caches its
 engine for the others.
+
+## Manual test checklist (PDF to Images)
+
+`fixtures/images-chromium.pdf` is printed by Chromium (see
+`scripts/make-images-fixture.mjs`): a transparent PNG, a JPEG drawn twice, a
+JPEG cropped by CSS. `images-chromium-green.jpg` and `-purple.jpg` are its
+source JPEGs.
+
+- [ ] **Pages as images** on `fixtures/images-chromium.pdf`: Convert pages
+      gives `images-chromium-page-01.png`, 625 x 313 px at 150 DPI.
+- [ ] JPEG at 300 DPI gives a 1250 x 625 `.jpg`; the Quality select only
+      shows for JPEG.
+- [ ] **Pages** field: `2` on a one-page PDF shows "There is no page 2" and
+      disables Convert; `1-3, 5` converts those pages of a longer PDF.
+- [ ] **Embedded images** on the same file: 3 images. `image-02.jpg` and
+      `image-03.jpg` are byte-identical to the two source JPEGs (the cropped
+      one included); `image-01.png` keeps its half-transparent right half;
+      the repeated JPEG shows once.
+- [ ] **Download all (ZIP)** gives `images-chromium-images.zip`; it opens in
+      the OS's archive tool with all files.
+- [ ] **Stop** during a long conversion keeps the pages done so far.
+- [ ] `user-password.pdf`: wrong password shows "Wrong password"; `hunter2`
+      opens it.
+- [ ] A 600 DPI A3 page says it was rendered at a lower resolution.
+- [ ] Offline after one use: reload with DevTools > Network > Offline and
+      convert again. The Network tab shows no request to another host.
+- [ ] At 360px width there is no horizontal scroll.
 
 ## Manual test checklist (Organize Pages)
 
@@ -458,10 +498,12 @@ Gouron, licensed under the **MIT License** (licence at
 under the **MIT License**. Fonts: Geist and
 Inter (SIL Open Font License 1.1), bundled locally.
 
-The PDF Editor, Add Watermark, Split PDF's thumbnails and Organize Pages use
-**PDFium**, Copyright The PDFium Authors, licensed under the **BSD 3-Clause
+The PDF Editor, Add Watermark, Split PDF's thumbnails, Organize Pages and PDF
+to Images use **PDFium**, Copyright The PDFium Authors, licensed under the **BSD 3-Clause
 License** and the **Apache License 2.0** (licence at
 `/wasm/LICENSE-pdfium.txt`), compiled to WebAssembly by **@embedpdf/pdfium**,
 Copyright (c) 2024 CloudPDF, Ji Chang, licensed under the **MIT License**
 (licence at `/wasm/LICENSE-embedpdf-pdfium.txt`). Text measurements come from
 Adobe's standard font metrics via **@pdf-lib/standard-fonts** (MIT License).
+PDF to Images' PNG encoder (`src/lib/png`) is part of this project;
+compression uses the browser's built-in `CompressionStream`.

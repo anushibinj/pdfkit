@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { crc32 } from "../core/crc32";
+import { crc32 } from "@/lib/crc32";
 import { AssemblyError, WrongPasswordError } from "../engine/page-assembler";
 import type { AssembleRequest } from "../messages";
 import { createAssembleHandler, type AssemblerLike } from "./assemble-handler";

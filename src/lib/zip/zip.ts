@@ -1,4 +1,4 @@
-import { crc32 } from "./crc32";
+import { crc32 } from "@/lib/crc32";
 
 /**
  * A minimal ZIP writer: files are stored, not compressed.
@@ -20,17 +20,48 @@ import { crc32 } from "./crc32";
  * starts. Unzip tools read the end record first and work backwards.
  *
  * The plain (non-ZIP64) format stores sizes and offsets in 32 bits and the
- * entry count in 16 bits, so it is limited to 4 GiB and 65,535 files. This
+ * entry count in 16 bits, so it is limited to 4 GiB and 65,534 files (an
+ * all-ones count, 0xFFFF, would tell readers to look for a ZIP64 record,
+ * APPNOTE 4.4.1.4, which this writer does not write). This
  * writer checks those limits and refuses instead of writing a corrupt file.
  */
 
 /** One file to put in the archive. */
-export interface ZipEntry {
-  /** Path inside the archive, e.g. "report-page-1.pdf". */
-  name: string;
-  data: ArrayBuffer;
-  /** CRC-32 of `data`, when already known; computed otherwise. */
-  crc32?: number;
+export type ZipEntry =
+  | {
+      /** Path inside the archive, e.g. "report-page-1.pdf". */
+      name: string;
+      data: ArrayBuffer;
+      /** CRC-32 of `data`, when already known; computed otherwise. */
+      crc32?: number;
+    }
+  | {
+      /** Path inside the archive, e.g. "report-page-01.png". */
+      name: string;
+      /**
+       * Data already held in a Blob (for example an image a worker
+       * produced). It becomes part of the archive as is, never copied.
+       */
+      data: Blob;
+      /** CRC-32 of `data`: a Blob cannot be read synchronously. */
+      crc32: number;
+    };
+
+/**
+ * Make a ZIP entry from a Blob, computing its CRC-32.
+ *
+ * The Blob is read once for the checksum; the bytes are dropped afterwards
+ * and the archive uses the Blob itself.
+ *
+ * @param name Path inside the archive.
+ * @param data The file's contents.
+ * @returns The entry, ready for {@link createZip}.
+ */
+export async function blobZipEntry(
+  name: string,
+  data: Blob,
+): Promise<ZipEntry> {
+  return { name, data, crc32: crc32(new Uint8Array(await data.arrayBuffer())) };
 }
 
 /** The archive cannot be written (a limit of the format, or a bad name). */
@@ -110,11 +141,12 @@ export function assertSafeEntryName(name: string): void {
  * @param modified The modification date recorded for every file.
  * @returns The archive.
  * @throws {ZipError} On unsafe or repeated names, or beyond the format's
- *   limits (65,535 files, 4 GiB).
+ *   limits (65,534 files, 4 GiB).
  */
 export function createZip(entries: readonly ZipEntry[], modified: Date): Blob {
-  if (entries.length > MAX_U16) {
-    throw new ZipError("Too many files for one ZIP archive (65,535 at most).");
+  // 0xFFFF in the end record's count means "see the ZIP64 record".
+  if (entries.length >= MAX_U16) {
+    throw new ZipError("Too many files for one ZIP archive (65,534 at most).");
   }
   const seen = new Set<string>();
   const { time, date } = toDosDateTime(modified);
@@ -130,13 +162,17 @@ export function createZip(entries: readonly ZipEntry[], modified: Date): Blob {
     }
     seen.add(entry.name);
     const name = encoder.encode(entry.name);
-    const size = entry.data.byteLength;
-    const checksum = entry.crc32 ?? crc32(new Uint8Array(entry.data));
+    const size =
+      entry.data instanceof Blob ? entry.data.size : entry.data.byteLength;
+    const checksum =
+      entry.crc32 ?? crc32(new Uint8Array(entry.data as ArrayBuffer));
     // The local header's own offset must fit in 32 bits, and so must the
     // end of this file's data (the next header or the central directory
     // starts there).
     if (size > MAX_U32 || offset + 30 + name.length + size > MAX_U32) {
-      throw new ZipError("The files add up to more than 4 GB, too much for one ZIP archive.");
+      throw new ZipError(
+        "The files add up to more than 4 GB, too much for one ZIP archive.",
+      );
     }
     // The fields shared by the local header and the central entry, in the
     // order both use: flags, method, time, date, CRC, sizes, name length.
@@ -179,7 +215,9 @@ export function createZip(entries: readonly ZipEntry[], modified: Date): Blob {
 
   const centralSize = central.reduce((sum, c) => sum + c.length, 0);
   if (offset + centralSize > MAX_U32) {
-    throw new ZipError("The files add up to more than 4 GB, too much for one ZIP archive.");
+    throw new ZipError(
+      "The files add up to more than 4 GB, too much for one ZIP archive.",
+    );
   }
   const end = new Uint8Array(22);
   const ev = new DataView(end.buffer);

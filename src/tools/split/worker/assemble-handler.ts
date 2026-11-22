@@ -1,7 +1,7 @@
 import { errorMessage } from "@/lib/errors";
 import { toTransferableBuffer } from "@/lib/transfer";
 import type { HandlerContext, HandlerResult } from "@/lib/worker-protocol";
-import { crc32 } from "../core/crc32";
+import { crc32 } from "@/lib/crc32";
 import { InvalidRequestError, validateOutputs } from "../core/validate-request";
 import {
   AssemblyError,

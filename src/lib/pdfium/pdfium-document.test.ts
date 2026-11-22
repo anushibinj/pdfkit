@@ -100,6 +100,33 @@ describe("PdfiumDocument", () => {
     expect(() => doc.withPage(3, () => 1)).toThrow("Could not load page 4");
   });
 
+  it("withPageAsync keeps the page open until the work settles", async () => {
+    const { api, heap } = setup();
+    const doc = PdfiumDocument.open(api, heap, new Uint8Array(1), "");
+    api.FPDF_LoadPage.mockReturnValue(55);
+    let release: () => void = () => {};
+    const pending = doc.withPageAsync(0, async (page) => {
+      await new Promise<void>((resolve) => (release = resolve));
+      return page;
+    });
+    await Promise.resolve();
+    expect(api.FPDF_ClosePage).not.toHaveBeenCalled();
+    release();
+    await expect(pending).resolves.toBe(55);
+    expect(api.FPDF_ClosePage).toHaveBeenCalledWith(55);
+    // a rejection still closes the page
+    await expect(
+      doc.withPageAsync(0, async () => {
+        throw new Error("late");
+      }),
+    ).rejects.toThrow("late");
+    expect(api.FPDF_ClosePage).toHaveBeenCalledTimes(2);
+    api.FPDF_LoadPage.mockReturnValueOnce(0);
+    await expect(doc.withPageAsync(1, async () => 1)).rejects.toThrow(
+      "Could not load page 2",
+    );
+  });
+
   it("withNewPage inserts a page of the given size and always closes it", () => {
     const { api, heap } = setup();
     const doc = PdfiumDocument.create(api, heap);

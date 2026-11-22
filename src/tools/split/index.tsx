@@ -21,7 +21,7 @@ import {
   settingsReducer,
   toPlanSettings,
 } from "./core/split-settings";
-import { createZip } from "./core/zip";
+import { createZip } from "@/lib/zip/zip";
 import { ModePicker } from "./mode-picker";
 import { PageField } from "./page-field";
 import { PageGrid } from "./page-grid";

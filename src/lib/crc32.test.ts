@@ -1,3 +1,5 @@
+// @vitest-environment node
+import { crc32 as zlibCrc32 } from "node:zlib";
 import { describe, expect, it } from "vitest";
 import { crc32 } from "./crc32";
 
@@ -31,5 +33,10 @@ describe("crc32", () => {
 
   it("notices leading zero bytes", () => {
     expect(crc32(new Uint8Array([0, 1]))).not.toBe(crc32(new Uint8Array([1])));
+  });
+
+  it("agrees with zlib on a large buffer", () => {
+    const bytes = Uint8Array.from({ length: 5000 }, (_, i) => (i * 131) & 0xff);
+    expect(crc32(bytes)).toBe(zlibCrc32(bytes));
   });
 });

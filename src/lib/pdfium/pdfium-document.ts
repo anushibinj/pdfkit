@@ -151,6 +151,33 @@ export class PdfiumDocument {
   }
 
   /**
+   * Like {@link withPage}, for work that awaits while the page is open
+   * (hashing or encoding between PDFium calls). The page is closed once the
+   * returned promise settles, whether it resolves or rejects.
+   *
+   * The caller must make sure nothing closes the document while `fn` is
+   * waiting: PDFium would then free memory the page still points into.
+   * Worker handlers guarantee it by running one request at a time.
+   *
+   * @param index Zero-based page index.
+   * @param fn Receives the `FPDF_PAGE` handle.
+   * @returns What `fn` resolves to.
+   * @throws When the page cannot be loaded.
+   */
+  async withPageAsync<T>(
+    index: number,
+    fn: (page: number) => Promise<T>,
+  ): Promise<T> {
+    const page = this.api.FPDF_LoadPage(this.handle, index);
+    if (!page) throw new Error(`Could not load page ${index + 1}`);
+    try {
+      return await fn(page);
+    } finally {
+      this.api.FPDF_ClosePage(page);
+    }
+  }
+
+  /**
    * Insert a new, empty page, run `fn` with it and close it again, even if
    * `fn` throws.
    *

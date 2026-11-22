@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { crc32 } from "./crc32";
+import { crc32 } from "@/lib/crc32";
 import {
   ZipError,
   assertSafeEntryName,
+  blobZipEntry,
   createZip,
   toDosDateTime,
   type ZipEntry,
@@ -53,7 +54,8 @@ function readZip(zip: Uint8Array) {
     expect(view.getUint32(localAt + 14, true)).toBe(crc);
     expect(view.getUint32(localAt + 22, true)).toBe(size);
     const localNameLength = view.getUint16(localAt + 26, true);
-    const dataAt = localAt + 30 + localNameLength + view.getUint16(localAt + 28, true);
+    const dataAt =
+      localAt + 30 + localNameLength + view.getUint16(localAt + 28, true);
     const data = zip.slice(dataAt, dataAt + size);
     files.push({ name, flags, method, time, date, crc, data });
     at += 46 + nameLength;
@@ -104,7 +106,8 @@ describe("createZip", () => {
     const files = readZip(await readBlob(blob));
     expect(files.map((f) => f.name)).toEqual(["one.pdf", "two (2).pdf"]);
     for (const [i, file] of files.entries()) {
-      const original = new Uint8Array(entries[i].data);
+      // Every entry here holds an ArrayBuffer.
+      const original = new Uint8Array(entries[i].data as ArrayBuffer);
       expect(Array.from(file.data)).toEqual(Array.from(original));
       expect(file.crc).toBe(crc32(original));
       expect(file.method).toBe(0);
@@ -116,7 +119,9 @@ describe("createZip", () => {
 
   it("stores UTF-8 names as UTF-8", async () => {
     const files = readZip(
-      await readBlob(createZip([{ name: "résumé.pdf", data: buffer("x") }], modified)),
+      await readBlob(
+        createZip([{ name: "résumé.pdf", data: buffer("x") }], modified),
+      ),
     );
     expect(files[0].name).toBe("résumé.pdf");
   });
@@ -124,7 +129,10 @@ describe("createZip", () => {
   it("uses a CRC-32 given by the caller", async () => {
     const files = readZip(
       await readBlob(
-        createZip([{ name: "a.pdf", data: buffer("abc"), crc32: 1234 }], modified),
+        createZip(
+          [{ name: "a.pdf", data: buffer("abc"), crc32: 1234 }],
+          modified,
+        ),
       ),
     );
     expect(files[0].crc).toBe(1234);
@@ -154,12 +162,37 @@ describe("createZip", () => {
 
   it("refuses more files than the format can count", () => {
     const data = new ArrayBuffer(0);
-    const entries = Array.from({ length: 65_536 }, (_, i) => ({
+    // 0xFFFF entries: that count would read as "ZIP64" in the end record.
+    const entries = Array.from({ length: 0xffff }, (_, i) => ({
       name: `${i}.pdf`,
       data,
       crc32: 0,
     }));
-    expect(() => createZip(entries, modified)).toThrow(/65,535/);
+    expect(() => createZip(entries, modified)).toThrow(/65,534/);
+  });
+
+  it("stores Blob entries as they are, with the given CRC-32", async () => {
+    const bytes = new TextEncoder().encode("image bytes");
+    const blob = new Blob([bytes]);
+    const entry = await blobZipEntry("page-01.png", blob);
+    expect(entry).toEqual({
+      name: "page-01.png",
+      data: blob,
+      crc32: crc32(bytes),
+    });
+    const zip = createZip(
+      [entry, { name: "b.pdf", data: new Uint8Array([7]).buffer }],
+      modified,
+    );
+    const archive = new Uint8Array(await zip.arrayBuffer());
+    // The local header's CRC and size, then the Blob's bytes right after
+    // the header and name (30 + 11 bytes).
+    const view = new DataView(archive.buffer);
+    expect(view.getUint32(14, true)).toBe(crc32(bytes));
+    expect(view.getUint32(18, true)).toBe(bytes.length);
+    expect(Array.from(archive.subarray(41, 41 + bytes.length))).toEqual(
+      Array.from(bytes),
+    );
   });
 
   it("refuses a file over 4 GB without reading it", () => {

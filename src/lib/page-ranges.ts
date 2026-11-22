@@ -166,3 +166,45 @@ export function expandPageRuns(runs: readonly PageRun[]): number[] {
   }
   return pages;
 }
+
+/** Outcome of {@link parsePageSelection}. */
+export type PageSelectionResult =
+  | {
+      ok: true;
+      /** 0-based page indices, ascending, no duplicates. */ pages: number[];
+    }
+  | {
+      ok: false;
+      /** Why the text is not valid, for the user. */ error: string;
+    };
+
+/**
+ * Parse a "Pages" field that selects a set of pages, e.g. "1-3, 5, 8-", for
+ * tools that apply to some pages of one PDF (the watermark, PDF to Images).
+ *
+ * The syntax and its error messages are those of {@link parsePageRuns}.
+ * What a selection adds:
+ * - Empty text (or only spaces) means every page.
+ * - Text with no items at all (only commas) is an error, not "every page".
+ * - Overlapping items are merged, so "1-3, 2" is pages 1, 2 and 3, in
+ *   ascending order.
+ *
+ * @param input The text.
+ * @param pageCount How many pages the PDF has (at least 1).
+ * @returns The selected 0-based indices, or an error message.
+ */
+export function parsePageSelection(
+  input: string,
+  pageCount: number,
+): PageSelectionResult {
+  if (input.replace(/[–—]/g, "-").trim() === "") {
+    return { ok: true, pages: Array.from({ length: pageCount }, (_, i) => i) };
+  }
+  const parsed = parsePageRuns(input, pageCount);
+  if (!parsed.ok) return parsed;
+  if (parsed.runs.length === 0) {
+    return { ok: false, error: "Enter page numbers such as 1-3, 5." };
+  }
+  const pages = new Set(expandPageRuns(parsed.runs));
+  return { ok: true, pages: [...pages].sort((a, b) => a - b) };
+}

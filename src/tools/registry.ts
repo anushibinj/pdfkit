@@ -2,6 +2,7 @@ import {
   CodeXml,
   Combine,
   FileCode,
+  FileImage,
   FilePen,
   LayoutGrid,
   Lock,
@@ -200,6 +201,25 @@ export const tools: ToolDefinition[] = [
     icon: LayoutGrid,
     beta: true,
     component: () => import("./organize"),
+  },
+  {
+    slug: "pdf-to-images",
+    name: "PDF to Images",
+    tagline: "Save pages as PNG or JPEG, or extract embedded images, locally.",
+    description:
+      "Free PDF to image converter in your browser. Save pages as PNG or JPEG at the DPI you choose, or extract the original embedded images. Nothing is uploaded.",
+    keywords: [
+      "pdf to image",
+      "pdf to png",
+      "pdf to jpg",
+      "convert pdf pages to images",
+      "extract images from pdf",
+      "pdf image extractor",
+      "private pdf to image",
+    ],
+    icon: FileImage,
+    beta: true,
+    component: () => import("./pdf-to-images"),
   },
 ];
 
