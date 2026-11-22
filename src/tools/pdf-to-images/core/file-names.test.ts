@@ -4,6 +4,7 @@ import {
   baseNameOf,
   extensionFor,
   extractedImageName,
+  outputFileNames,
   pageImageName,
   sequenceLabel,
 } from "./file-names";
@@ -54,5 +55,36 @@ describe("file names", () => {
   it("maps MIME types to extensions", () => {
     expect(extensionFor("image/jpeg")).toBe("jpg");
     expect(extensionFor("image/png")).toBe("png");
+  });
+});
+
+describe("outputFileNames", () => {
+  it("names pages by page number and images by position", () => {
+    const pages = [
+      { mimeType: "image/png", pages: [3] },
+      { mimeType: "image/png", pages: [12] },
+    ];
+    expect(outputFileNames(pages, "pages", "r", 12)).toEqual([
+      "r-page-03.png",
+      "r-page-12.png",
+    ]);
+    const images = [
+      { mimeType: "image/jpeg", pages: [1, 4] },
+      { mimeType: "image/png", pages: [2] },
+    ];
+    expect(outputFileNames(images, "images", "r", 12)).toEqual([
+      "r-image-01.jpg",
+      "r-image-02.png",
+    ]);
+  });
+
+  it("gives every file a distinct name", () => {
+    const many = Array.from({ length: 120 }, () => ({
+      mimeType: "image/png",
+      pages: [1],
+    }));
+    const names = outputFileNames(many, "images", "r", 1);
+    expect(new Set(names).size).toBe(120);
+    expect(names[0]).toBe("r-image-001.png");
   });
 });

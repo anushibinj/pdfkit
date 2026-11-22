@@ -105,3 +105,40 @@ export function archiveName(base: string, kind: "pages" | "images"): string {
 export function extensionFor(mimeType: string): ImageExtension {
   return mimeType === "image/jpeg" ? "jpg" : "png";
 }
+
+/** What {@link outputFileNames} needs to know about each file. */
+export interface NamedOutput {
+  mimeType: string;
+  /** 1-based page numbers; a rendered page has exactly one. */
+  pages: number[];
+}
+
+/**
+ * Name every produced file, in list order.
+ *
+ * Rendered pages are named after their page number, padded to the page
+ * count ("report-page-07.png"). Extracted images are numbered in the order
+ * they were found, padded to how many there are ("report-image-03.jpg");
+ * that count is only final when the run ends, which is why names are
+ * computed from the whole list rather than stored with each file. Every
+ * name is distinct, so they can go into one ZIP.
+ *
+ * @param files The files, in display order.
+ * @param mode What the files are.
+ * @param base From {@link baseNameOf}.
+ * @param pageCount Pages in the PDF.
+ * @returns One name per file.
+ */
+export function outputFileNames(
+  files: readonly NamedOutput[],
+  mode: "pages" | "images",
+  base: string,
+  pageCount: number,
+): string[] {
+  return files.map((file, index) => {
+    const extension = extensionFor(file.mimeType);
+    return mode === "pages"
+      ? pageImageName(base, file.pages[0], pageCount, extension)
+      : extractedImageName(base, index + 1, files.length, extension);
+  });
+}

@@ -58,6 +58,14 @@ describe("tool registry", () => {
     expect(typeof mod.default).toBe("function");
   });
 
+  it("registers PDF to Images as a beta tool and loads it lazily", async () => {
+    const tool = getTool("pdf-to-images");
+    expect(tool?.name).toBe("PDF to Images");
+    expect(tool?.beta).toBe(true);
+    const mod = await tool!.component();
+    expect(typeof mod.default).toBe("function");
+  });
+
   it("loads the Markdown to PDF component lazily", async () => {
     const mod = await getTool("markdown-to-pdf")!.component();
     expect(typeof mod.default).toBe("function");

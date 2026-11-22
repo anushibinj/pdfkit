@@ -31,6 +31,17 @@ Currently shipped tools:
   form XObjects cannot be edited, and new or substituted text is limited to
   the standard PDF fonts (WinAnsi: English and Western European languages).
 
+- **PDF to Images** (`/tools/pdf-to-images/`, beta): saves pages as PNG or
+  JPEG at the resolution you choose (72 to 600 DPI, capped at 4096 x 4096
+  pixels per page, the iOS canvas limit), or extracts the images embedded in
+  the PDF at their own pixel size, using the same PDFium build as the PDF
+  Editor. JPEG photos are saved as their original bytes (no re-encoding)
+  when their colours are gray or RGB; every other image is decoded and saved
+  as a lossless PNG with its transparency. An image used on many pages is
+  extracted once. Files download one by one or as a ZIP. Images cropped by
+  a clip path come out whole but without transparency, and images inside
+  annotations or patterns are not extracted.
+
 Built with Next.js (App Router, static export), TypeScript (strict), Tailwind
 CSS, shadcn/ui, next-themes and Vitest. It is an installable, offline-capable PWA.
 
@@ -127,6 +138,33 @@ gzipped) and PDFium (binary ~4.6 MB, ~2 MB gzipped, plus its JavaScript glue)
 are on that list: each is cached the first time its tool loads it, so visitors who never use that
 tool never download it, and the tool still works offline after its first use.
 
+## Manual test checklist (PDF to Images)
+
+`fixtures/images-chromium.pdf` is printed by Chromium (see
+`scripts/make-images-fixture.mjs`): a transparent PNG, a JPEG drawn twice, a
+JPEG cropped by CSS. `images-chromium-green.jpg` and `-purple.jpg` are its
+source JPEGs.
+
+- [ ] **Pages as images** on `fixtures/images-chromium.pdf`: Convert pages
+      gives `images-chromium-page-01.png`, 625 x 313 px at 150 DPI.
+- [ ] JPEG at 300 DPI gives a 1250 x 625 `.jpg`; the Quality select only
+      shows for JPEG.
+- [ ] **Pages** field: `2` on a one-page PDF shows "Page 2 does not exist"
+      and disables Convert; `1-3, 5` converts those pages of a longer PDF.
+- [ ] **Embedded images** on the same file: 3 images. `image-02.jpg` and
+      `image-03.jpg` are byte-identical to the two source JPEGs (the cropped
+      one included); `image-01.png` keeps its half-transparent right half;
+      the repeated JPEG shows once.
+- [ ] **Download all (ZIP)** gives `images-chromium-images.zip`; it opens in
+      the OS's archive tool with all files.
+- [ ] **Stop** during a long conversion keeps the pages done so far.
+- [ ] `user-password.pdf`: wrong password shows "Wrong password"; `hunter2`
+      opens it.
+- [ ] A 600 DPI A3 page says it was rendered at a lower resolution.
+- [ ] Offline after one use: reload with DevTools > Network > Offline and
+      convert again. The Network tab shows no request to another host.
+- [ ] At 360px width there is no horizontal scroll.
+
 ## Manual test checklist (PDF Editor)
 
 Sample files live in `fixtures/` (`user-password.pdf` has password `hunter2`;
@@ -220,3 +258,7 @@ the **BSD 3-Clause License** and the **Apache License 2.0** (licence at
 Copyright (c) 2024 CloudPDF, Ji Chang, licensed under the **MIT License**
 (licence at `/wasm/LICENSE-embedpdf-pdfium.txt`). Text measurements come from
 Adobe's standard font metrics via **@pdf-lib/standard-fonts** (MIT License).
+
+PDF to Images uses the same PDFium build. Its PNG encoder, ZIP writer and
+CRC-32 (`src/lib/png`, `src/lib/zip`, `src/lib/crc32.ts`) are part of this
+project; compression uses the browser's built-in `CompressionStream`.
