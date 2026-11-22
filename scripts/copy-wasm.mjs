@@ -10,10 +10,11 @@ const out = path.resolve(import.meta.dirname, "../public/wasm");
 await mkdir(out, { recursive: true });
 
 /**
- * One entry per engine: which npm package, which of its files to serve, and
- * where its licences go. A file is either a name (copied as is) or
- * `{ from, to }` (a path inside the package, served under another name).
- * Licences get distinct names because several engines share the directory.
+ * One entry per engine: which npm package (or, with `dir`, which directory of
+ * this repository), which of its files to serve, and where its licences go. A
+ * file is either a name (copied as is) or `{ from, to }` (a path inside the
+ * package, served under another name). Licences get distinct names because
+ * several engines share the directory.
  */
 const engines = [
   {
@@ -51,6 +52,23 @@ const engines = [
       "Copyright (c) 2024 CloudPDF, Ji Chang (see LICENSE-embedpdf-pdfium.txt).\n" +
       "https://pdfium.googlesource.com/pdfium/  https://github.com/embedpdf/embed-pdf-viewer\n",
   },
+  {
+    // Built from crates/pdf-crop by `pnpm wasm:crop`; the binary is committed.
+    pkg: "pdf-crop",
+    dir: "crates/pdf-crop",
+    files: [{ from: "dist/pdf_crop.wasm", to: "pdf-crop.wasm" }],
+    licenses: [
+      {
+        from: "dist/THIRD_PARTY_LICENSES.txt",
+        to: "LICENSE-pdf-crop-third-party.txt",
+      },
+    ],
+    notice: (version) =>
+      `PDF cropping: pdf-crop ${version}, part of pdfkit (crates/pdf-crop), built on lopdf (MIT)\n` +
+      "and other Rust crates (see LICENSE-pdf-crop-third-party.txt). Standard font metrics:\n" +
+      "Adobe Core 14 AFM via @pdf-lib/standard-fonts (MIT); encodings from ISO 32000-1 Annex D\n" +
+      "as transcribed by pdf.js (Apache-2.0). https://github.com/J-F-Liu/lopdf\n",
+  },
 ];
 
 /**
@@ -85,9 +103,29 @@ function packageDir(pkg) {
   }
 }
 
+/**
+ * The version of an engine: from its package.json, or for an in-repository
+ * Rust crate from the `version` line of its Cargo.toml.
+ *
+ * @param {string} dir The engine's directory.
+ * @returns {Promise<string>} The version.
+ */
+async function engineVersion(dir) {
+  const manifest = path.join(dir, "package.json");
+  if (existsSync(manifest)) {
+    return JSON.parse(await readFile(manifest, "utf8")).version;
+  }
+  const cargo = await readFile(path.join(dir, "Cargo.toml"), "utf8");
+  const match = /^version\s*=\s*"([^"]+)"/m.exec(cargo);
+  if (!match) throw new Error(`No version in ${dir}/Cargo.toml`);
+  return match[1];
+}
+
 const notices = [];
-for (const { pkg, files, licenses, notice } of engines) {
-  const pkgDir = packageDir(pkg);
+for (const { pkg, dir, files, licenses, notice } of engines) {
+  const pkgDir = dir
+    ? path.resolve(import.meta.dirname, "..", dir)
+    : packageDir(pkg);
   for (const file of files) {
     const { from, to } =
       typeof file === "string" ? { from: file, to: file } : file;
@@ -96,9 +134,7 @@ for (const { pkg, files, licenses, notice } of engines) {
   for (const { from, to } of licenses) {
     await copyFile(path.join(pkgDir, from), path.join(out, to));
   }
-  const { version } = JSON.parse(
-    await readFile(path.join(pkgDir, "package.json"), "utf8"),
-  );
+  const version = await engineVersion(pkgDir);
   notices.push(notice(version));
   console.log(`${pkg} ${version} copied to public/wasm`);
 }
