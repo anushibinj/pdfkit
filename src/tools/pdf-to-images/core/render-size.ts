@@ -3,16 +3,19 @@ import type { Size } from "@/lib/pdfium/page";
 /** PDF user space has 72 units (points) per inch. */
 export const POINTS_PER_INCH = 72;
 /**
- * Largest width or height of a page image. Browsers refuse bigger canvases
- * (the JPEG encoder draws onto one), and 16,384 is within every engine's
- * per-side limit.
+ * Largest width or height of a page image. Browsers also limit each side of
+ * a canvas (the JPEG encoder draws onto one); this keeps very long, thin
+ * pages well inside those limits, which {@link MAX_IMAGE_PIXELS} alone
+ * would not.
  */
 export const MAX_IMAGE_SIDE = 16_384;
 /**
- * Most pixels in one page image: 4096 x 4096. That is the canvas area
- * Safari on iOS allows, and it keeps one page's working memory (RGBA in the
- * engine, a copy for encoding) around 130 MB, which phones can afford. An
- * A4 page fits at 300 DPI (about 8.7 million pixels).
+ * Most pixels in one page image: 4096 x 4096 (16,777,216). Safari on iOS
+ * has refused larger canvases since 2015 (WebKit bug 141886; raising it to
+ * 8192 x 8192 was proposed in bug 271002), and the JPEG encoder draws onto
+ * a canvas. It also keeps one page's working memory (RGBA in the engine, a
+ * copy for encoding) around 130 MB, which phones can afford. An A4 page
+ * fits at 300 DPI (about 8.7 million pixels).
  */
 export const MAX_IMAGE_PIXELS = 4096 * 4096;
 

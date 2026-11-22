@@ -32,8 +32,9 @@ Currently shipped tools:
   the standard PDF fonts (WinAnsi: English and Western European languages).
 
 - **PDF to Images** (`/tools/pdf-to-images/`, beta): saves pages as PNG or
-  JPEG at the resolution you choose (72 to 600 DPI, capped at 4096 x 4096
-  pixels per page, the iOS canvas limit), or extracts the images embedded in
+  JPEG at the resolution you choose (72 to 600 DPI; a page larger than
+  4096 x 4096 = 16.7 million pixels, the iOS canvas limit, is scaled down to
+  fit), or extracts the images embedded in
   the PDF at their own pixel size, using the same PDFium build as the PDF
   Editor. JPEG photos are saved as their original bytes (no re-encoding)
   when their colours are gray or RGB; every other image is decoded and saved

@@ -144,6 +144,101 @@ export function paeth(a: number, b: number, c: number): number {
 }
 
 /**
+ * Apply one PNG filter to one scanline and score the result.
+ *
+ * Each filter has its own loop instead of one loop that switches on the
+ * filter type for every byte: the encoder runs this five times per row,
+ * so the per-byte work is kept as small as possible. Within a row, the first `bpp` bytes have no left
+ * neighbour (a = c = 0), which simplifies the predictors there:
+ * Sub keeps x, Average subtracts floor(b / 2), and Paeth predicts b
+ * (with a = c = 0, b is never farther from a + b - c than a or c, and on a
+ * tie with a both are 0).
+ *
+ * @param type Filter type, 0 (None) to 4 (Paeth).
+ * @param row The scanline's bytes.
+ * @param above The previous scanline (zeros for the first).
+ * @param bpp Bytes per pixel.
+ * @param out Receives the filtered bytes (same length as `row`).
+ * @returns The sum of the output bytes read as signed numbers, made
+ *   absolute: lower means the row will compress better.
+ */
+export function filterRow(
+  type: number,
+  row: Uint8Array,
+  above: Uint8Array,
+  bpp: number,
+  out: Uint8Array,
+): number {
+  const n = row.length;
+  const lead = Math.min(bpp, n);
+  let score = 0;
+  // Every branch below does the same three steps per byte, written out
+  // in place (a helper closure measured slower): v = (x - prediction) mod
+  // 256, store it, and add |v| read as a signed byte to the score.
+  let v: number;
+  switch (type) {
+    case 0:
+      for (let i = 0; i < n; i++) {
+        v = row[i];
+        out[i] = v;
+        score += v < 128 ? v : 256 - v;
+      }
+      break;
+    case 1:
+      for (let i = 0; i < lead; i++) {
+        v = row[i];
+        out[i] = v;
+        score += v < 128 ? v : 256 - v;
+      }
+      for (let i = bpp; i < n; i++) {
+        v = (row[i] - row[i - bpp]) & 0xff;
+        out[i] = v;
+        score += v < 128 ? v : 256 - v;
+      }
+      break;
+    case 2:
+      for (let i = 0; i < n; i++) {
+        v = (row[i] - above[i]) & 0xff;
+        out[i] = v;
+        score += v < 128 ? v : 256 - v;
+      }
+      break;
+    case 3:
+      for (let i = 0; i < lead; i++) {
+        v = (row[i] - (above[i] >> 1)) & 0xff;
+        out[i] = v;
+        score += v < 128 ? v : 256 - v;
+      }
+      for (let i = bpp; i < n; i++) {
+        v = (row[i] - ((row[i - bpp] + above[i]) >> 1)) & 0xff;
+        out[i] = v;
+        score += v < 128 ? v : 256 - v;
+      }
+      break;
+    default:
+      for (let i = 0; i < lead; i++) {
+        v = (row[i] - above[i]) & 0xff;
+        out[i] = v;
+        score += v < 128 ? v : 256 - v;
+      }
+      for (let i = bpp; i < n; i++) {
+        // Paeth (see {@link paeth}), inlined: this is the hottest loop.
+        const a = row[i - bpp];
+        const b = above[i];
+        const c = above[i - bpp];
+        const pa = Math.abs(b - c); // |p - a| with p = a + b - c
+        const pb = Math.abs(a - c); // |p - b|
+        const pc = Math.abs(a + b - 2 * c); // |p - c|
+        const predicted = pa <= pb && pa <= pc ? a : pb <= pc ? b : c;
+        v = (row[i] - predicted) & 0xff;
+        out[i] = v;
+        score += v < 128 ? v : 256 - v;
+      }
+  }
+  return score;
+}
+
+/**
  * Filter every scanline, choosing the filter per row.
  *
  * PNG compresses better when each byte is replaced by its difference from
@@ -183,34 +278,7 @@ export function filterScanlines(
     let best = 0;
     let bestScore = Infinity;
     for (let type = 0; type < 5; type++) {
-      const target = candidates[type];
-      let score = 0;
-      for (let i = 0; i < rowBytes; i++) {
-        const x = row[i];
-        const a = i >= bpp ? row[i - bpp] : 0;
-        const b = above[i];
-        const c = i >= bpp ? above[i - bpp] : 0;
-        let predicted: number;
-        switch (type) {
-          case 0:
-            predicted = 0;
-            break;
-          case 1:
-            predicted = a;
-            break;
-          case 2:
-            predicted = b;
-            break;
-          case 3:
-            predicted = (a + b) >> 1;
-            break;
-          default:
-            predicted = paeth(a, b, c);
-        }
-        const value = (x - predicted) & 0xff;
-        target[i] = value;
-        score += value < 128 ? value : 256 - value;
-      }
+      const score = filterRow(type, row, above, bpp, candidates[type]);
       if (score < bestScore) {
         bestScore = score;
         best = type;

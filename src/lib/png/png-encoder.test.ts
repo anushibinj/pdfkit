@@ -10,6 +10,7 @@ import {
   bytesPerPixel,
   chooseColorType,
   encodePng,
+  filterRow,
   filterScanlines,
   ihdrData,
   packPixels,
@@ -98,6 +99,52 @@ describe("paeth", () => {
     expect(paeth(20, 10, 10)).toBe(20); // p = 20 equals a
     expect(paeth(5, 5, 5)).toBe(5); // all equal: a
     expect(paeth(1, 200, 100)).toBe(100); // p = 101 is closest to c
+  });
+});
+
+describe("filterRow", () => {
+  /** The spec's per-byte definition (section 9.2), written plainly. */
+  function reference(
+    type: number,
+    row: Uint8Array,
+    above: Uint8Array,
+    bpp: number,
+  ) {
+    const out = new Uint8Array(row.length);
+    let score = 0;
+    for (let i = 0; i < row.length; i++) {
+      const a = i >= bpp ? row[i - bpp] : 0;
+      const b = above[i];
+      const c = i >= bpp ? above[i - bpp] : 0;
+      const predicted = [0, a, b, (a + b) >> 1, paeth(a, b, c)][type];
+      out[i] = (row[i] - predicted) & 0xff;
+      score += out[i] < 128 ? out[i] : 256 - out[i];
+    }
+    return { out, score };
+  }
+
+  it("matches the definition of every filter, for every pixel size", () => {
+    let seed = 12345;
+    const random = () => (seed = (seed * 1103515245 + 12345) >>> 0) >>> 24;
+    // Full-range bytes, and bytes 0-3, which make the Paeth predictor's
+    // tie-breaking rules (prefer a, then b) decide often.
+    for (const mask of [0xff, 0x03]) {
+      for (let bpp = 1; bpp <= 4; bpp++) {
+        for (const width of [1, 2, 7, 64]) {
+          const bytes = () =>
+            Uint8Array.from({ length: width * bpp }, () => random() & mask);
+          const row = bytes();
+          const above = bytes();
+          for (let type = 0; type < 5; type++) {
+            const out = new Uint8Array(row.length);
+            const score = filterRow(type, row, above, bpp, out);
+            const expected = reference(type, row, above, bpp);
+            expect(Array.from(out)).toEqual(Array.from(expected.out));
+            expect(score).toBe(expected.score);
+          }
+        }
+      }
+    }
   });
 });
 

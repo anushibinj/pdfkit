@@ -42,7 +42,7 @@ export function toErrorResult(err: unknown): ErrorResult {
       status: "error",
       reason: "out-of-memory",
       message:
-        "The browser ran out of memory while working on this PDF. Choose a lower resolution, close other tabs, or try a smaller file.",
+        "The browser ran out of memory while working on this PDF. Close other tabs or try a smaller file; when converting pages, a lower resolution also helps.",
     };
   }
   if (

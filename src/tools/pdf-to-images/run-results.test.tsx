@@ -248,6 +248,17 @@ describe("RunResults", () => {
     expect(
       screen.getByText(/Stopped. The pages converted so far/),
     ).toBeInTheDocument();
+    second.rerender(
+      <RunResults
+        run={finished([], { stopped: true, mode: "images" })}
+        baseName="r"
+        pageCount={1}
+        onError={vi.fn()}
+      />,
+    );
+    expect(
+      screen.getByText(/Stopped. The images extracted so far/),
+    ).toBeInTheDocument();
     second.unmount();
     show({
       kind: "failed",

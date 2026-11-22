@@ -149,7 +149,8 @@ export function RunResults({
 
       {run.kind === "finished" && run.stopped && (
         <p role="status" className="text-muted-foreground text-sm">
-          Stopped. The {noun}s converted so far are below.
+          Stopped. The {noun}s {mode === "pages" ? "converted" : "extracted"} so
+          far are below.
         </p>
       )}
 

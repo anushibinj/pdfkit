@@ -2,8 +2,7 @@
 // (the engine behind Chrome's "Save as PDF" and Google Docs exports), so the
 // image extraction tests run on what real files contain: images tagged with
 // an ICC profile, a transparent PNG stored with a soft mask, a JPEG stored
-// as is, the same JPEG drawn twice, a JPEG cropped by CSS (a clip path) and
-// a JPEG drawn half transparent.
+// as is, the same JPEG drawn twice and a JPEG cropped by CSS (a clip path).
 // Requires Playwright with Chromium, and sharp (the fixture is committed, so
 // this only needs to run to change it).
 import { writeFileSync } from "node:fs";
