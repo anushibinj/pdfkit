@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { IMAGE_ACCEPT } from "./core/image-info";
+import { IMAGE_ACCEPT } from "@/lib/image-info";
 import type { DrawingTool } from "./core/gestures";
 
 /** Toolbar entries for the pointer tools, in display order. */

@@ -15,7 +15,7 @@ import {
   type DrawingTool,
   type ToolStyle,
 } from "./core/gestures";
-import { MAX_IMAGE_BYTES, readImageInfo } from "./core/image-info";
+import { MAX_IMAGE_BYTES, readImageInfo } from "@/lib/image-info";
 import type {
   EditObject,
   EditorDocument,
@@ -27,13 +27,13 @@ import type {
 import { addTurns } from "./core/page-geometry";
 import { StandardFontMetricsSource } from "./core/standard-font-metrics";
 import { describeTextOutcome } from "./core/text-edit-notices";
-import { DiscardDialog } from "./discard-dialog";
+import { DiscardDialog } from "@/components/discard-dialog";
 import { EditorToolbar } from "./editor-toolbar";
 import { ObjectProperties } from "./object-properties";
 import { PageView } from "./page-view";
 import { useEditorShortcuts } from "./use-editor-shortcuts";
 import { usePdfEditor } from "./use-pdf-editor";
-import { useUnsavedWarning } from "./use-unsaved-warning";
+import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
 
 /** Larger PDFs are refused: the whole file is held in memory twice. */
 export const MAX_PDF_BYTES = 200 * 1024 * 1024;
@@ -328,7 +328,7 @@ export default function EditTool() {
           key={status.fileName}
           fileName={status.fileName}
           wrong={status.wrong}
-          note="It is used only on this device, and the edited file keeps the same password."
+          note="The edited file keeps the same password."
           onSubmit={(password) => void pdf.submitPassword(password)}
           onCancel={closeFile}
         />

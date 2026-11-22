@@ -1,6 +1,6 @@
 import type { WrappedPdfiumModule } from "@embedpdf/pdfium";
 import { describe, expect, it, vi } from "vitest";
-import type { PdfiumGlue } from "@/lib/pdfium/load";
+import type { PdfiumGlue } from "@/lib/pdfium/load-pdfium";
 import { asPdfiumApi, loadPdfium } from "./load-pdfium";
 
 describe("asPdfiumApi", () => {
@@ -13,7 +13,7 @@ describe("asPdfiumApi", () => {
 });
 
 describe("loadPdfium", () => {
-  it("loads the shared module from the given directory and returns it as the editor API", async () => {
+  it("loads the shared module from the given directory and returns it", async () => {
     const pdfium = {
       PDFiumExt_Init: vi.fn(),
     } as unknown as WrappedPdfiumModule;

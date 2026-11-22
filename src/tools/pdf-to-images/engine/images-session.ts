@@ -1,6 +1,6 @@
 import { errorMessage, isOutOfMemory } from "@/lib/errors";
-import { PdfiumDocument } from "@/lib/pdfium/document";
-import { viewSize } from "@/lib/pdfium/page";
+import { PdfiumDocument } from "@/lib/pdfium/pdfium-document";
+import { viewSize } from "@/lib/pdfium/page-box";
 import { WasmHeap } from "@/lib/pdfium/wasm-heap";
 import type { RgbaImage } from "@/lib/png/png-encoder";
 import { imageKey } from "../core/image-key";

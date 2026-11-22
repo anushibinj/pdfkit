@@ -1,20 +1,22 @@
 /**
- * Test doubles for the editor's slice of the PDFium module. Unit tests use
- * them to check call order and clean-up; real behaviour is covered by the
- * integration tests, which run the actual WebAssembly build.
+ * Test doubles for the editor's PDFium interface: the shared core fake
+ * (`@/lib/pdfium/test-utils/fake-pdfium`) plus the editing functions. Unit
+ * tests use them to check call order and clean-up; real behaviour is
+ * covered by the integration tests, which run the actual WebAssembly build.
  */
-import { FakeRuntime } from "@/lib/pdfium/test-utils/fake-runtime";
 import {
-  documentDefaults,
+  FakeRuntime,
+  coreDefaults,
   handleCounter,
-  mockFunctions,
-  saveDefaults,
-  type ApiFunctions,
+  mockApi,
   type MockedApi,
-} from "@/lib/pdfium/test-utils/fake-api";
+  type PdfiumFunctions,
+} from "@/lib/pdfium/test-utils/fake-pdfium";
 import type { PdfiumApi } from "../engine/pdfium-api";
 
-/** Each PDFium function the editor calls as a typed `vi.fn` mock. */
+export { FakeRuntime } from "@/lib/pdfium/test-utils/fake-pdfium";
+
+/** Each editor PDFium function as a typed `vi.fn` mock. */
 export type MockedPdfium = MockedApi<PdfiumApi>;
 
 /**
@@ -33,11 +35,8 @@ export function fakePdfium(runtime = new FakeRuntime()): {
   const nextHandle = handleCounter();
   const ok = () => true;
   const none = () => {};
-  const editing: Omit<
-    ApiFunctions<PdfiumApi>,
-    | keyof ReturnType<typeof documentDefaults>
-    | keyof ReturnType<typeof saveDefaults>
-  > = {
+  const defaults: PdfiumFunctions<PdfiumApi> = {
+    ...coreDefaults(nextHandle),
     FPDF_MovePages: ok,
     FPDFPage_SetRotation: none,
     FPDFPage_GenerateContent: ok,
@@ -91,10 +90,5 @@ export function fakePdfium(runtime = new FakeRuntime()): {
     FPDFText_GetTextObject: () => 0,
     FPDFText_GetCharOrigin: ok,
   };
-  const mocks = mockFunctions<ApiFunctions<PdfiumApi>>({
-    ...documentDefaults(nextHandle),
-    ...saveDefaults(nextHandle),
-    ...editing,
-  });
-  return { api: { ...mocks, pdfium: runtime }, runtime };
+  return { api: mockApi(defaults, runtime), runtime };
 }

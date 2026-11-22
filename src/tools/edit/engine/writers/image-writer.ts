@@ -1,11 +1,8 @@
-import { compose } from "../../core/affine";
+import { compose } from "@/lib/affine";
 import type { ImageObject } from "../../core/model";
 import { objectToUser } from "../../core/object-frame";
-import {
-  insertNewObject,
-  type ObjectWriter,
-  type WriteContext,
-} from "./object-writer";
+import { insertNewObject } from "@/lib/pdfium/page-objects";
+import type { ObjectWriter, WriteContext } from "./object-writer";
 
 /** Writes PNG and JPEG pictures as PDF image objects. */
 export class ImageWriter implements ObjectWriter<ImageObject> {

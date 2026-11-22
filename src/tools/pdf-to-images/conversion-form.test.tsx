@@ -61,7 +61,7 @@ describe("ConversionForm", () => {
     const pages = screen.getByLabelText("Pages");
     await user.type(pages, "12");
     expect(pages).toHaveAttribute("aria-invalid", "true");
-    expect(screen.getByText(/Page 12 does not exist/)).toBeInTheDocument();
+    expect(screen.getByText(/There is no page 12/)).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Convert pages" }),
     ).toBeDisabled();

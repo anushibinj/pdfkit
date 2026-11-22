@@ -14,14 +14,17 @@ const downloadBlob = vi.fn();
 vi.mock("@/lib/download", () => ({
   downloadBlob: (...args: unknown[]) => downloadBlob(...args),
 }));
-const createStoredZip = vi.fn(async () => new Blob(["zip"]));
-vi.mock("@/lib/zip/stored-zip", () => ({
-  createStoredZip: (...args: unknown[]) => createStoredZip(...(args as [])),
+const createZip = vi.fn<(entries: unknown, modified: Date) => Blob>(
+  () => new Blob(["zip"]),
+);
+vi.mock("@/lib/zip/zip", () => ({
+  blobZipEntry: async (name: string, data: Blob) => ({ name, data, crc32: 0 }),
+  createZip: (entries: unknown, modified: Date) => createZip(entries, modified),
 }));
 
 beforeEach(() => {
   downloadBlob.mockClear();
-  createStoredZip.mockClear();
+  createZip.mockClear();
   Object.assign(URL, {
     createObjectURL: () => "blob:x",
     revokeObjectURL: vi.fn(),
@@ -160,16 +163,21 @@ describe("RunResults", () => {
       screen.getByRole("button", { name: "Download all (ZIP)" }),
     );
     await waitFor(() => expect(downloadBlob).toHaveBeenCalled());
-    expect(createStoredZip).toHaveBeenCalledWith([
-      { name: "report-page-01.png", data: files[0].blob },
-      { name: "report-page-02.png", data: files[1].blob },
-    ]);
+    expect(createZip).toHaveBeenCalledWith(
+      [
+        { name: "report-page-01.png", data: files[0].blob, crc32: 0 },
+        { name: "report-page-02.png", data: files[1].blob, crc32: 0 },
+      ],
+      expect.any(Date),
+    );
     expect(downloadBlob.mock.calls[0][1]).toBe("report-pages.zip");
   });
 
   it("reports a ZIP that cannot be built", async () => {
     const user = userEvent.setup();
-    createStoredZip.mockRejectedValueOnce(new Error("too big"));
+    createZip.mockImplementationOnce(() => {
+      throw new Error("too big");
+    });
     const { onError } = show(finished([pageFile(1), pageFile(2)]));
     await user.click(
       screen.getByRole("button", { name: "Download all (ZIP)" }),

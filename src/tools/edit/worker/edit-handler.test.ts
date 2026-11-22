@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { InvalidPlanError } from "../core/sanitize-plan";
-import { PdfOpenError } from "@/lib/pdfium/document";
+import { PdfOpenError } from "@/lib/pdfium/pdfium-document";
 import type { EditorRequest } from "../messages";
 import {
   createEditHandler,

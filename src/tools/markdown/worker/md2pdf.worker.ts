@@ -3,14 +3,15 @@
  * Composition root of the Markdown to PDF worker: it only wires the pieces
  * together. All logic lives in tested modules.
  */
+import { createConvertHandler } from "@/lib/html-pdf/convert-handler";
+import { IronpressEngine } from "@/lib/html-pdf/ironpress-engine";
+import { loadIronpress } from "@/lib/html-pdf/load-ironpress";
+import type { ConvertResult } from "@/lib/html-pdf/types";
 import { retryableOnce } from "@/lib/retryable-once";
 import { exposeWorker } from "@/lib/worker-protocol";
-import { IronpressEngine } from "../core/ironpress-engine";
 import { MarkedMarkdownRenderer } from "../core/markdown-renderer";
 import { MarkdownToPdfConverter } from "../core/markdown-to-pdf";
-import type { ConvertRequest, ConvertResult } from "../messages";
-import { createConvertHandler } from "./convert-handler";
-import { loadIronpress } from "./load-ironpress";
+import type { ConvertRequest } from "../messages";
 
 const scope = self as unknown as DedicatedWorkerGlobalScope;
 const WASM_DIR = `${scope.location.origin}/wasm/`;

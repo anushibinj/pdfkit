@@ -1,5 +1,5 @@
 import { errorMessage, isOutOfMemory } from "@/lib/errors";
-import { PdfOpenError } from "@/lib/pdfium/document";
+import { PdfOpenError } from "@/lib/pdfium/pdfium-document";
 import { toTransferableBuffer } from "@/lib/transfer";
 import type { HandlerContext, HandlerResult } from "@/lib/worker-protocol";
 import type {

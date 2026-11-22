@@ -16,6 +16,9 @@ describe("PasswordPrompt", () => {
       />,
     );
     expect(screen.getByRole("dialog")).toHaveTextContent("locked.pdf");
+    expect(screen.getByRole("dialog")).toHaveTextContent(
+      "It is used only on this device.",
+    );
     const open = screen.getByRole("button", { name: "Open" });
     expect(open).toBeDisabled();
     await user.type(screen.getByLabelText("Password"), "hunter2");
@@ -60,27 +63,35 @@ describe("PasswordPrompt", () => {
     expect(screen.getByRole("button", { name: "Opening…" })).toBeDisabled();
   });
 
-  it("explains what happens to the password, with a default", () => {
-    const { rerender } = render(
+  it("adds the tool's note about the result", () => {
+    render(
       <PasswordPrompt
         fileName="a.pdf"
         wrong={false}
+        note="The watermarked file keeps the same password."
         onSubmit={vi.fn()}
         onCancel={vi.fn()}
       />,
     );
     expect(screen.getByRole("dialog")).toHaveTextContent(
-      "It is used only on this device.",
+      "It is used only on this device. The watermarked file keeps the same password.",
     );
-    rerender(
+  });
+
+  it("names the cancel button as the tool asks", async () => {
+    const user = userEvent.setup();
+    const onCancel = vi.fn();
+    render(
       <PasswordPrompt
         fileName="a.pdf"
         wrong={false}
-        note="Kept with the file."
+        cancelLabel="Skip this file"
         onSubmit={vi.fn()}
-        onCancel={vi.fn()}
+        onCancel={onCancel}
       />,
     );
-    expect(screen.getByRole("dialog")).toHaveTextContent("Kept with the file.");
+    expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Skip this file" }));
+    expect(onCancel).toHaveBeenCalled();
   });
 });

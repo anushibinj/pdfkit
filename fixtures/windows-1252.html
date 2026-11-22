@@ -1,0 +1,21 @@
+<html>
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=windows-1252">
+<title>Café menu</title>
+<style>
+body { font-family: serif; font-size: 13pt; }
+h1 { color: #8b1a1a; }
+</style>
+</head>
+<body>
+<!-- Test fixture for HTML to PDF. This file is saved in windows-1252, as
+     Word's "Save as Web Page" does, to check that the declared encoding is
+     honoured: the accents, euro sign and curly quotes below must appear
+     correctly in the PDF. The hidden paragraph must not appear, and the
+     image is not embedded, so the page reports it as left out. -->
+<h1>Café “Crème brûlée”</h1>
+<p>Price: 4,50 € — naïve façade, Größe, señor.</p>
+<p hidden>This hidden paragraph must not appear in the PDF.</p>
+<p><img src="logo.png" alt="Logo"></p>
+</body>
+</html>

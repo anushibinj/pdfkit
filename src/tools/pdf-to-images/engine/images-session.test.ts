@@ -1,5 +1,6 @@
 // @vitest-environment node
-import { FPDF_ERR, PdfOpenError } from "@/lib/pdfium/document";
+import { FPDF_ERR } from "@/lib/pdfium/core-api";
+import { PdfOpenError } from "@/lib/pdfium/pdfium-document";
 import { describe, expect, it, vi } from "vitest";
 import { COLORSPACE } from "../core/jpeg-passthrough";
 import { fakeImagesPdfium } from "../test-utils/fake-images-pdfium";

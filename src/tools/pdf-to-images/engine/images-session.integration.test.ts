@@ -19,8 +19,8 @@ import {
 } from "pdf-lib";
 import sharp from "sharp";
 import { beforeAll, describe, expect, it } from "vitest";
-import { PdfOpenError } from "@/lib/pdfium/document";
-import { loadNodePdfiumModule } from "@/lib/pdfium/test-utils/node";
+import { PdfOpenError } from "@/lib/pdfium/pdfium-document";
+import { loadNodePdfiumModule } from "@/lib/pdfium/test-utils/node-pdfium";
 import { deflateZlib } from "@/lib/png/deflate";
 import { encodePng, type RgbaImage } from "@/lib/png/png-encoder";
 import { asImagesPdfiumApi } from "../worker/load-pdfium";

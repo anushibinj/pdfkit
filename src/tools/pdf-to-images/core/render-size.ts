@@ -1,4 +1,4 @@
-import type { Size } from "@/lib/pdfium/page";
+import type { Size } from "@/lib/pdfium/page-box";
 
 /** PDF user space has 72 units (points) per inch. */
 export const POINTS_PER_INCH = 72;

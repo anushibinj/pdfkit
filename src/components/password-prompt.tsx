@@ -18,30 +18,38 @@ interface PasswordPromptProps {
   wrong: boolean;
   /** A password is being checked. */
   busy?: boolean;
-  /** Sentence after "Enter the password to open <file>." */
+  /**
+   * A sentence about the result, shown after "It is used only on this
+   * device.", e.g. "The edited file keeps the same password."
+   */
   note?: string;
   onSubmit(password: string): void;
   onCancel(): void;
+  /**
+   * Label of the button that gives up on the file; "Cancel" by default. A
+   * tool that opens several files in a row says "Skip this file", since
+   * the other files still open.
+   */
+  cancelLabel?: string;
 }
 
 /**
  * Ask for the password of an encrypted PDF.
  *
  * The password only goes to the PDF engine in this tab's worker. Mount it
- * with `key={fileName}` so the field starts empty for every file. Shared by
- * the tools that open encrypted PDFs; `note` says what happens to the
- * password in that tool.
+ * with `key={fileName}` so the field starts empty for every file.
  *
- * @param props File name, state and callbacks.
+ * @param props File name, state, an optional note and callbacks.
  * @returns A modal dialog.
  */
 export function PasswordPrompt({
   fileName,
   wrong,
   busy = false,
-  note = "It is used only on this device.",
+  note,
   onSubmit,
   onCancel,
+  cancelLabel = "Cancel",
 }: PasswordPromptProps) {
   const [password, setPassword] = useState("");
   const inputId = useId();
@@ -63,7 +71,7 @@ export function PasswordPrompt({
               <span className="text-foreground font-medium break-all">
                 {fileName}
               </span>
-              . {note}
+              . It is used only on this device.{note && ` ${note}`}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-2">
@@ -94,7 +102,7 @@ export function PasswordPrompt({
               className="min-h-11"
               onClick={onCancel}
             >
-              Cancel
+              {cancelLabel}
             </Button>
             <Button
               type="submit"

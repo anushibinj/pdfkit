@@ -4,13 +4,13 @@
  * integration tests, which run the actual WebAssembly build.
  */
 import {
-  documentDefaults,
+  FakeRuntime,
+  coreDefaults,
   handleCounter,
-  mockFunctions,
-  type ApiFunctions,
+  mockApi,
   type MockedApi,
-} from "@/lib/pdfium/test-utils/fake-api";
-import { FakeRuntime } from "@/lib/pdfium/test-utils/fake-runtime";
+  type PdfiumFunctions,
+} from "@/lib/pdfium/test-utils/fake-pdfium";
 import type { ImagesPdfiumApi } from "../engine/pdfium-api";
 
 /** Each PDFium function this tool calls as a typed `vi.fn` mock. */
@@ -31,8 +31,8 @@ export function fakeImagesPdfium(runtime = new FakeRuntime()): {
   const nextHandle = handleCounter();
   const ok = () => true;
   const images: Omit<
-    ApiFunctions<ImagesPdfiumApi>,
-    keyof ReturnType<typeof documentDefaults>
+    PdfiumFunctions<ImagesPdfiumApi>,
+    keyof ReturnType<typeof coreDefaults>
   > = {
     FPDFPage_CountObjects: () => 0,
     FPDFPage_GetObject: () => 0,
@@ -57,9 +57,9 @@ export function fakeImagesPdfium(runtime = new FakeRuntime()): {
     FPDFPageObj_GetFillColor: () => false,
     FPDFPageObj_SetFillColor: ok,
   };
-  const mocks = mockFunctions<ApiFunctions<ImagesPdfiumApi>>({
-    ...documentDefaults(nextHandle),
-    ...images,
-  });
-  return { api: { ...mocks, pdfium: runtime }, runtime };
+  const api = mockApi<ImagesPdfiumApi>(
+    { ...coreDefaults(nextHandle), ...images },
+    runtime,
+  );
+  return { api, runtime };
 }

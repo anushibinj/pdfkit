@@ -2,11 +2,11 @@ import { errorMessage, isOutOfMemory } from "@/lib/errors";
 import { toTransferableBuffer } from "@/lib/transfer";
 import type { HandlerContext, HandlerResult } from "@/lib/worker-protocol";
 import type { PageInfo, QuarterTurns } from "../core/model";
-import { isQuarterTurns } from "../core/page-geometry";
+import { isQuarterTurns } from "@/lib/pdfium/page-box";
 import { InvalidPlanError } from "../core/sanitize-plan";
 import type { TextRun } from "../core/text-runs";
 import type { PageRender } from "../engine/editor-session";
-import { PdfOpenError } from "@/lib/pdfium/document";
+import { PdfOpenError } from "@/lib/pdfium/pdfium-document";
 import type { EditorRequest, EditorResult, ErrorResult } from "../messages";
 
 /** What the handler needs from the worker's session (`EditorSession`). */

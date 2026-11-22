@@ -1,4 +1,4 @@
-import { commit, createHistory, redo, undo, type History } from "./history";
+import { commit, createHistory, redo, undo, type History } from "@/lib/history";
 import type { EditObject, EditorDocument, EditorPage } from "./model";
 import { addTurns } from "./page-geometry";
 

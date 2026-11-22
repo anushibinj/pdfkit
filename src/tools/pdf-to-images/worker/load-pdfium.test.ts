@@ -1,6 +1,6 @@
 import type { WrappedPdfiumModule } from "@embedpdf/pdfium";
 import { describe, expect, it, vi } from "vitest";
-import type { PdfiumGlue } from "@/lib/pdfium/load";
+import type { PdfiumGlue } from "@/lib/pdfium/load-pdfium";
 import { asImagesPdfiumApi, loadImagesPdfium } from "./load-pdfium";
 
 describe("asImagesPdfiumApi", () => {

@@ -1,9 +1,15 @@
 import {
+  CodeXml,
+  Combine,
   FileCode,
   FileImage,
   FilePen,
+  LayoutGrid,
+  Lock,
   LockOpen,
+  Scissors,
   ShieldCheck,
+  Stamp,
 } from "lucide-react";
 import type { ToolDefinition } from "./types";
 
@@ -30,6 +36,25 @@ export const tools: ToolDefinition[] = [
     ],
     icon: LockOpen,
     component: () => import("./unlock"),
+  },
+  {
+    slug: "protect",
+    name: "Protect PDF",
+    tagline: "Add a password to a PDF, locally.",
+    description:
+      "Free PDF password protector that runs in your browser. Add a password with AES-256 encryption so only people who know it can open the PDF. Nothing is uploaded.",
+    keywords: [
+      "protect pdf",
+      "password protect pdf",
+      "add password to pdf",
+      "encrypt pdf",
+      "lock pdf",
+      "aes-256 pdf encryption",
+      "private pdf tool",
+    ],
+    icon: Lock,
+    beta: true,
+    component: () => import("./protect"),
   },
   {
     slug: "verify",
@@ -67,6 +92,24 @@ export const tools: ToolDefinition[] = [
     component: () => import("./markdown"),
   },
   {
+    slug: "html-to-pdf",
+    name: "HTML to PDF",
+    tagline: "Turn HTML and its CSS into a PDF, locally.",
+    description:
+      "Free HTML to PDF converter that runs in your browser. Paste HTML or open a file, keep its own CSS, pick the paper size and download a PDF. Nothing is uploaded.",
+    keywords: [
+      "html to pdf",
+      "convert html to pdf",
+      "html file to pdf",
+      "save html as pdf",
+      "offline html to pdf",
+      "private html to pdf converter",
+    ],
+    icon: CodeXml,
+    beta: true,
+    component: () => import("./html"),
+  },
+  {
     slug: "edit",
     name: "PDF Editor",
     tagline: "Edit PDF text in place, add drawings and images, locally.",
@@ -84,6 +127,80 @@ export const tools: ToolDefinition[] = [
     icon: FilePen,
     beta: true,
     component: () => import("./edit"),
+  },
+  {
+    slug: "watermark",
+    name: "Add Watermark",
+    tagline: "Stamp text or a logo on PDF pages, locally.",
+    description:
+      "Free PDF watermark tool in your browser. Add text or a logo to every page or chosen pages, set opacity, angle and position, then download. Nothing is uploaded.",
+    keywords: [
+      "add watermark to pdf",
+      "pdf watermark",
+      "watermark pdf online",
+      "confidential watermark pdf",
+      "add logo to pdf",
+      "private pdf watermark",
+    ],
+    icon: Stamp,
+    beta: true,
+    component: () => import("./watermark"),
+  },
+  {
+    slug: "merge",
+    name: "Merge PDFs",
+    tagline: "Combine several PDFs into one, in any order, locally.",
+    description:
+      "Free PDF merger that runs in your browser. Combine several PDFs into one file in any order, including password-protected ones. Files never leave your device.",
+    keywords: [
+      "merge pdf",
+      "combine pdf",
+      "join pdf files",
+      "merge pdf offline",
+      "merge password protected pdf",
+      "private pdf merger",
+    ],
+    icon: Combine,
+    beta: true,
+    component: () => import("./merge"),
+  },
+  {
+    slug: "split",
+    name: "Split PDF",
+    tagline: "Split a PDF, extract pages or remove pages, locally.",
+    description:
+      "Free PDF splitter that runs in your browser. Split a PDF into several files, extract the pages you pick, or remove pages. Your files are never uploaded.",
+    keywords: [
+      "split pdf",
+      "extract pdf pages",
+      "remove pages from pdf",
+      "delete pdf pages",
+      "separate pdf pages",
+      "private pdf splitter",
+    ],
+    icon: Scissors,
+    beta: true,
+    component: () => import("./split"),
+  },
+  {
+    slug: "organize",
+    name: "Organize Pages",
+    tagline: "Reorder, rotate and combine pages from several PDFs, locally.",
+    description:
+      "Free PDF page organizer in your browser. Combine pages from several PDFs, reorder, rotate, duplicate or delete them, and add blank pages. Nothing is uploaded.",
+    keywords: [
+      "organize pdf pages",
+      "reorder pdf pages",
+      "rearrange pdf pages",
+      "combine pdf pages",
+      "interleave pdf pages",
+      "rotate pdf pages",
+      "delete pdf pages",
+      "private pdf organizer",
+    ],
+    icon: LayoutGrid,
+    beta: true,
+    component: () => import("./organize"),
   },
   {
     slug: "pdf-to-images",

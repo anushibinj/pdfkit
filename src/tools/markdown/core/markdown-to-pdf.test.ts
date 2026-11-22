@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import type { PageSetup } from "../messages";
+import { DEFAULT_PAGE_SETUP } from "@/lib/html-pdf/page-setup";
+import type { PdfEngine } from "@/lib/html-pdf/pdf-engine";
+import type { PageSetup } from "@/lib/html-pdf/types";
 import type { MarkdownRenderer } from "./markdown-renderer";
 import { MarkdownToPdfConverter } from "./markdown-to-pdf";
-import { DEFAULT_PAGE_SETUP } from "./page-setup";
-import type { PdfEngine } from "./pdf-engine";
 
 class StubRenderer implements MarkdownRenderer {
   seen: string[] = [];

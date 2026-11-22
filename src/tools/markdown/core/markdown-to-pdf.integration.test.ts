@@ -2,9 +2,12 @@
 /** End to end: real `marked` + real ironpress WASM, no fakes. */
 import init, { HtmlConverter } from "ironpress/node";
 import { beforeAll, describe, expect, it } from "vitest";
-import { allStreamText, pageSizes } from "../test-utils/pdf-inspect";
+import { IronpressEngine } from "@/lib/html-pdf/ironpress-engine";
+import {
+  allStreamText,
+  pageSizes,
+} from "@/lib/html-pdf/test-utils/pdf-inspect";
 import { DEFAULT_STYLESHEET, SAMPLE_MARKDOWN } from "./default-stylesheet";
-import { IronpressEngine } from "./ironpress-engine";
 import { MarkedMarkdownRenderer } from "./markdown-renderer";
 import { MarkdownToPdfConverter } from "./markdown-to-pdf";
 

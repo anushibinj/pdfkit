@@ -5,12 +5,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import type { QuarterTurns, TextEdit, TextEditOutcome } from "./core/model";
-import { renderWidthFor } from "./core/render-width";
+import { renderWidthFor } from "@/lib/render-width";
 import type { RenderOptions } from "./editor-engine";
 import type { RenderResult, TextRunsResult } from "./messages";
 import { PageCanvas } from "./page-canvas";
 import { PageOverlay, type PageOverlayProps } from "./page-overlay";
-import { useElementWidth, useNearViewport } from "./use-element-observers";
+import { useElementWidth, useNearViewport } from "@/lib/use-element-observers";
 import { useTextRuns } from "./use-text-runs";
 
 interface PageControlsProps {

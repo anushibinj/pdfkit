@@ -24,17 +24,17 @@ export function FileRow({
   actions,
 }: FileRowProps) {
   return (
-    <li className="rounded-xl border bg-card p-3 text-card-foreground sm:p-4">
+    <li className="bg-card text-card-foreground rounded-xl border p-3 sm:p-4">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <FileText
-          className="size-6 shrink-0 text-muted-foreground"
+          className="text-muted-foreground size-6 shrink-0"
           aria-hidden="true"
         />
         <div className="min-w-0 flex-1 basis-40">
           <p className="truncate font-medium" title={name}>
             {name}
           </p>
-          <p className="text-sm text-muted-foreground">{sizeLabel}</p>
+          <p className="text-muted-foreground text-sm">{sizeLabel}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {status}

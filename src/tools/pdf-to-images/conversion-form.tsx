@@ -10,7 +10,7 @@ import {
   type PageImageFormat,
   type PageRenderOptions,
 } from "./core/options";
-import { parsePageRanges } from "./core/page-ranges";
+import { parsePageSelection } from "@/lib/page-ranges";
 import type { ConversionMode } from "./core/run-state";
 
 /** Everything the user chooses before converting. */
@@ -77,7 +77,7 @@ interface ConversionFormProps {
 /**
  * The choices for a conversion and the button that starts (or stops) it.
  *
- * The "Pages" field is parsed on every change (`parsePageRanges`); while it
+ * The "Pages" field is parsed on every change (`parsePageSelection`); while it
  * is invalid the reason is shown under it and Convert is disabled, so a run
  * only ever starts with a valid selection.
  *
@@ -100,7 +100,7 @@ export function ConversionForm({
     pages: useId(),
     pagesHint: useId(),
   };
-  const selection = parsePageRanges(settings.pages, pageCount);
+  const selection = parsePageSelection(settings.pages, pageCount);
   const { render } = settings;
   const setRender = (patch: Partial<PageRenderOptions>) =>
     onChange({ ...settings, render: { ...render, ...patch } });

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { PdfOpenError } from "@/lib/pdfium/document";
+import { PdfOpenError } from "@/lib/pdfium/pdfium-document";
 import type { PageImageEntry } from "../engine/images-session";
 import type { ImagesRequest } from "../messages";
 import {

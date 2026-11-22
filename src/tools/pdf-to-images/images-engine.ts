@@ -1,8 +1,7 @@
-import { errorMessage } from "@/lib/errors";
+import { SessionWorker } from "@/lib/session-worker";
 import { WorkerClient, type RequestOptions } from "@/lib/worker-client";
 import type { PageRenderOptions } from "./core/options";
 import type {
-  ErrorResult,
   ExtractImagesResult,
   ImagesRequest,
   ImagesResult,
@@ -35,35 +34,27 @@ export function createImagesWorkerClient(): ImagesWorkerClient {
   );
 }
 
-/** Result returned for every request after {@link ImagesEngine.dispose}. */
-const DISPOSED: ErrorResult = {
-  status: "error",
-  reason: "failed",
-  message: "The tool was closed.",
-};
-
 /**
- * Talks to the worker on behalf of the UI, and hides worker crashes.
- *
- * - Requests are chained (`queue`), so a re-open after a crash can never
- *   interleave with a page request that would then hit an empty worker.
- * - A dead worker, a WebAssembly trap or an out-of-memory error leaves the
- *   engine unusable, so the worker is replaced (`restart`). The new worker
- *   has no file open; the engine kept the file's bytes and password
- *   (`source`), marks itself `stale` and re-opens the file before the next
- *   page request. The failed request reports its error; the next one works.
+ * Talks to the worker on behalf of the UI. Ordering, crash recovery and
+ * re-opening the file after a crash are handled by the shared
+ * {@link SessionWorker}; this class only builds this tool's requests.
  */
 export class ImagesEngine {
-  private client: ImagesWorkerClient | null = null;
-  private source: { data: ArrayBuffer; password: string } | null = null;
-  private stale = false;
-  private disposed = false;
-  private queue: Promise<unknown> = Promise.resolve();
+  private readonly session: SessionWorker<ImagesRequest, ImagesResult>;
 
   /** @param createClient Makes a worker client (one per worker lifetime). */
   constructor(
-    private readonly createClient: () => ImagesWorkerClient = createImagesWorkerClient,
-  ) {}
+    createClient: () => ImagesWorkerClient = createImagesWorkerClient,
+  ) {
+    this.session = new SessionWorker<ImagesRequest, ImagesResult>(
+      createClient,
+      {
+        openRequest: (data, password) => ({ op: "open", data, password }),
+        isOpened: (result) => result.status === "opened",
+        disposedMessage: "The tool was closed.",
+      },
+    );
+  }
 
   /**
    * Open a file. A copy of `data` is transferred to the worker; the
@@ -74,15 +65,7 @@ export class ImagesEngine {
    * @returns The worker's verdict.
    */
   open(data: ArrayBuffer, password = ""): Promise<OpenResult> {
-    return this.enqueue(async () => {
-      const copy = data.slice(0);
-      const result = (await this.send({ op: "open", data: copy, password }, [
-        copy,
-      ])) as OpenResult;
-      this.source = result.status === "opened" ? { data, password } : null;
-      this.stale = false;
-      return result;
-    });
+    return this.session.open(data, password) as Promise<OpenResult>;
   }
 
   /**
@@ -96,15 +79,11 @@ export class ImagesEngine {
     pageIndex: number,
     options: PageRenderOptions,
   ): Promise<RenderPageResult> {
-    return this.enqueue(async () => {
-      const failed = await this.reopenIfStale();
-      if (failed) return failed;
-      return (await this.send({
-        op: "render-page",
-        pageIndex,
-        options,
-      })) as RenderPageResult;
-    });
+    return this.session.request({
+      op: "render-page",
+      pageIndex,
+      options,
+    }) as Promise<RenderPageResult>;
   }
 
   /**
@@ -118,15 +97,11 @@ export class ImagesEngine {
     pageIndex: number,
     knownKeys: readonly string[],
   ): Promise<ExtractImagesResult> {
-    return this.enqueue(async () => {
-      const failed = await this.reopenIfStale();
-      if (failed) return failed;
-      return (await this.send({
-        op: "extract-images",
-        pageIndex,
-        knownKeys: [...knownKeys],
-      })) as ExtractImagesResult;
-    });
+    return this.session.request({
+      op: "extract-images",
+      pageIndex,
+      knownKeys: [...knownKeys],
+    }) as Promise<ExtractImagesResult>;
   }
 
   /**
@@ -135,95 +110,11 @@ export class ImagesEngine {
    * @returns Resolves when the worker has closed it.
    */
   close(): Promise<void> {
-    return this.enqueue(async () => {
-      this.source = null;
-      this.stale = false;
-      if (this.client) await this.send({ op: "close" });
-    });
+    return this.session.close({ op: "close" });
   }
 
   /** Stop the worker for good; later requests resolve with an error. */
   dispose(): void {
-    this.disposed = true;
-    this.source = null;
-    this.client?.terminate();
-    this.client = null;
-  }
-
-  /**
-   * Run `task` after every earlier task has settled. The chain swallows
-   * failures so one never blocks the requests behind it; the caller still
-   * gets the task's own outcome.
-   *
-   * @param task The work.
-   * @returns The task's promise.
-   */
-  private enqueue<T>(task: () => Promise<T>): Promise<T> {
-    const run = this.queue.then(task);
-    this.queue = run.catch(() => {});
-    return run;
-  }
-
-  /**
-   * Send one request, creating the worker on first use. A rejected request
-   * means the worker died; a "crashed" or "out-of-memory" result means its
-   * engine cannot be trusted. Both replace the worker.
-   *
-   * @param payload The request.
-   * @param transfer Buffers to transfer instead of copy.
-   * @returns The worker's result, or a synthetic error.
-   */
-  private async send(
-    payload: ImagesRequest,
-    transfer?: Transferable[],
-  ): Promise<ImagesResult> {
-    if (this.disposed) return DISPOSED;
-    this.client ??= this.createClient();
-    let result: ImagesResult;
-    try {
-      result = await this.client.request(payload, { transfer });
-    } catch (err) {
-      if (this.disposed) return DISPOSED;
-      this.restart();
-      return {
-        status: "error",
-        reason: "crashed",
-        message: `The PDF engine stopped unexpectedly (${errorMessage(err)}). It has been restarted; please try again.`,
-      };
-    }
-    if (result.status === "error" && result.reason !== "failed") this.restart();
-    return result;
-  }
-
-  /** Replace the worker; a file that was open must be re-opened. */
-  private restart(): void {
-    this.client?.terminate();
-    this.client = null;
-    if (this.source) this.stale = true;
-  }
-
-  /**
-   * After a restart, open the kept file again in the new worker.
-   *
-   * @returns null when ready (or nothing to re-open), or the error that
-   *   prevented re-opening (the kept file is then dropped).
-   */
-  private async reopenIfStale(): Promise<ErrorResult | null> {
-    if (!this.stale || !this.source) return null;
-    this.stale = false;
-    const { data, password } = this.source;
-    const copy = data.slice(0);
-    const result = await this.send({ op: "open", data: copy, password }, [
-      copy,
-    ]);
-    if (result.status === "opened") return null;
-    this.source = null;
-    return result.status === "error"
-      ? result
-      : {
-          status: "error",
-          reason: "failed",
-          message: "Could not reopen the PDF. Open it again.",
-        };
+    this.session.dispose();
   }
 }

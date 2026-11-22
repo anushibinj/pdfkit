@@ -8,7 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { downloadBlob } from "@/lib/download";
 import { errorMessage } from "@/lib/errors";
 import { formatBytes } from "@/lib/format";
-import { createStoredZip } from "@/lib/zip/stored-zip";
+import { blobZipEntry, createZip } from "@/lib/zip/zip";
 import { BlobImage } from "./blob-image";
 import { archiveName, outputFileNames } from "./core/file-names";
 import type { OutputFile, RunState } from "./core/run-state";
@@ -112,10 +112,13 @@ export function RunResults({
   const downloadZip = async () => {
     setZipping(true);
     try {
-      const zip = await createStoredZip(
-        files.map((file, i) => ({ name: names[i], data: file.blob })),
-      );
-      downloadBlob(zip, archiveName(baseName, mode));
+      // One file at a time, so only one file's bytes are held while its
+      // checksum is computed; the archive reuses the Blobs themselves.
+      const entries = [];
+      for (const [i, file] of files.entries()) {
+        entries.push(await blobZipEntry(names[i], file.blob));
+      }
+      downloadBlob(createZip(entries, new Date()), archiveName(baseName, mode));
     } catch (err) {
       onError(`Could not create the ZIP: ${errorMessage(err)}`);
     } finally {

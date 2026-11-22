@@ -1,5 +1,6 @@
 import type { WrappedPdfiumModule } from "@embedpdf/pdfium";
-import { loadPdfiumModule, type ModuleImporter } from "@/lib/pdfium/load";
+import type { ModuleImporter } from "@/lib/module-importer";
+import { loadPdfiumModule } from "@/lib/pdfium/load-pdfium";
 import type { ImagesPdfiumApi } from "../engine/pdfium-api";
 
 /**

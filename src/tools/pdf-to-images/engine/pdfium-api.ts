@@ -1,7 +1,7 @@
 /**
  * The slice of the PDFium WebAssembly module (`@embedpdf/pdfium`) that the
  * PDF to Images tool uses: opening and rendering pages (from the shared
- * `PdfiumDocumentApi`), plus walking page objects and reading image
+ * `PdfiumCoreApi`), plus walking page objects and reading image
  * objects. `worker/load-pdfium.ts` checks at compile time that the real
  * module satisfies this interface.
  *
@@ -9,9 +9,9 @@
  * handles and pointers are plain numbers: addresses inside the WebAssembly
  * memory; 0 means "failed" or "none".
  */
-import type { PdfiumDocumentApi } from "@/lib/pdfium/document";
+import type { PdfiumCoreApi } from "@/lib/pdfium/core-api";
 
-export interface ImagesPdfiumApi extends PdfiumDocumentApi {
+export interface ImagesPdfiumApi extends PdfiumCoreApi {
   /** Page objects, in content order. */
   FPDFPage_CountObjects(page: number): number;
   FPDFPage_GetObject(page: number, index: number): number;

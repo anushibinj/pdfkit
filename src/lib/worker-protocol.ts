@@ -58,7 +58,11 @@ export function exposeWorker<Req, Res>(
     };
     handler(payload, ctx).then(
       ({ result, transfer }) => {
-        const msg: WorkerResponse<Res> = { id, type: "result", payload: result };
+        const msg: WorkerResponse<Res> = {
+          id,
+          type: "result",
+          payload: result,
+        };
         scope.postMessage(msg, transfer ?? []);
       },
       (err: unknown) => {

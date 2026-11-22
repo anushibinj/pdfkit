@@ -19,7 +19,8 @@ class FakeWorker implements WorkerLike {
     this.terminated = true;
   }
   reply(msg: WorkerResponse<unknown>) {
-    for (const l of this.messageListeners) l({ data: msg } as MessageEvent<unknown>);
+    for (const l of this.messageListeners)
+      l({ data: msg } as MessageEvent<unknown>);
   }
   crash(message: string) {
     for (const l of this.errorListeners) l({ message } as ErrorEvent);
@@ -47,7 +48,11 @@ describe("WorkerClient", () => {
     const buf = new ArrayBuffer(8);
     const p = client.request({ n: 2 }, { transfer: [buf] });
     expect(worker.sent[0].transfer).toEqual([buf]);
-    worker.reply({ id: worker.sent[0].message.id, type: "result", payload: { doubled: 4 } });
+    worker.reply({
+      id: worker.sent[0].message.id,
+      type: "result",
+      payload: { doubled: 4 },
+    });
     await expect(p).resolves.toEqual({ doubled: 4 });
   });
 
@@ -71,7 +76,10 @@ describe("WorkerClient", () => {
       error: { name: "RangeError", message: "boom" },
     });
     await expect(p).rejects.toBeInstanceOf(WorkerError);
-    await expect(p).rejects.toMatchObject({ name: "RangeError", message: "boom" });
+    await expect(p).rejects.toMatchObject({
+      name: "RangeError",
+      message: "boom",
+    });
   });
 
   it("delivers progress updates before the result", async () => {

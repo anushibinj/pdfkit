@@ -78,7 +78,7 @@ export function InstallButton() {
         {showHint && (
           <p
             role="status"
-            className="absolute right-0 top-full z-50 mt-2 w-64 rounded-lg border bg-popover p-3 text-sm text-popover-foreground shadow-md"
+            className="bg-popover text-popover-foreground absolute top-full right-0 z-50 mt-2 w-64 rounded-lg border p-3 text-sm shadow-md"
           >
             Tap the Share button in Safari, then choose{" "}
             <strong>Add to Home Screen</strong>.
