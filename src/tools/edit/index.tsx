@@ -27,13 +27,13 @@ import type {
 import { addTurns } from "./core/page-geometry";
 import { StandardFontMetricsSource } from "./core/standard-font-metrics";
 import { describeTextOutcome } from "./core/text-edit-notices";
-import { DiscardDialog } from "./discard-dialog";
+import { DiscardDialog } from "@/components/discard-dialog";
 import { EditorToolbar } from "./editor-toolbar";
 import { ObjectProperties } from "./object-properties";
 import { PageView } from "./page-view";
 import { useEditorShortcuts } from "./use-editor-shortcuts";
 import { usePdfEditor } from "./use-pdf-editor";
-import { useUnsavedWarning } from "./use-unsaved-warning";
+import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
 
 /** Larger PDFs are refused: the whole file is held in memory twice. */
 export const MAX_PDF_BYTES = 200 * 1024 * 1024;

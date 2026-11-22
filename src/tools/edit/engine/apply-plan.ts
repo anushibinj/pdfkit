@@ -1,5 +1,5 @@
 import { addTurns } from "../core/page-geometry";
-import { planPageOperations } from "../core/page-order";
+import { planPageOperations } from "@/lib/pdfium/page-order";
 import type { SavePlan } from "../core/save-plan";
 import type { FontMetricsSource } from "../core/text-layout";
 import { PdfiumPageText } from "./page-text";

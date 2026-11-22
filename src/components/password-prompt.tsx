@@ -25,6 +25,12 @@ interface PasswordPromptProps {
   note?: string;
   onSubmit(password: string): void;
   onCancel(): void;
+  /**
+   * Label of the button that gives up on the file; "Cancel" by default. A
+   * tool that opens several files in a row says "Skip this file", since
+   * the other files still open.
+   */
+  cancelLabel?: string;
 }
 
 /**
@@ -43,6 +49,7 @@ export function PasswordPrompt({
   note,
   onSubmit,
   onCancel,
+  cancelLabel = "Cancel",
 }: PasswordPromptProps) {
   const [password, setPassword] = useState("");
   const inputId = useId();
@@ -95,7 +102,7 @@ export function PasswordPrompt({
               className="min-h-11"
               onClick={onCancel}
             >
-              Cancel
+              {cancelLabel}
             </Button>
             <Button
               type="submit"

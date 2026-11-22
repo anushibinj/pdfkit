@@ -20,4 +20,29 @@ describe("DiscardDialog", () => {
     );
     expect(screen.queryByRole("dialog")).toBeNull();
   });
+
+  it("shows custom wording when given", async () => {
+    const user = userEvent.setup();
+    const onDiscard = vi.fn();
+    render(
+      <DiscardDialog
+        open
+        onKeep={vi.fn()}
+        onDiscard={onDiscard}
+        title="Start over?"
+        description="The board has not been downloaded."
+        keepLabel="Keep the board"
+        discardLabel="Start over"
+      />,
+    );
+    expect(screen.getByRole("dialog")).toHaveTextContent("Start over?");
+    expect(screen.getByRole("dialog")).toHaveTextContent(
+      "The board has not been downloaded.",
+    );
+    expect(
+      screen.getByRole("button", { name: "Keep the board" }),
+    ).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Start over" }));
+    expect(onDiscard).toHaveBeenCalled();
+  });
 });

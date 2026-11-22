@@ -117,4 +117,15 @@ describe("tool registry", () => {
     const mod = await getTool("markdown-to-pdf")!.component();
     expect(typeof mod.default).toBe("function");
   });
+
+  it("registers the page organizer as a beta tool", () => {
+    const tool = getTool("organize");
+    expect(tool?.name).toBe("Organize Pages");
+    expect(tool?.beta).toBe(true);
+  });
+
+  it("loads the page organizer component lazily", async () => {
+    const mod = await getTool("organize")!.component();
+    expect(typeof mod.default).toBe("function");
+  });
 });

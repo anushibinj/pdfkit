@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import type { QuarterTurns, TextEdit, TextEditOutcome } from "./core/model";
-import { renderWidthFor } from "./core/render-width";
+import { renderWidthFor } from "@/lib/render-width";
 import type { RenderOptions } from "./editor-engine";
 import type { RenderResult, TextRunsResult } from "./messages";
 import { PageCanvas } from "./page-canvas";

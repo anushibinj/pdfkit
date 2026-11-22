@@ -16,6 +16,13 @@ describe("renderWidthFor", () => {
     expect(renderWidthFor(790, 1)).toBe(renderWidthFor(800, 1));
   });
 
+  it("uses custom limits when given (thumbnails)", () => {
+    const limits = { step: 64, min: 128, max: 768 };
+    expect(renderWidthFor(150, 1, limits)).toBe(192);
+    expect(renderWidthFor(10, 1, limits)).toBe(128);
+    expect(renderWidthFor(600, 2, limits)).toBe(768);
+  });
+
   it("clamps to the allowed range and survives junk ratios", () => {
     expect(renderWidthFor(0, 1)).toBe(MIN_VIEW_RENDER_WIDTH);
     expect(renderWidthFor(5000, 3)).toBe(MAX_VIEW_RENDER_WIDTH);

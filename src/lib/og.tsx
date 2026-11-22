@@ -17,7 +17,10 @@ async function loadFont(weight: 400 | 700 | 800): Promise<ArrayBuffer> {
     `inter-latin-${weight}-normal.woff`,
   );
   const buf = await readFile(file);
-  return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
+  return buf.buffer.slice(
+    buf.byteOffset,
+    buf.byteOffset + buf.byteLength,
+  ) as ArrayBuffer;
 }
 
 type IconNode = [string, Record<string, string>][];
@@ -83,100 +86,98 @@ export async function renderOgCard({ title, tagline, icon }: CardOptions) {
   ]);
   const grid = "rgba(139,148,158,0.10)";
   return new ImageResponse(
-    (
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        padding: 28,
+        background: "#010409",
+        fontFamily: "Inter",
+      }}
+    >
       <div
         style={{
-          width: "100%",
-          height: "100%",
+          flex: 1,
           display: "flex",
-          padding: 28,
-          background: "#010409",
-          fontFamily: "Inter",
+          flexDirection: "column",
+          justifyContent: "space-between",
+          padding: "52px 64px",
+          borderRadius: 28,
+          border: "2px solid #30363d",
+          backgroundColor: "#0d1117",
+          backgroundImage: `radial-gradient(circle at 85% 15%, rgba(56,139,253,0.22), rgba(13,17,23,0) 55%), linear-gradient(${grid} 1px, transparent 1px), linear-gradient(90deg, ${grid} 1px, transparent 1px)`,
+          backgroundSize: "100% 100%, 48px 48px, 48px 48px",
         }}
       >
         <div
           style={{
-            flex: 1,
             display: "flex",
-            flexDirection: "column",
+            alignItems: "center",
             justifyContent: "space-between",
-            padding: "52px 64px",
-            borderRadius: 28,
-            border: "2px solid #30363d",
-            backgroundColor: "#0d1117",
-            backgroundImage: `radial-gradient(circle at 85% 15%, rgba(56,139,253,0.22), rgba(13,17,23,0) 55%), linear-gradient(${grid} 1px, transparent 1px), linear-gradient(90deg, ${grid} 1px, transparent 1px)`,
-            backgroundSize: "100% 100%, 48px 48px, 48px 48px",
           }}
         >
           <div
             style={{
               display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
+              fontSize: 44,
+              fontWeight: 800,
+              color: "#e6edf3",
+              letterSpacing: -1,
             }}
           >
-            <div
-              style={{
-                display: "flex",
-                fontSize: 44,
-                fontWeight: 800,
-                color: "#e6edf3",
-                letterSpacing: -1,
-              }}
-            >
-              pdf<span style={{ color: "#7d8590" }}>kit</span>
-            </div>
-            <div style={{ display: "flex" }}>{renderIcon(icon, 96)}</div>
+            pdf<span style={{ color: "#7d8590" }}>kit</span>
           </div>
+          <div style={{ display: "flex" }}>{renderIcon(icon, 96)}</div>
+        </div>
 
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            <div
-              style={{
-                display: "flex",
-                fontSize: 92,
-                fontWeight: 800,
-                lineHeight: 1.05,
-                color: "#f0f6fc",
-                letterSpacing: -2,
-              }}
-            >
-              {title}
-            </div>
-            <div
-              style={{
-                display: "flex",
-                marginTop: 20,
-                fontSize: 36,
-                color: "#9198a1",
-                maxWidth: 940,
-              }}
-            >
-              {tagline}
-            </div>
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          <div
+            style={{
+              display: "flex",
+              fontSize: 92,
+              fontWeight: 800,
+              lineHeight: 1.05,
+              color: "#f0f6fc",
+              letterSpacing: -2,
+            }}
+          >
+            {title}
           </div>
-
-          <div style={{ display: "flex", gap: 14 }}>
-            {CHIPS.map((chip) => (
-              <div
-                key={chip}
-                style={{
-                  display: "flex",
-                  padding: "10px 22px",
-                  borderRadius: 999,
-                  border: "1.5px solid #3d444d",
-                  backgroundColor: "rgba(110,118,129,0.18)",
-                  color: "#c9d1d9",
-                  fontSize: 26,
-                  fontWeight: 700,
-                }}
-              >
-                {chip}
-              </div>
-            ))}
+          <div
+            style={{
+              display: "flex",
+              marginTop: 20,
+              fontSize: 36,
+              color: "#9198a1",
+              maxWidth: 940,
+            }}
+          >
+            {tagline}
           </div>
         </div>
+
+        <div style={{ display: "flex", gap: 14 }}>
+          {CHIPS.map((chip) => (
+            <div
+              key={chip}
+              style={{
+                display: "flex",
+                padding: "10px 22px",
+                borderRadius: 999,
+                border: "1.5px solid #3d444d",
+                backgroundColor: "rgba(110,118,129,0.18)",
+                color: "#c9d1d9",
+                fontSize: 26,
+                fontWeight: 700,
+              }}
+            >
+              {chip}
+            </div>
+          ))}
+        </div>
       </div>
-    ),
+    </div>,
     {
       ...OG_SIZE,
       fonts: [

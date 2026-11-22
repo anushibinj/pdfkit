@@ -28,8 +28,12 @@ describe("formatBytes", () => {
 
 describe("suffixedPdfName", () => {
   it("adds the suffix before .pdf", () => {
-    expect(suffixedPdfName("report.pdf", "-unlocked")).toBe("report-unlocked.pdf");
-    expect(suffixedPdfName("Report.PDF", "-unlocked")).toBe("Report-unlocked.pdf");
+    expect(suffixedPdfName("report.pdf", "-unlocked")).toBe(
+      "report-unlocked.pdf",
+    );
+    expect(suffixedPdfName("Report.PDF", "-unlocked")).toBe(
+      "Report-unlocked.pdf",
+    );
   });
   it("adds .pdf when missing and handles empty names", () => {
     expect(suffixedPdfName("scan", "-unlocked")).toBe("scan-unlocked.pdf");

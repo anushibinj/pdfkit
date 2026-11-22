@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { boxSize, isQuarterTurns, viewSize, type PageBox } from "./page-box";
+import {
+  addTurns,
+  boxSize,
+  isQuarterTurns,
+  viewSize,
+  type PageBox,
+} from "./page-box";
 
 // A box that does not start at the origin, to catch offset mistakes.
 const box: PageBox = { left: 100, bottom: 50, right: 700, top: 450 }; // 600 x 400
@@ -20,5 +26,17 @@ describe("boxSize and viewSize", () => {
     expect(viewSize(box, 1)).toEqual({ width: 400, height: 600 });
     expect(viewSize(box, 2)).toEqual({ width: 600, height: 400 });
     expect(viewSize(box, 3)).toEqual({ width: 400, height: 600 });
+  });
+});
+
+describe("addTurns", () => {
+  it.each([
+    [0, 1, 1],
+    [3, 1, 0],
+    [0, -1, 3],
+    [1, -3, 2],
+    [2, 6, 0],
+  ])("%d + %d -> %d", (a, b, expected) => {
+    expect(addTurns(a, b)).toBe(expected);
   });
 });

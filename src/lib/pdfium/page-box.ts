@@ -65,3 +65,18 @@ export function viewSize(box: PageBox, turns: QuarterTurns): Size {
   const { width, height } = boxSize(box);
   return turns % 2 === 0 ? { width, height } : { width: height, height: width };
 }
+
+/**
+ * Add two rotations and wrap the result into 0..3.
+ *
+ * `((n % 4) + 4) % 4` instead of `n % 4` because JavaScript's `%` keeps the
+ * sign of the left operand: -1 % 4 is -1, but a quarter turn to the left
+ * must come out as 3 quarter turns to the right.
+ *
+ * @param a A rotation in quarter turns (may be negative).
+ * @param b Another rotation in quarter turns (may be negative).
+ * @returns The combined rotation, 0..3.
+ */
+export function addTurns(a: number, b: number): QuarterTurns {
+  return ((((a + b) % 4) + 4) % 4) as QuarterTurns;
+}

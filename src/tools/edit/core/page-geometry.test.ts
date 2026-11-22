@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { applyToPoint } from "@/lib/affine";
 import { viewSize } from "@/lib/pdfium/page-box";
 import type { PageBox, QuarterTurns } from "./model";
-import { addTurns, userToView, viewToUser } from "./page-geometry";
+import { userToView, viewToUser } from "./page-geometry";
 
 // A box that does not start at the origin, to catch offset mistakes.
 const box: PageBox = { left: 100, bottom: 50, right: 700, top: 450 }; // 600 x 400
@@ -11,18 +11,6 @@ const view = (turns: QuarterTurns, x: number, y: number) => {
   const p = applyToPoint(userToView(box, turns), { x, y });
   return { x: Math.round(p.x * 1000) / 1000, y: Math.round(p.y * 1000) / 1000 };
 };
-
-describe("addTurns", () => {
-  it.each([
-    [0, 1, 1],
-    [3, 1, 0],
-    [0, -1, 3],
-    [1, -3, 2],
-    [2, 6, 0],
-  ])("%d + %d -> %d", (a, b, expected) => {
-    expect(addTurns(a, b)).toBe(expected);
-  });
-});
 
 describe("userToView", () => {
   // The box's top-left corner (as the unrotated page is read) is (100, 450).

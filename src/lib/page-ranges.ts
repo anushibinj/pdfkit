@@ -47,7 +47,10 @@ const ITEM = /^(\d+)?\s*-\s*(\d+)?$|^(\d+)$/;
  * @param pageCount How many pages the PDF has (at least 1).
  * @returns One run per item (0-based), or the first problem found.
  */
-export function parsePageRuns(input: string, pageCount: number): PageRunsResult {
+export function parsePageRuns(
+  input: string,
+  pageCount: number,
+): PageRunsResult {
   const items = input
     .replace(/[–—]/g, "-")
     .split(",")
@@ -66,7 +69,10 @@ export function parsePageRuns(input: string, pageCount: number): PageRunsResult 
     // which may be left out (open-ended).
     const single = m[3] !== undefined ? Number(m[3]) : undefined;
     if (single === undefined && m[1] === undefined && m[2] === undefined) {
-      return { ok: false, error: "“-” needs a page number on at least one side." };
+      return {
+        ok: false,
+        error: "“-” needs a page number on at least one side.",
+      };
     }
     const first = single ?? (m[1] !== undefined ? Number(m[1]) : 1);
     const last = single ?? (m[2] !== undefined ? Number(m[2]) : pageCount);
@@ -118,7 +124,10 @@ export function toPageRuns(indices: readonly number[]): PageRun[] {
  * @param separator Between runs: "," for qpdf (the default), ", " for people.
  * @returns The text ("" for no runs).
  */
-export function formatPageRuns(runs: readonly PageRun[], separator = ","): string {
+export function formatPageRuns(
+  runs: readonly PageRun[],
+  separator = ",",
+): string {
   return runs
     .map(({ first, last }) =>
       first === last ? `${first + 1}` : `${first + 1}-${last + 1}`,

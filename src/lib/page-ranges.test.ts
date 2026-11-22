@@ -13,7 +13,13 @@ describe("parsePageRuns", () => {
     ["1-3", [{ first: 0, last: 2 }]],
     ["8-", [{ first: 7, last: 9 }]],
     ["-3", [{ first: 0, last: 2 }]],
-    [" 1 - 3 , 5 ", [{ first: 0, last: 2 }, { first: 4, last: 4 }]],
+    [
+      " 1 - 3 , 5 ",
+      [
+        { first: 0, last: 2 },
+        { first: 4, last: 4 },
+      ],
+    ],
     ["1–3", [{ first: 0, last: 2 }]],
     ["1—3", [{ first: 0, last: 2 }]],
     ["007", [{ first: 6, last: 6 }]],
@@ -33,9 +39,12 @@ describe("parsePageRuns", () => {
     });
   });
 
-  it.each(["", "   ", ",", "1-3,", ", ,2"])("skips empty items in %j", (text) => {
-    expect(parsePageRuns(text, 10).ok).toBe(true);
-  });
+  it.each(["", "   ", ",", "1-3,", ", ,2"])(
+    "skips empty items in %j",
+    (text) => {
+      expect(parsePageRuns(text, 10).ok).toBe(true);
+    },
+  );
 
   it("gives no runs for blank text", () => {
     expect(parsePageRuns(" , ", 10)).toEqual({ ok: true, runs: [] });
@@ -101,7 +110,10 @@ describe("formatPageRuns", () => {
   });
 
   it("round-trips with parsePageRuns", () => {
-    expect(parsePageRuns(formatPageRuns(runs, ", "), 9)).toEqual({ ok: true, runs });
+    expect(parsePageRuns(formatPageRuns(runs, ", "), 9)).toEqual({
+      ok: true,
+      runs,
+    });
   });
 
   it("is empty for no runs", () => {

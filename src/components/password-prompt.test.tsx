@@ -77,4 +77,21 @@ describe("PasswordPrompt", () => {
       "It is used only on this device. The watermarked file keeps the same password.",
     );
   });
+
+  it("names the cancel button as the tool asks", async () => {
+    const user = userEvent.setup();
+    const onCancel = vi.fn();
+    render(
+      <PasswordPrompt
+        fileName="a.pdf"
+        wrong={false}
+        cancelLabel="Skip this file"
+        onSubmit={vi.fn()}
+        onCancel={onCancel}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Skip this file" }));
+    expect(onCancel).toHaveBeenCalled();
+  });
 });
