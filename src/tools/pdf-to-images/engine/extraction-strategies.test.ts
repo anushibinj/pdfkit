@@ -8,8 +8,13 @@ import {
   ImageTooLargeError,
   MAX_DECODED_PIXELS,
   MaskedRenderStrategy,
+  NativeImageRenderer,
   OriginalJpegStrategy,
+  PROBE_SIZE,
+  RenderedTransparencyProbe,
   assertDecodable,
+  hasClipPath,
+  isOpaque,
   defaultStrategies,
   extractImage,
   readBitmap,
@@ -29,6 +34,7 @@ function image(overrides: Partial<EmbeddedImage> = {}): EmbeddedImage {
     colorspace: COLORSPACE.DEVICE_RGB,
     iccColourSpace: null,
     raw: new Uint8Array([1, 2, 3]),
+    paintColor: null,
     ...overrides,
   };
 }
@@ -85,35 +91,25 @@ describe("readBitmap", () => {
   });
 });
 
-describe("OriginalJpegStrategy", () => {
-  const strategy = new OriginalJpegStrategy();
-  const jpeg = image({ filters: ["DCTDecode"], raw: JPEG_START });
-
-  it("keeps a gray or RGB JPEG's bytes", () => {
-    const { context } = setup();
-    expect(strategy.extract(context(jpeg))).toEqual({
-      method: "original-jpeg",
-      mimeType: "image/jpeg",
-      bytes: JPEG_START,
-    });
+describe("hasClipPath and isOpaque", () => {
+  it("treats -1 paths as no clip and anything else as a clip", () => {
+    const { api } = setup();
+    expect(hasClipPath(api, 50)).toBe(false);
+    api.FPDFClipPath_CountPaths.mockReturnValue(0); // a text clip
+    expect(hasClipPath(api, 50)).toBe(true);
+    api.FPDFClipPath_CountPaths.mockReturnValue(2);
+    expect(hasClipPath(api, 50)).toBe(true);
   });
 
-  it("passes on other images and on streams without a JPEG marker", () => {
-    const { context } = setup();
-    expect(strategy.extract(context(image()))).toBeNull();
-    expect(
-      strategy.extract(
-        context({ ...jpeg, colorspace: COLORSPACE.DEVICE_CMYK }),
-      ),
-    ).toBeNull();
-    expect(
-      strategy.extract(context({ ...jpeg, raw: new Uint8Array([0, 0, 0]) })),
-    ).toBeNull();
+  it("is opaque only when every alpha is 255", () => {
+    expect(isOpaque(new Uint8Array([9, 9, 9, 255, 1, 1, 1, 255]))).toBe(true);
+    expect(isOpaque(new Uint8Array([9, 9, 9, 255, 1, 1, 1, 254]))).toBe(false);
+    expect(isOpaque(new Uint8Array(0))).toBe(true);
   });
 });
 
-describe("MaskedRenderStrategy", () => {
-  it("renders at the native size with opacity reset, then restores the matrix", () => {
+describe("NativeImageRenderer", () => {
+  it("draws at the given size with opacity reset, then restores the matrix", () => {
     const { api, runtime, heap, bitmapPixels, context } = setup();
     const buffer = bitmapPixels();
     const log: string[] = [];
@@ -140,15 +136,12 @@ describe("MaskedRenderStrategy", () => {
       log.push(`destroy ${b}`);
     });
 
-    const result = new MaskedRenderStrategy(api, heap).extract(context());
+    const pixels = new NativeImageRenderer(api, heap).render(context(), 2, 1);
 
-    expect(result).toEqual({
-      method: "decoded-with-alpha",
-      pixels: {
-        width: 2,
-        height: 1,
-        pixels: new Uint8Array([1, 2, 3, 255, 10, 20, 30, 128]),
-      },
+    expect(pixels).toEqual({
+      width: 2,
+      height: 1,
+      pixels: new Uint8Array([1, 2, 3, 255, 10, 20, 30, 128]),
     });
     expect(log).toEqual([
       "matrix 2,0,0,1,0,0",
@@ -170,7 +163,7 @@ describe("MaskedRenderStrategy", () => {
       );
       return true;
     });
-    new MaskedRenderStrategy(api, heap).extract(context());
+    new NativeImageRenderer(api, heap).render(context(), 2, 1);
     expect(api.FPDFPageObj_SetFillColor).toHaveBeenCalledWith(
       50,
       200,
@@ -181,36 +174,154 @@ describe("MaskedRenderStrategy", () => {
     heap.free(buffer);
   });
 
-  it.each([0, 1, 3])(
-    "passes on an image with a clip path (%i paths)",
-    (paths) => {
-      const { api, heap, context } = setup();
-      api.FPDFClipPath_CountPaths.mockReturnValue(paths);
-      expect(new MaskedRenderStrategy(api, heap).extract(context())).toBeNull();
-      expect(api.FPDFPageObj_SetMatrix).not.toHaveBeenCalled();
-      expect(api.FPDFImageObj_GetRenderedBitmap).not.toHaveBeenCalled();
-    },
-  );
-
-  it("passes on when the matrix cannot be read, or nothing is rendered", () => {
+  it("returns null when the matrix cannot be read, or nothing is drawn", () => {
     const { api, runtime, heap, context } = setup();
+    const renderer = new NativeImageRenderer(api, heap);
     api.FPDFPageObj_GetMatrix.mockReturnValueOnce(false);
-    expect(new MaskedRenderStrategy(api, heap).extract(context())).toBeNull();
+    expect(renderer.render(context(), 2, 1)).toBeNull();
     expect(api.FPDFPageObj_SetMatrix).not.toHaveBeenCalled();
 
     api.FPDFImageObj_GetRenderedBitmap.mockReturnValue(0);
-    expect(new MaskedRenderStrategy(api, heap).extract(context())).toBeNull();
-    // set to native, then restored
+    expect(renderer.render(context(), 2, 1)).toBeNull();
+    // set to the target size, then restored
     expect(api.FPDFPageObj_SetMatrix).toHaveBeenCalledTimes(2);
     expect(api.FPDFBitmap_Destroy).not.toHaveBeenCalled();
     expect(runtime.leaks()).toEqual([]);
   });
+});
 
-  it("refuses images too large to decode", () => {
-    const { api, heap, context } = setup();
+/** A renderer stand-in answering with fixed pixels (or null). */
+function fakeRenderer(pixels: Uint8Array | null) {
+  return {
+    render: vi.fn((_c: ExtractionContext, width: number, height: number) =>
+      pixels ? { width, height, pixels } : null,
+    ),
+  };
+}
+
+describe("RenderedTransparencyProbe", () => {
+  const opaque = new Uint8Array([1, 2, 3, 255]);
+  const transparent = new Uint8Array([1, 2, 3, 255, 1, 2, 3, 0]);
+
+  it("draws the image at most PROBE_SIZE pixels long, keeping its shape", () => {
+    const { api, context } = setup();
+    const renderer = fakeRenderer(opaque);
+    const probe = new RenderedTransparencyProbe(renderer, api);
+    probe.hasTransparency(context(image({ width: 4000, height: 3000 })));
+    expect(renderer.render.mock.calls[0].slice(1)).toEqual([PROBE_SIZE, 384]);
+    probe.hasTransparency(context(image({ width: 100, height: 50 })));
+    expect(renderer.render.mock.calls[1].slice(1)).toEqual([100, 50]);
+    probe.hasTransparency(context(image({ width: 1, height: 9000 })));
+    expect(renderer.render.mock.calls[2].slice(1)).toEqual([1, PROBE_SIZE]);
+  });
+
+  it("reports transparency only when some alpha is below 255", () => {
+    const { api, context } = setup();
+    expect(
+      new RenderedTransparencyProbe(fakeRenderer(opaque), api).hasTransparency(
+        context(),
+      ),
+    ).toBe(false);
+    expect(
+      new RenderedTransparencyProbe(
+        fakeRenderer(transparent),
+        api,
+      ).hasTransparency(context()),
+    ).toBe(true);
+    expect(
+      new RenderedTransparencyProbe(fakeRenderer(null), api).hasTransparency(
+        context(),
+      ),
+    ).toBe(false);
+  });
+
+  it("cannot tell for clipped images or images too large to decode", () => {
+    const { api, context } = setup();
+    const renderer = fakeRenderer(transparent);
+    const probe = new RenderedTransparencyProbe(renderer, api);
+    expect(
+      probe.hasTransparency(context(image({ width: 10_000, height: 10_000 }))),
+    ).toBe(false);
+    api.FPDFClipPath_CountPaths.mockReturnValue(1);
+    expect(probe.hasTransparency(context())).toBe(false);
+    expect(renderer.render).not.toHaveBeenCalled();
+  });
+});
+
+describe("OriginalJpegStrategy", () => {
+  const jpeg = image({ filters: ["DCTDecode"], raw: JPEG_START });
+  const probe = (transparent: boolean) => ({
+    hasTransparency: vi.fn(() => transparent),
+  });
+
+  it("keeps an opaque gray or RGB JPEG's bytes", () => {
+    const { context } = setup();
+    const opaque = probe(false);
+    expect(new OriginalJpegStrategy(opaque).extract(context(jpeg))).toEqual({
+      method: "original-jpeg",
+      mimeType: "image/jpeg",
+      bytes: JPEG_START,
+    });
+    expect(opaque.hasTransparency).toHaveBeenCalledWith(context(jpeg));
+  });
+
+  it("leaves a JPEG with transparency to the next strategy", () => {
+    const { context } = setup();
+    expect(
+      new OriginalJpegStrategy(probe(true)).extract(context(jpeg)),
+    ).toBeNull();
+  });
+
+  it("passes on other images and on streams without a JPEG marker, without probing", () => {
+    const { context } = setup();
+    const unused = probe(false);
+    const strategy = new OriginalJpegStrategy(unused);
+    expect(strategy.extract(context(image()))).toBeNull();
+    expect(
+      strategy.extract(
+        context({ ...jpeg, colorspace: COLORSPACE.DEVICE_CMYK }),
+      ),
+    ).toBeNull();
+    expect(
+      strategy.extract(context({ ...jpeg, raw: new Uint8Array([0, 0, 0]) })),
+    ).toBeNull();
+    expect(unused.hasTransparency).not.toHaveBeenCalled();
+  });
+});
+
+describe("MaskedRenderStrategy", () => {
+  it("draws the image at its own pixel size", () => {
+    const { api, context } = setup();
+    const renderer = fakeRenderer(new Uint8Array(8));
+    const result = new MaskedRenderStrategy(renderer, api).extract(context());
+    expect(renderer.render).toHaveBeenCalledWith(context(), 2, 1);
+    expect(result).toMatchObject({
+      method: "decoded-with-alpha",
+      pixels: { width: 2, height: 1 },
+    });
+  });
+
+  it.each([0, 1, 3])(
+    "passes on an image with a clip path (%i paths)",
+    (paths) => {
+      const { api, context } = setup();
+      api.FPDFClipPath_CountPaths.mockReturnValue(paths);
+      const renderer = fakeRenderer(new Uint8Array(8));
+      expect(
+        new MaskedRenderStrategy(renderer, api).extract(context()),
+      ).toBeNull();
+      expect(renderer.render).not.toHaveBeenCalled();
+    },
+  );
+
+  it("passes on when nothing is drawn, and refuses images too large to decode", () => {
+    const { api, context } = setup();
+    expect(
+      new MaskedRenderStrategy(fakeRenderer(null), api).extract(context()),
+    ).toBeNull();
     const big = image({ width: 10_000, height: 10_000 });
     expect(() =>
-      new MaskedRenderStrategy(api, heap).extract(context(big)),
+      new MaskedRenderStrategy(fakeRenderer(null), api).extract(context(big)),
     ).toThrow(ImageTooLargeError);
   });
 });

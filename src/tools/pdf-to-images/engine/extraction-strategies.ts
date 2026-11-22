@@ -4,7 +4,8 @@
  * null to let the next one try. The default chain, best first:
  *
  * 1. {@link OriginalJpegStrategy}: the stream already is a JPEG showing the
- *    right colours; keep its bytes (original quality, original size).
+ *    right colours and the image has no transparency; keep its bytes
+ *    (original quality, original size).
  * 2. {@link MaskedRenderStrategy}: decode at the image's own pixel size with
  *    its transparency (soft mask, stencil, colour key) applied.
  * 3. {@link DecodedBitmapStrategy}: decode at the image's own pixel size,
@@ -115,35 +116,48 @@ export function readBitmap(api: ImagesPdfiumApi, bitmap: number): RgbaImage {
 }
 
 /**
- * Keep a JPEG stream as it is.
+ * Whether an image object is drawn through a clip path.
  *
- * Applies when {@link canKeepOriginalJpeg} says the colours are right and
- * the bytes start with a JPEG's start-of-image marker (FF D8). The marker
- * check guards against damaged streams: PDFium may still decode them, a
- * browser would not open them.
+ * `FPDFClipPath_CountPaths` answers -1 when the object has no clip at all.
+ * PDFium drops a single rectangular clip that contains the object while
+ * parsing (cpdf_contentparser.cpp), so a remaining clip usually cuts the
+ * image.
+ *
+ * @param api The PDFium module.
+ * @param object The image object.
+ * @returns `true` when a clip applies.
  */
-export class OriginalJpegStrategy implements ImageExtractionStrategy {
-  /** @inheritDoc */
-  extract({ image }: ExtractionContext): ExtractedImage | null {
-    const { raw } = image;
-    if (!canKeepOriginalJpeg(image) || raw[0] !== 0xff || raw[1] !== 0xd8) {
-      return null;
-    }
-    return { method: "original-jpeg", mimeType: "image/jpeg", bytes: raw };
-  }
+export function hasClipPath(api: ImagesPdfiumApi, object: number): boolean {
+  return (
+    api.FPDFClipPath_CountPaths(api.FPDFPageObj_GetClipPath(object)) !== -1
+  );
 }
 
 /**
- * Decode an image at its own pixel size with its transparency.
+ * Whether every pixel of an RGBA image is fully opaque.
  *
- * `FPDFImageObj_GetRenderedBitmap` draws the image the way the page does,
- * mask included, into a bitmap as large as the image's matrix makes it on
- * the page (in points, not pixels). The trick, step by step:
+ * @param pixels RGBA bytes.
+ * @returns `false` as soon as one alpha is below 255.
+ */
+export function isOpaque(pixels: Uint8Array): boolean {
+  for (let i = 3; i < pixels.length; i += 4) {
+    if (pixels[i] !== 255) return false;
+  }
+  return true;
+}
+
+/**
+ * Draws an image object on its own, at any size, with its transparency.
+ *
+ * `FPDFImageObj_GetRenderedBitmap` draws the image the way the page does
+ * (soft mask, stencil, colour key and clip applied) into a bitmap as large
+ * as the image's matrix makes it on the page, in points. The trick, step by
+ * step:
  * 1. Save the image's matrix and replace it with [width, 0, 0, height, 0, 0]:
- *    the image then covers exactly width x height units, one per pixel, so
- *    the bitmap has the image's own size and every pixel maps 1:1 (no
- *    resampling; rotation and flips on the page are dropped, like any
- *    image extractor does).
+ *    the image then covers exactly width x height units, so the bitmap has
+ *    that size. At the image's own pixel size every pixel maps 1:1 (no
+ *    resampling); at a smaller size PDFium averages, alpha included.
+ *    Rotation and flips on the page are dropped, like any extractor does.
  * 2. Set the fill alpha (`ca`) to 1 with `FPDFPageObj_SetFillColor`, so an
  *    image drawn half-transparent comes out with its own alpha. The fill
  *    colour is read first and kept, because a stencil mask is painted in it.
@@ -151,15 +165,10 @@ export class OriginalJpegStrategy implements ImageExtractionStrategy {
  * The changes only live in the loaded page, which is closed without being
  * saved, so the document is never modified.
  *
- * Measured with the real engine: the render applies the image's soft mask
- * and its clip path, and ignores blend modes. So it is skipped when the
- * image has a clip path (the clip would cut away parts of the image); the
- * next strategy then decodes it whole, without transparency. PDFium itself
- * drops a rectangular clip that contains the image while parsing, so this
- * only happens for images that really are cropped. A null bitmap (for
- * example an image in a hidden layer) also passes to the next strategy.
+ * Measured with the real engine: the render applies the image's mask and
+ * its clip path, and ignores blend modes. Callers skip clipped images.
  */
-export class MaskedRenderStrategy implements ImageExtractionStrategy {
+export class NativeImageRenderer {
   /**
    * @param api The PDFium module.
    * @param heap Memory helper for that module.
@@ -169,17 +178,26 @@ export class MaskedRenderStrategy implements ImageExtractionStrategy {
     private readonly heap: WasmHeap,
   ) {}
 
-  /** @inheritDoc */
-  extract({ doc, page, image }: ExtractionContext): ExtractedImage | null {
-    const { object, width, height } = image;
-    const clip = this.api.FPDFPageObj_GetClipPath(object);
-    if (this.api.FPDFClipPath_CountPaths(clip) !== -1) return null;
-    assertDecodable(image);
+  /**
+   * Draw the image at `width` x `height` pixels.
+   *
+   * @param context The image and where it lives.
+   * @param width Output width in pixels.
+   * @param height Output height in pixels.
+   * @returns The pixels, or null when PDFium draws nothing (for example an
+   *   image in a hidden layer) or the matrix cannot be read.
+   */
+  render(
+    { doc, page, image }: ExtractionContext,
+    width: number,
+    height: number,
+  ): RgbaImage | null {
+    const { object } = image;
     return this.heap.using(this.heap.alloc(24), (original) => {
       if (!this.api.FPDFPageObj_GetMatrix(object, original)) return null;
-      const native = this.heap.floats([width, 0, 0, height, 0, 0]);
+      const target = this.heap.floats([width, 0, 0, height, 0, 0]);
       try {
-        this.heap.using(native, (m) =>
+        this.heap.using(target, (m) =>
           this.api.FPDFPageObj_SetMatrix(object, m),
         );
         this.neutraliseOpacity(object);
@@ -190,10 +208,7 @@ export class MaskedRenderStrategy implements ImageExtractionStrategy {
         );
         if (!bitmap) return null;
         try {
-          return {
-            method: "decoded-with-alpha",
-            pixels: readBitmap(this.api, bitmap),
-          };
+          return readBitmap(this.api, bitmap);
         } finally {
           this.api.FPDFBitmap_Destroy(bitmap);
         }
@@ -222,6 +237,110 @@ export class MaskedRenderStrategy implements ImageExtractionStrategy {
   }
 }
 
+/** Tells whether an image has transparency, before it is extracted. */
+export interface TransparencyProbe {
+  /**
+   * @param context The image.
+   * @returns `true` when some of it is transparent; `false` when it is
+   *   opaque or that cannot be told.
+   */
+  hasTransparency(context: ExtractionContext): boolean;
+}
+
+/** Longest side of the probe render, in pixels. */
+export const PROBE_SIZE = 512;
+
+/**
+ * Finds transparency by drawing the image small.
+ *
+ * PDFium's public API cannot say whether an image has a soft mask, so the
+ * image is drawn with its mask at most {@link PROBE_SIZE} pixels on its
+ * longest side and its alpha is checked. Measured on the real engine:
+ * downscaling averages alpha, so even one transparent pixel of a
+ * 4000 x 3000 image shows (alpha 250 at 512 pixels), and the probe costs
+ * about a third of a full decode (decoding dominates).
+ *
+ * It answers "cannot tell" (false) when drawing would not show the mask
+ * alone: for a clipped image (the clip would look like transparency) and
+ * for an image too large to decode; the image is then kept as it is.
+ */
+export class RenderedTransparencyProbe implements TransparencyProbe {
+  /** @param renderer Draws images (see {@link NativeImageRenderer}). */
+  constructor(
+    private readonly renderer: Pick<NativeImageRenderer, "render">,
+    private readonly api: ImagesPdfiumApi,
+  ) {}
+
+  /** @inheritDoc */
+  hasTransparency(context: ExtractionContext): boolean {
+    const { image } = context;
+    if (hasClipPath(this.api, image.object)) return false;
+    if (image.width * image.height > MAX_DECODED_PIXELS) return false;
+    const scale = Math.min(1, PROBE_SIZE / Math.max(image.width, image.height));
+    const probe = this.renderer.render(
+      context,
+      Math.max(1, Math.round(image.width * scale)),
+      Math.max(1, Math.round(image.height * scale)),
+    );
+    return probe !== null && !isOpaque(probe.pixels);
+  }
+}
+
+/**
+ * Keep a JPEG stream as it is.
+ *
+ * Applies when {@link canKeepOriginalJpeg} says the colours are right, the
+ * bytes start with a JPEG's start-of-image marker (FF D8; PDFium may still
+ * decode a damaged stream that a browser would not open), and the image has
+ * no transparency. A JPEG cannot hold alpha, so a photo with a soft mask is
+ * left to {@link MaskedRenderStrategy}, which saves it as a PNG with its
+ * transparency.
+ */
+export class OriginalJpegStrategy implements ImageExtractionStrategy {
+  /** @param probe Finds images with transparency. */
+  constructor(private readonly probe: TransparencyProbe) {}
+
+  /** @inheritDoc */
+  extract(context: ExtractionContext): ExtractedImage | null {
+    const { image } = context;
+    const { raw } = image;
+    if (!canKeepOriginalJpeg(image) || raw[0] !== 0xff || raw[1] !== 0xd8) {
+      return null;
+    }
+    if (this.probe.hasTransparency(context)) return null;
+    return { method: "original-jpeg", mimeType: "image/jpeg", bytes: raw };
+  }
+}
+
+/**
+ * Decode an image at its own pixel size with its transparency, by drawing
+ * it with {@link NativeImageRenderer} at that size.
+ *
+ * Skipped for images with a clip path (the clip would cut away parts of
+ * the image); the next strategy then decodes them whole, without
+ * transparency. A null drawing (an image in a hidden layer) also passes to
+ * the next strategy.
+ */
+export class MaskedRenderStrategy implements ImageExtractionStrategy {
+  /**
+   * @param renderer Draws images.
+   * @param api The PDFium module.
+   */
+  constructor(
+    private readonly renderer: Pick<NativeImageRenderer, "render">,
+    private readonly api: ImagesPdfiumApi,
+  ) {}
+
+  /** @inheritDoc */
+  extract(context: ExtractionContext): ExtractedImage | null {
+    const { image } = context;
+    if (hasClipPath(this.api, image.object)) return null;
+    assertDecodable(image);
+    const pixels = this.renderer.render(context, image.width, image.height);
+    return pixels ? { method: "decoded-with-alpha", pixels } : null;
+  }
+}
+
 /**
  * Decode an image at its own pixel size, without transparency, with
  * `FPDFImageObj_GetBitmap` (colour space and decode arrays applied; mask
@@ -246,7 +365,7 @@ export class DecodedBitmapStrategy implements ImageExtractionStrategy {
 }
 
 /**
- * The default chain, best result first.
+ * The default chain, best result first, sharing one renderer.
  *
  * @param api The PDFium module.
  * @param heap Memory helper for that module.
@@ -256,9 +375,10 @@ export function defaultStrategies(
   api: ImagesPdfiumApi,
   heap: WasmHeap,
 ): ImageExtractionStrategy[] {
+  const renderer = new NativeImageRenderer(api, heap);
   return [
-    new OriginalJpegStrategy(),
-    new MaskedRenderStrategy(api, heap),
+    new OriginalJpegStrategy(new RenderedTransparencyProbe(renderer, api)),
+    new MaskedRenderStrategy(renderer, api),
     new DecodedBitmapStrategy(api),
   ];
 }

@@ -69,7 +69,7 @@ export type RunState =
       mode: ConversionMode;
       files: OutputFile[];
       skipped: SkippedImage[];
-      /** The user stopped the run before every page was processed. */
+      /** A stop request ended the run before every page was processed. */
       stopped: boolean;
     }
   | {
@@ -85,7 +85,8 @@ export type RunAction =
   | { type: "page-rendered"; file: OutputFile }
   | { type: "images-found"; findings: PageImageFindings }
   | { type: "stop-requested" }
-  | { type: "finish" }
+  /** The run ended; `stopped` when a stop request left pages undone. */
+  | { type: "finish"; stopped: boolean }
   | { type: "fail"; message: string }
   | { type: "reset" };
 
@@ -127,7 +128,8 @@ export function recordRepeats(
  * - Progress ("page-rendered", "images-found"), "stop-requested", "finish"
  *   and "fail" only apply while running. A late answer from a run that was
  *   reset must not change what the user sees now.
- * - "finish" records whether the user stopped the run early.
+ * - "finish" records whether a stop request left pages undone. Pressing
+ *   Stop during the last page does not count: every page was processed.
  * - "fail" keeps the files produced so far: they are still valid.
  * Unchanged state is returned as the same object, so React can skip a
  * render.
@@ -177,7 +179,7 @@ export function runReducer(state: RunState, action: RunAction): RunState {
         mode: state.mode,
         files: state.files,
         skipped: state.skipped,
-        stopped: state.stopping,
+        stopped: action.stopped,
       };
     case "fail":
       return {

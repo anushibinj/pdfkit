@@ -109,6 +109,17 @@ describe("PdfiumImageInspector", () => {
     expect(runtime.leaks()).toEqual([]);
   });
 
+  it("paintColor reads an image mask's fill colour, and null otherwise", () => {
+    const { api, runtime, inspector } = setup();
+    expect(inspector.paintColor(7)).toBeNull();
+    api.FPDFPageObj_GetFillColor.mockImplementation((_o, r, g, b, a) => {
+      [255, 0, 10, 128].forEach((v, i) => runtime.setValue([r, g, b, a][i], v));
+      return true;
+    });
+    expect(inspector.paintColor(7)).toBe("255,0,10");
+    expect(runtime.leaks()).toEqual([]);
+  });
+
   it("inspect combines everything and reads ICC only for ICCBased images", () => {
     const { api, runtime, inspector } = setup();
     api.FPDFImageObj_GetImagePixelSize.mockImplementation((_o, w, h) => {
@@ -128,6 +139,7 @@ describe("PdfiumImageInspector", () => {
       colorspace: COLORSPACE.DEVICE_RGB,
       iccColourSpace: null,
       raw: new Uint8Array(0),
+      paintColor: null,
     });
     expect(api.FPDFImageObj_GetIccProfileDataDecoded).not.toHaveBeenCalled();
 

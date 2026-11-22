@@ -32,14 +32,15 @@ export default function PdfToImagesTool() {
 
   const openFiles = (files: File[]) => {
     const [file] = files;
-    if (files.length > 1) {
-      toast.info(`Opened ${file.name}. One PDF at a time.`);
-    }
     if (file.size > MAX_PDF_BYTES) {
       toast.error(
         `${file.name} is over ${formatBytes(MAX_PDF_BYTES)}. Try a smaller file.`,
       );
       return;
+    }
+    // Said only once the file is really being opened.
+    if (files.length > 1) {
+      toast.info(`Opened ${file.name}. One PDF at a time.`);
     }
     // A page selection belongs to the previous file's pages.
     setSettings((current) => ({ ...current, pages: "" }));

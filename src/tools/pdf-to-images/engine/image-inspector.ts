@@ -15,6 +15,8 @@ export interface EmbeddedImage extends ImageEncodingInfo {
   height: number;
   /** The stream's bytes before any filter is applied. */
   raw: Uint8Array;
+  /** For image masks, the colour they are painted in ("r,g,b"); else null. */
+  paintColor: string | null;
 }
 
 /**
@@ -54,7 +56,26 @@ export class PdfiumImageInspector {
           ? this.iccColourSpace(page, object)
           : null,
       raw: this.rawData(object),
+      paintColor: this.paintColor(object),
     };
+  }
+
+  /**
+   * The colour an image mask is painted in.
+   *
+   * Only image masks (stencils) carry a fill colour in PDFium, so
+   * `FPDFPageObj_GetFillColor` fails for every other image. The alpha is
+   * left out: the extraction draws masks opaque.
+   *
+   * @param object The image object.
+   * @returns "r,g,b" for an image mask, null for other images.
+   */
+  paintColor(object: number): string | null {
+    return this.heap.using(this.heap.alloc(16), (ptr) =>
+      this.api.FPDFPageObj_GetFillColor(object, ptr, ptr + 4, ptr + 8, ptr + 12)
+        ? this.heap.readInts(ptr, 3).join(",")
+        : null,
+    );
   }
 
   /**

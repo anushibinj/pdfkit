@@ -19,7 +19,7 @@
  * end record.
  *
  * ZIP64 is not written: an archive is refused (with {@link ZipLimitError})
- * if it would need it, i.e. more than 65,535 entries or any size or offset
+ * if it would need it, i.e. more than 65,534 entries or any size or offset
  * of 4 GiB or more. In-browser outputs stay far below that.
  */
 import { crc32 } from "@/lib/crc32";
@@ -57,8 +57,14 @@ const UTF8_NAMES = 0x0800;
 const STORED = 0;
 /** Largest value a 32-bit field can hold; 0xFFFFFFFF itself means "ZIP64". */
 const MAX_32 = 0xfffffffe;
-/** Largest entry count and name length a 16-bit field can hold. */
-const MAX_16 = 0xffff;
+/**
+ * Most entries an archive without ZIP64 can list. The count is a 16-bit
+ * field, but 0xFFFF there means "see the ZIP64 record" (APPNOTE 4.4.1.4),
+ * which this writer never writes, so the largest usable count is 0xFFFE.
+ */
+const MAX_ENTRIES = 0xfffe;
+/** Longest file name in bytes (a 16-bit field with no special values). */
+const MAX_NAME_BYTES = 0xffff;
 
 /** An MS-DOS date and time, the timestamp format of ZIP headers. */
 export interface DosDateTime {
@@ -268,7 +274,7 @@ export async function createStoredZip(
   entries: readonly ZipEntry[],
   modified: Date = new Date(),
 ): Promise<Blob> {
-  if (entries.length > MAX_16) {
+  if (entries.length > MAX_ENTRIES) {
     throw new ZipLimitError(`Too many files for one ZIP (${entries.length}).`);
   }
   const encoder = new TextEncoder();
@@ -277,7 +283,7 @@ export async function createStoredZip(
     checkEntryName(name);
     if (seen.has(name)) throw new Error(`Duplicate file name: ${name}`);
     seen.add(name);
-    if (encoder.encode(name).length > MAX_16) {
+    if (encoder.encode(name).length > MAX_NAME_BYTES) {
       throw new ZipLimitError(`File name too long: ${name.slice(0, 40)}…`);
     }
   }

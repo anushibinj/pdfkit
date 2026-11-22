@@ -172,10 +172,12 @@ describe("PdfToImagesTool", () => {
     expect(toast.error).toHaveBeenCalledWith(
       expect.stringMatching(/photo\.png/),
     );
-    await choose(pdf("huge.pdf", MAX_PDF_BYTES + 1));
+    // An oversized first file of several is refused, never "opened".
+    await choose(pdf("huge.pdf", MAX_PDF_BYTES + 1), pdf("small.pdf"));
     expect(toast.error).toHaveBeenCalledWith(
       expect.stringMatching(/huge\.pdf is over/),
     );
+    expect(toast.info).not.toHaveBeenCalled();
     expect(engine.open).not.toHaveBeenCalled();
     await choose(pdf("one.pdf"), pdf("two.pdf"));
     expect(toast.info).toHaveBeenCalledWith(

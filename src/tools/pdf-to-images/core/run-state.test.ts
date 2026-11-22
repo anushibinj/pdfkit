@@ -95,20 +95,25 @@ describe("runReducer", () => {
     expect(state.skipped).toHaveLength(1);
   });
 
-  it("records a stop request once and finishes as stopped", () => {
+  it("records a stop request once, for the progress message", () => {
     const stopping = runReducer(running(), { type: "stop-requested" });
     expect(stopping).toMatchObject({ stopping: true });
     expect(runReducer(stopping, { type: "stop-requested" })).toBe(stopping);
-    expect(runReducer(stopping, { type: "finish" })).toEqual({
+  });
+
+  it("finishes as stopped only when the run says pages were left", () => {
+    const stopping = runReducer(running(), { type: "stop-requested" });
+    expect(runReducer(stopping, { type: "finish", stopped: true })).toEqual({
       kind: "finished",
       mode: "images",
       files: [],
       skipped: [],
       stopped: true,
     });
-    expect(runReducer(running(), { type: "finish" })).toMatchObject({
-      stopped: false,
-    });
+    // Stop pressed during the last page: every page was processed.
+    expect(
+      runReducer(stopping, { type: "finish", stopped: false }),
+    ).toMatchObject({ stopped: false });
   });
 
   it("fails keeping the files produced so far", () => {
@@ -130,9 +135,9 @@ describe("runReducer", () => {
     expect(runReducer(idle, { type: "page-rendered", file: file("x") })).toBe(
       idle,
     );
-    expect(runReducer(idle, { type: "finish" })).toBe(idle);
+    expect(runReducer(idle, { type: "finish", stopped: false })).toBe(idle);
     expect(runReducer(idle, { type: "reset" })).toBe(idle);
-    const finished = runReducer(running(), { type: "finish" });
+    const finished = runReducer(running(), { type: "finish", stopped: false });
     expect(runReducer(finished, { type: "fail", message: "late" })).toBe(
       finished,
     );

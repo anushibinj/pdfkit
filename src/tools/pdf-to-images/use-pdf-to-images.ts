@@ -178,7 +178,7 @@ export function usePdfToImages(
       runningRef.current = false;
       dispatchRun(
         outcome.ok
-          ? { type: "finish" }
+          ? { type: "finish", stopped: outcome.stopped }
           : { type: "fail", message: outcome.message },
       );
     },

@@ -210,7 +210,8 @@ describe("createStoredZip", () => {
 
   it("refuses archives that would need ZIP64", async () => {
     const data = new Blob(["x"]);
-    const many = Array.from({ length: 65536 }, (_, i) => ({
+    // 0xFFFF entries: that count would read as "ZIP64" in the end record.
+    const many = Array.from({ length: 0xffff }, (_, i) => ({
       name: `${i}.png`,
       data,
     }));

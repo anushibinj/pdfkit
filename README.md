@@ -37,11 +37,13 @@ Currently shipped tools:
   fit), or extracts the images embedded in
   the PDF at their own pixel size, using the same PDFium build as the PDF
   Editor. JPEG photos are saved as their original bytes (no re-encoding)
-  when their colours are gray or RGB; every other image is decoded and saved
-  as a lossless PNG with its transparency. An image used on many pages is
+  when their colours are gray or RGB and they have no transparency; every
+  other image, a JPEG with a soft mask included, is decoded and saved as a
+  lossless PNG with its transparency. An image used on many pages is
   extracted once. Files download one by one or as a ZIP. Images cropped by
-  a clip path come out whole but without transparency, and images inside
-  annotations or patterns are not extracted.
+  a clip path come out whole but without transparency, images inside
+  annotations or patterns are not extracted, and a gray or RGB JPEG stored
+  with an inverting /Decode array (rare) is kept as stored.
 
 Built with Next.js (App Router, static export), TypeScript (strict), Tailwind
 CSS, shadcn/ui, next-themes and Vitest. It is an installable, offline-capable PWA.

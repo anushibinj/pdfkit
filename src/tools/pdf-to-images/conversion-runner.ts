@@ -32,8 +32,12 @@ export interface RunHandlers {
   shouldStop(): boolean;
 }
 
-/** How a run ended. */
-export type RunOutcome = { ok: true } | { ok: false; message: string };
+/**
+ * How a run ended. `stopped` is true only when a stop request ended it
+ * with pages left; a stop pressed during the last page changes nothing.
+ */
+export type RunOutcome =
+  { ok: true; stopped: boolean } | { ok: false; message: string };
 
 /**
  * Turn a rendered page into an output file.
@@ -119,7 +123,8 @@ export function imageFindings(
  * @param pages Zero-based indices, in order.
  * @param options Render options (pages mode).
  * @param handlers Progress callbacks and the stop check.
- * @returns Whether the run completed (or was stopped) or failed, and why.
+ * @returns Whether the run completed, was stopped with pages left, or
+ *   failed, and why.
  */
 export async function runConversion(
   engine: ConversionEngine,
@@ -130,7 +135,7 @@ export async function runConversion(
 ): Promise<RunOutcome> {
   const known = new Set<string>();
   for (const pageIndex of pages) {
-    if (handlers.shouldStop()) break;
+    if (handlers.shouldStop()) return { ok: true, stopped: true };
     if (mode === "pages") {
       const result = await engine.renderPage(pageIndex, options);
       if (result.status === "error") {
@@ -154,5 +159,5 @@ export async function runConversion(
       handlers.onImages(findings);
     }
   }
-  return { ok: true };
+  return { ok: true, stopped: false };
 }

@@ -248,6 +248,31 @@ describe("ImagesSession.extractImages", () => {
     expect(strategy.extract).toHaveBeenCalledTimes(2);
   });
 
+  it("never takes images without raw bytes for repeats", async () => {
+    const { api, runtime, strategy, session } = setup(() => pixels);
+    givenImages(api, runtime, [[], []]);
+    session.open(new Uint8Array(1), "");
+    const entries = await session.extractImages(0, []);
+    expect(entries.map((e) => e.kind)).toEqual(["image", "image"]);
+    expect(entries[0].key).not.toBe(entries[1].key);
+    expect(strategy.extract).toHaveBeenCalledTimes(2);
+  });
+
+  it("tells image masks painted in different colours apart", async () => {
+    const { api, runtime, strategy, session } = setup(() => pixels);
+    givenImages(api, runtime, [[1], [1]]);
+    let call = 0;
+    api.FPDFPageObj_GetFillColor.mockImplementation((_o, r, g, b, a) => {
+      const color = call++ === 0 ? [255, 0, 0, 255] : [0, 0, 255, 255];
+      color.forEach((v, i) => runtime.setValue([r, g, b, a][i], v));
+      return true;
+    });
+    session.open(new Uint8Array(1), "");
+    const entries = await session.extractImages(0, []);
+    expect(entries.map((e) => e.kind)).toEqual(["image", "image"]);
+    expect(strategy.extract).toHaveBeenCalledTimes(2);
+  });
+
   it("skips an image it cannot extract and carries on", async () => {
     let call = 0;
     const { api, runtime, session } = setup(() => {

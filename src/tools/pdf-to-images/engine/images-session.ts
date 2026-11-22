@@ -177,7 +177,8 @@ export class ImagesSession {
    *
    * For each image object, in content order (forms included):
    * 1. Inspect it (size, filters, colour space, raw bytes) and compute its
-   *    identity key from the raw bytes.
+   *    identity key from the raw bytes (an image without raw bytes gets a
+   *    key of its own).
    * 2. If the key is known (from `knownKeys`, i.e. earlier pages, or from
    *    earlier on this page), report a "repeat" and do no more work.
    * 3. Otherwise run the strategy chain; decoded pixels are encoded as PNG.
@@ -204,7 +205,13 @@ export class ImagesSession {
       for (const object of collectImageObjects(this.api, page)) {
         const image = this.inspector.inspect(page, object);
         if (!image) continue;
-        const key = await imageKey(image.raw, image);
+        // Without raw bytes there is nothing to identify the image by, so
+        // it gets a key of its own (never equal to a hashed key, which
+        // starts with its size) and is never taken for a repeat.
+        const key =
+          image.raw.length > 0
+            ? await imageKey(image.raw, image)
+            : `unhashed:${pageIndex}:${entries.length}`;
         if (known.has(key)) {
           entries.push({ kind: "repeat", key });
           continue;

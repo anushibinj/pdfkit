@@ -92,6 +92,7 @@ describe("runConversion", () => {
     const h = handlers();
     expect(await runConversion(engine, "pages", [0, 2], options, h)).toEqual({
       ok: true,
+      stopped: false,
     });
     expect(engine.renderPage).toHaveBeenNthCalledWith(1, 0, options);
     expect(engine.renderPage).toHaveBeenNthCalledWith(2, 2, options);
@@ -135,9 +136,22 @@ describe("runConversion", () => {
     };
     const h = handlers(1);
     expect(await runConversion(engine, "pages", [0, 1, 2], options, h)).toEqual(
-      { ok: true },
+      { ok: true, stopped: true },
     );
     expect(engine.renderPage).toHaveBeenCalledTimes(1);
+  });
+
+  it("is not stopped when no page is left to skip", async () => {
+    const engine: ConversionEngine = {
+      renderPage: vi.fn(async (i) => rendered(i)),
+      extractImages: vi.fn(),
+    };
+    // Asked before each of the two pages; the stop comes too late to skip
+    // any (as when Stop is pressed while the last page is rendering).
+    expect(
+      await runConversion(engine, "pages", [0, 1], options, handlers(2)),
+    ).toEqual({ ok: true, stopped: false });
+    expect(engine.renderPage).toHaveBeenCalledTimes(2);
   });
 
   it("ends at the first failure, naming the page", async () => {

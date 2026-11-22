@@ -8,7 +8,9 @@ import { readFileSync } from "node:fs";
 import {
   PDFDocument,
   clip,
+  concatTransformationMatrix,
   degrees,
+  drawObject,
   endPath,
   popGraphicsState,
   pushGraphicsState,
@@ -293,6 +295,77 @@ describe("ImagesSession.extractImages (real PDFium)", () => {
       mimeType: "image/jpeg",
     });
     expect(gray.bytes).toEqual(grayJpeg);
+    session.close();
+  });
+
+  /**
+   * A page drawing `jpegBytes` (16 x 8) with a soft mask whose left half has
+   * alpha `leftAlpha` and right half 255. pdf-lib cannot attach a mask to a
+   * JPEG, so the image XObject is written by hand.
+   */
+  async function maskedJpegPdf(jpegBytes: Uint8Array, leftAlpha: number) {
+    const doc = await PDFDocument.create();
+    const page = doc.addPage([160, 80]);
+    const mask = Uint8Array.from({ length: 16 * 8 }, (_, i) =>
+      i % 16 < 8 ? leftAlpha : 255,
+    );
+    const image = { Type: "XObject", Subtype: "Image", Width: 16, Height: 8 };
+    const smask = doc.context.register(
+      doc.context.flateStream(mask, {
+        ...image,
+        ColorSpace: "DeviceGray",
+        BitsPerComponent: 8,
+      }),
+    );
+    const jpegRef = doc.context.register(
+      doc.context.stream(jpegBytes, {
+        ...image,
+        ColorSpace: "DeviceRGB",
+        BitsPerComponent: 8,
+        Filter: "DCTDecode",
+        SMask: smask,
+      }),
+    );
+    const name = page.node.newXObject("Im1", jpegRef);
+    page.pushOperators(
+      pushGraphicsState(),
+      concatTransformationMatrix(160, 0, 0, 80, 0, 0),
+      drawObject(name),
+      popGraphicsState(),
+    );
+    return doc.save();
+  }
+
+  it("saves a JPEG with a soft mask as a PNG with its transparency", async () => {
+    const session = sessionFor(await maskedJpegPdf(jpeg, 0));
+    const [entry] = images(await session.extractImages(0, []));
+    expect(entry).toMatchObject({
+      mimeType: "image/png",
+      method: "decoded-with-alpha",
+      width: 16,
+      height: 8,
+    });
+    const out = await decode(entry.bytes);
+    for (let i = 0; i < 16 * 8; i++) {
+      const [r, g, b, a] = out.pixels.subarray(i * 4, i * 4 + 4);
+      if (i % 16 < 8) {
+        expect(a).toBe(0);
+      } else {
+        expect(a).toBe(255);
+        // The JPEG's green (0, 160, 0), give or take JPEG rounding.
+        expect(r).toBeLessThan(10);
+        expect(Math.abs(g - 160)).toBeLessThan(10);
+        expect(b).toBeLessThan(10);
+      }
+    }
+    session.close();
+  });
+
+  it("keeps a JPEG whose soft mask is fully opaque as its original bytes", async () => {
+    const session = sessionFor(await maskedJpegPdf(jpeg, 255));
+    const [entry] = images(await session.extractImages(0, []));
+    expect(entry.method).toBe("original-jpeg");
+    expect(entry.bytes).toEqual(jpeg);
     session.close();
   });
 
