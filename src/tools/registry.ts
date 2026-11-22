@@ -1,4 +1,4 @@
-import { FileCode, FilePen, LockOpen, ShieldCheck } from "lucide-react";
+import { Crop, FileCode, FilePen, LockOpen, ShieldCheck } from "lucide-react";
 import type { ToolDefinition } from "./types";
 
 export type { ToolDefinition } from "./types";
@@ -78,6 +78,25 @@ export const tools: ToolDefinition[] = [
     icon: FilePen,
     beta: true,
     component: () => import("./edit"),
+  },
+  {
+    slug: "crop",
+    name: "Crop PDF",
+    tagline: "Crop PDF pages and remove what lies outside, locally.",
+    description:
+      "Free PDF cropper that runs in your browser. Trim page margins and remove what lies outside the crop, so hidden parts cannot be restored. Nothing is uploaded.",
+    keywords: [
+      "crop pdf",
+      "crop pdf pages",
+      "trim pdf margins",
+      "remove cropped content from pdf",
+      "cut pdf page",
+      "private pdf cropper",
+      "offline pdf crop",
+    ],
+    icon: Crop,
+    beta: true,
+    component: () => import("./crop"),
   },
 ];
 

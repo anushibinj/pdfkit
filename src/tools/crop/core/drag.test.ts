@@ -86,6 +86,13 @@ describe("handlePosition", () => {
     expect(handlePosition(start, "w")).toEqual({ x: 100, y: 250 });
   });
 
+  it("moves handles inwards by the inset", () => {
+    expect(handlePosition(start, "nw", 5)).toEqual({ x: 105, y: 105 });
+    expect(handlePosition(start, "se", 5)).toEqual({ x: 295, y: 395 });
+    expect(handlePosition(start, "e", 5)).toEqual({ x: 295, y: 250 });
+    expect(handlePosition(start, "n", 5)).toEqual({ x: 200, y: 105 });
+  });
+
   it("covers every resize handle", () => {
     expect(new Set(RESIZE_HANDLES).size).toBe(8);
   });

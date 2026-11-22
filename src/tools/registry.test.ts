@@ -53,6 +53,17 @@ describe("tool registry", () => {
     expect(tool?.beta).toBe(true);
   });
 
+  it("registers the PDF cropper as a beta tool", () => {
+    const tool = getTool("crop");
+    expect(tool?.name).toBe("Crop PDF");
+    expect(tool?.beta).toBe(true);
+  });
+
+  it("loads the PDF cropper component lazily", async () => {
+    const mod = await getTool("crop")!.component();
+    expect(typeof mod.default).toBe("function");
+  });
+
   it("loads the PDF editor component lazily", async () => {
     const mod = await getTool("edit")!.component();
     expect(typeof mod.default).toBe("function");

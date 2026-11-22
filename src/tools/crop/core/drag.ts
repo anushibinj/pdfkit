@@ -96,26 +96,34 @@ export function cursorFor(handle: DragHandle): string {
 }
 
 /**
- * Where a handle sits on a rectangle (the middle of its edge, or the
- * corner).
+ * Where a handle sits on a rectangle: on its corner or the middle of its
+ * edge, moved `inset` towards the inside.
+ *
+ * Insetting by half the handle's size puts the whole handle inside the
+ * rectangle. The rectangle always lies within the page, so the handles
+ * then stay fully visible and grabbable even when the crop area is the
+ * whole page (the starting point), where centred handles would be half
+ * cut off by the page's edge.
  *
  * @param rect The rectangle.
  * @param handle A resize handle.
+ * @param inset How far to move the handle inwards, in the same units.
  * @returns The handle's centre.
  */
 export function handlePosition(
   rect: ViewRect,
   handle: Exclude<DragHandle, "move">,
+  inset = 0,
 ): Point {
   const x = handle.includes("w")
-    ? rect.x
+    ? rect.x + inset
     : handle.includes("e")
-      ? rect.x + rect.width
+      ? rect.x + rect.width - inset
       : rect.x + rect.width / 2;
   const y = handle.includes("n")
-    ? rect.y
+    ? rect.y + inset
     : handle.includes("s")
-      ? rect.y + rect.height
+      ? rect.y + rect.height - inset
       : rect.y + rect.height / 2;
   return { x, y };
 }
