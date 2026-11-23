@@ -5,7 +5,7 @@
 //! "Remove what's outside" deletes it: glyph by glyph for text, whole paths,
 //! images, form XObjects (trimmed copies where they cross the edge) and
 //! annotations, and shrinks the `MediaBox` so no box reset can reveal
-//! anything. Everything inside the crop area is kept byte for byte.
+//! anything. Content inside the crop area is kept intact.
 //!
 //! The crate is built for WebAssembly (see `ffi`), and is also an ordinary
 //! Rust library ([`crop_pdf`]) so it can be tested natively.

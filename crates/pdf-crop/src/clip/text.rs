@@ -38,6 +38,8 @@ pub enum ShowElement<'a> {
     Adjust(f64),
 }
 
+use super::path::StrokeStyle;
+
 /// The text state parameters that position glyphs.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct TextParams {
@@ -51,6 +53,30 @@ pub struct TextParams {
     pub h_scale: f64,
     /// `Ts`: text rise.
     pub rise: f64,
+    /// `Tr`: text rendering mode (0..=7).
+    ///
+    /// - 0: Fill text
+    /// - 1: Stroke text
+    /// - 2: Fill, then stroke text
+    /// - 3: Neither fill nor stroke text (invisible)
+    /// - 4: Fill text and add to path for clipping
+    /// - 5: Stroke text and add to path for clipping
+    /// - 6: Fill, then stroke text and add to path for clipping
+    /// - 7: Add text to path for clipping
+    pub render_mode: u8,
+}
+
+impl Default for TextParams {
+    fn default() -> Self {
+        TextParams {
+            size: 0.0,
+            char_spacing: 0.0,
+            word_spacing: 0.0,
+            h_scale: 1.0,
+            rise: 0.0,
+            render_mode: 0,
+        }
+    }
 }
 
 /// What [`split_show`] decided for one operation.
@@ -81,9 +107,13 @@ pub enum ShowOutcome {
 /// For every glyph, its box (see [`FontMetrics::glyph_box`]) is scaled by
 /// the font size, horizontal scaling and rise, moved to the glyph's pen
 /// position, and transformed by the text matrix and the CTM into page
-/// space. A glyph is deleted only when that box lies entirely
-/// [`Placement::Outside`] the crop area; glyphs inside or crossing the
-/// edge stay, so nothing that can be seen ever disappears.
+/// space. When stroked (`Tr` 1, 2, 5, 6), the box is expanded in page space
+/// by how far the stroke can reach ([`StrokeStyle::reach`]).
+///
+/// A glyph is deleted only when that box lies entirely [`Placement::Outside`]
+/// the crop area, and the text rendering mode does not add to the clipping
+/// path (`Tr` 4..=7). Glyphs inside or crossing the edge, or used for clipping,
+/// stay so nothing that can be seen or that affects later painting disappears.
 ///
 /// - `tm`: the text matrix before the operation.
 /// - `ctm`: the current transformation matrix.
@@ -91,6 +121,7 @@ pub fn split_show(
     elements: &[ShowElement],
     font: &FontMetrics,
     params: &TextParams,
+    stroke: &StrokeStyle,
     tm: &Matrix,
     ctm: &Matrix,
     crop: &Rect,
@@ -102,7 +133,15 @@ pub fn split_show(
         word_spacing,
         h_scale,
         rise,
+        render_mode,
     } = *params;
+    // Clipping modes (4..=7): deleting any glyph would alter clipping for subsequent
+    // operators in the content stream, so clipping text is never removed.
+    let clips = matches!(render_mode, 4..=7);
+    // Stroked modes (1, 2, 5, 6): outline is expanded by half the line width (times miter limit).
+    let strokes = matches!(render_mode, 1 | 2 | 5 | 6);
+    let stroke_reach = if strokes { stroke.reach(ctm) } else { 0.0 };
+
     let mut x = 0.0;
     let mut removed = 0;
     let mut rounding = 0.0;
@@ -131,8 +170,15 @@ pub fn split_show(
                         x + unit.right * size * h_scale,
                         unit.top * size + rise,
                     );
-                    let placement = in_text_space.transform(&to_page).placement_in(crop);
-                    if placement == Placement::Outside {
+                    let in_page = in_text_space.transform(&to_page);
+                    // Stroke-expanded bounds ensure visible stroke reaching into crop area is kept.
+                    let effective_box = if strokes {
+                        in_page.expand(stroke_reach)
+                    } else {
+                        in_page
+                    };
+                    let placement = effective_box.placement_in(crop);
+                    if placement == Placement::Outside && !clips {
                         let n = -(1000.0 * glyph.advance + 1000.0 * spacing / size);
                         if size == 0.0 || h_scale == 0.0 || !n.is_finite() {
                             return ShowOutcome::Unmeasured;
@@ -239,10 +285,7 @@ mod tests {
     fn params(size: f64) -> TextParams {
         TextParams {
             size,
-            char_spacing: 0.0,
-            word_spacing: 0.0,
-            h_scale: 1.0,
-            rise: 0.0,
+            ..TextParams::default()
         }
     }
 
@@ -262,6 +305,7 @@ mod tests {
             &[ShowElement::Text(b"abc")],
             &font(),
             &params(20.0),
+            &StrokeStyle::default(),
             &at(200.0),
             &Matrix::IDENTITY,
             &crop(),
@@ -286,6 +330,7 @@ mod tests {
             &[ShowElement::Text(b"abcdef")],
             &font(),
             &params(20.0),
+            &StrokeStyle::default(),
             &at(60.0),
             &Matrix::IDENTITY,
             &crop(),
@@ -316,6 +361,7 @@ mod tests {
             &elements,
             &font(),
             &params(20.0),
+            &StrokeStyle::default(),
             &at(60.0),
             &Matrix::IDENTITY,
             &crop,
@@ -344,6 +390,7 @@ mod tests {
             &[ShowElement::Text(b" a")],
             &font(),
             &p,
+            &StrokeStyle::default(),
             &at(0.0),
             &Matrix::IDENTITY,
             &Rect::new(15.0, 0.0, 1000.0, 1000.0),
@@ -372,6 +419,7 @@ mod tests {
             &[ShowElement::Text(b"ab")],
             &font(),
             &p,
+            &StrokeStyle::default(),
             &Matrix::translate(0.0, 500.0),
             &Matrix::translate(50.0, 0.0),
             &crop(),
@@ -396,6 +444,7 @@ mod tests {
             &[ShowElement::Text(b"a")],
             &font(),
             &p,
+            &StrokeStyle::default(),
             &at(500.0),
             &Matrix::IDENTITY,
             &crop,
@@ -412,6 +461,7 @@ mod tests {
             &[ShowElement::Text(b"ab")],
             &font,
             &params(20.0),
+            &StrokeStyle::default(),
             &at(0.0),
             &ctm,
             &crop(),
@@ -425,11 +475,97 @@ mod tests {
             &[ShowElement::Text(b"ab")],
             &font,
             &params(20.0),
+            &StrokeStyle::default(),
             &at(500.0),
             &Matrix::IDENTITY,
             &crop(),
         );
         assert!(matches!(kept, ShowOutcome::Measured { drift, .. } if drift == 0.0));
+    }
+
+    #[test]
+    fn stroked_text_is_widened_by_stroke_line_width() {
+        // Glyph at x = 80 with size 20 reaches 95 without stroke (outside crop starting at 100).
+        // With stroke style line_width 20 (reach = 20 * 10 / 2 + 1 = 101, or min 10 pt reach),
+        // the stroked glyph reaches into crop and must be kept.
+        let stroke = StrokeStyle {
+            line_width: 20.0,
+            miter_limit: 1.0,
+        };
+        let p_fill = TextParams {
+            render_mode: 0,
+            ..params(20.0)
+        };
+        let outcome_fill = split_show(
+            &[ShowElement::Text(b"a")],
+            &font(),
+            &p_fill,
+            &stroke,
+            &at(80.0),
+            &Matrix::IDENTITY,
+            &crop(),
+        );
+        // Fill only: glyph at 80 is outside crop [100..1000] and deleted.
+        assert_eq!(
+            outcome_fill,
+            ShowOutcome::Measured {
+                advance: 10.0,
+                removed: 1,
+                drift: 0.0,
+                replacement: Some(b"[-500]".to_vec()),
+            }
+        );
+
+        let p_stroke = TextParams {
+            render_mode: 1, // Stroke text
+            ..params(20.0)
+        };
+        let outcome_stroke = split_show(
+            &[ShowElement::Text(b"a")],
+            &font(),
+            &p_stroke,
+            &stroke,
+            &at(80.0),
+            &Matrix::IDENTITY,
+            &crop(),
+        );
+        // Stroke widens glyph bounds, reaching crop at 100: glyph is kept.
+        assert_eq!(
+            outcome_stroke,
+            ShowOutcome::Measured {
+                advance: 10.0,
+                removed: 0,
+                drift: 0.0,
+                replacement: None,
+            }
+        );
+    }
+
+    #[test]
+    fn clipping_text_is_never_deleted() {
+        // Modes 4..=7 add text to clipping path; deleting glyphs would alter clipping.
+        let p_clip = TextParams {
+            render_mode: 4,
+            ..params(20.0)
+        };
+        let outcome = split_show(
+            &[ShowElement::Text(b"a")],
+            &font(),
+            &p_clip,
+            &StrokeStyle::default(),
+            &at(0.0), // Far outside crop
+            &Matrix::IDENTITY,
+            &crop(),
+        );
+        assert_eq!(
+            outcome,
+            ShowOutcome::Measured {
+                advance: 10.0,
+                removed: 0,
+                drift: 0.0,
+                replacement: None,
+            }
+        );
     }
 
     #[test]
@@ -441,6 +577,7 @@ mod tests {
             &[ShowElement::Text(b"a?")],
             &font,
             &params(20.0),
+            &StrokeStyle::default(),
             &at(0.0),
             &Matrix::IDENTITY,
             &crop(),
@@ -458,6 +595,7 @@ mod tests {
             &[ShowElement::Text(b"a")],
             &font(),
             &p,
+            &StrokeStyle::default(),
             &at(0.0),
             &Matrix::IDENTITY,
             &crop(),
@@ -475,6 +613,7 @@ mod tests {
             &[ShowElement::Text(b"a")],
             &font(),
             &p,
+            &StrokeStyle::default(),
             &at(500.0),
             &Matrix::IDENTITY,
             &crop(),

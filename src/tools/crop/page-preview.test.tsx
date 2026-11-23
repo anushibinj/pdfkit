@@ -124,4 +124,11 @@ describe("PagePreview", () => {
       screen.getByText(/leave nothing to keep on this page/),
     ).toBeInTheDocument();
   });
+
+  it("warns specifically when margins are empty or negative", () => {
+    setup({ margins: { ...NO_MARGINS, top: NaN } });
+    expect(
+      screen.getByText("Enter a number for each margin."),
+    ).toBeInTheDocument();
+  });
 });

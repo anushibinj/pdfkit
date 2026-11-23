@@ -50,7 +50,10 @@ impl fmt::Display for CropError {
                 "This PDF is encrypted. Remove its protection first, then crop it."
             ),
             CropError::Unreadable(why) => {
-                write!(f, "This file could not be read as a PDF ({why}).")
+                write!(
+                    f,
+                    "The cropping engine could not read this PDF's structure ({why})."
+                )
             }
             CropError::PageOutOfRange { page, count } => write!(
                 f,
@@ -100,6 +103,10 @@ mod tests {
         assert_eq!(
             CropError::PageOutOfRange { page: 4, count: 2 }.to_string(),
             "The document has 2 pages; there is no page 5."
+        );
+        assert_eq!(
+            CropError::Unreadable("corrupt xref".into()).to_string(),
+            "The cropping engine could not read this PDF's structure (corrupt xref)."
         );
     }
 }

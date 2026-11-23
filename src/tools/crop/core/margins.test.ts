@@ -9,12 +9,38 @@ import {
   marginsFromViewRect,
   mmToPoints,
   pointsToMm,
+  validateMargins,
   viewRectToUser,
 } from "./margins";
 
 // A 600 x 400 box that does not start at the origin, to catch offset mistakes.
 const box: PageBox = { left: 100, bottom: 50, right: 700, top: 450 };
 const margins = { top: 10, right: 20, bottom: 30, left: 40 };
+
+describe("validateMargins", () => {
+  it("accepts valid non-negative numbers", () => {
+    expect(validateMargins(NO_MARGINS)).toBeNull();
+    expect(validateMargins(margins)).toBeNull();
+  });
+
+  it("reports empty or non-numeric margins", () => {
+    expect(validateMargins({ ...NO_MARGINS, top: NaN })).toEqual({
+      kind: "empty",
+      message: "Enter a number for each margin.",
+    });
+    expect(validateMargins({ ...NO_MARGINS, left: Infinity })).toEqual({
+      kind: "empty",
+      message: "Enter a number for each margin.",
+    });
+  });
+
+  it("reports negative margins", () => {
+    expect(validateMargins({ ...NO_MARGINS, right: -5 })).toEqual({
+      kind: "negative",
+      message: "Margins cannot be negative.",
+    });
+  });
+});
 
 describe("mmToPoints and pointsToMm", () => {
   it("convert at 72 / 25.4 points per millimetre", () => {

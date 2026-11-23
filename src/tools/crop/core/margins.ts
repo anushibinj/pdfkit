@@ -66,6 +66,37 @@ export function pointsToMm(points: number): number {
   return points / POINTS_PER_MM;
 }
 
+/** Why margins cannot form a valid crop rectangle. */
+export type MarginValidationError =
+  | { kind: "empty"; message: string }
+  | { kind: "negative"; message: string };
+
+/**
+ * Validates that each margin is a finite, non-negative number.
+ *
+ * @param margins Margins to validate.
+ * @returns `null` when margins are valid, or an error explaining whether
+ *   a margin was left empty or is negative.
+ */
+export function validateMargins(
+  margins: Margins,
+): MarginValidationError | null {
+  const { top, right, bottom, left } = margins;
+  if (![top, right, bottom, left].every((m) => Number.isFinite(m))) {
+    return {
+      kind: "empty",
+      message: "Enter a number for each margin.",
+    };
+  }
+  if ([top, right, bottom, left].some((m) => m < 0)) {
+    return {
+      kind: "negative",
+      message: "Margins cannot be negative.",
+    };
+  }
+  return null;
+}
+
 /**
  * The area left inside the margins of a displayed page.
  *

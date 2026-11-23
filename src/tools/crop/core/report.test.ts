@@ -77,6 +77,7 @@ describe("describeReport", () => {
     expect(d.kept).toHaveLength(4);
     expect(d.kept[0]).toContain("2 pictures cross");
     expect(d.kept[0]).toContain("were kept whole");
+    expect(d.kept[1]).toContain("if any lies outside the crop area");
     expect(d.kept[2]).toContain("1 form field lies");
     expect(d.kept[3]).toContain("2 parts");
   });

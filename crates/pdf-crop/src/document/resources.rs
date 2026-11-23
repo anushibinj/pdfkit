@@ -9,7 +9,7 @@ use lopdf::{Dictionary, Document, Object, ObjectId};
 use super::boxes::{number, read_rect};
 use super::fonts::load_font;
 use super::streams::{add_stream, decode_strict};
-use crate::clip::{clip_content, ContentContext, ExtGState, FontLookup, XObject};
+use crate::clip::{clip_content, ContentContext, ExtGState, FontLookup, StrokeStyle, XObject};
 use crate::content::rewrite::apply_edits;
 use crate::geometry::{Matrix, Rect};
 use crate::report::CropReport;
@@ -221,7 +221,13 @@ impl ContentContext for Scope<'_, '_> {
     ///    resources naming any trimmed inner forms. The original is never
     ///    modified, because other pages or other places on this page may
     ///    draw it uncropped.
-    fn trim_form(&mut self, name: &[u8], ctm: &Matrix, report: &mut CropReport) -> Option<Vec<u8>> {
+    fn trim_form(
+        &mut self,
+        name: &[u8],
+        ctm: &Matrix,
+        stroke: &StrokeStyle,
+        report: &mut CropReport,
+    ) -> Option<Vec<u8>> {
         let Object::Reference(id) = self.entry(b"XObject", name)? else {
             return None;
         };
@@ -256,7 +262,7 @@ impl ContentContext for Scope<'_, '_> {
         chain.push(id);
         let crop = self.crop;
         let mut child = Scope::new(&mut *self.editor, crop, resources, chain);
-        let Ok(result) = clip_content(&content, &crop, *ctm, &mut child) else {
+        let Ok(result) = clip_content(&content, &crop, *ctm, *stroke, &mut child) else {
             report.streams_not_analysed += 1;
             return None;
         };
@@ -408,7 +414,7 @@ mod tests {
         let mut scope = Scope::new(&mut editor, crop(), resources, vec![]);
         let mut report = CropReport::default();
         let name = scope
-            .trim_form(b"Outer", &Matrix::IDENTITY, &mut report)
+            .trim_form(b"Outer", &Matrix::IDENTITY, &StrokeStyle::default(), &mut report)
             .unwrap();
         assert_eq!(name, b"Outer_crop1");
         assert_eq!((report.forms_trimmed, report.glyphs_removed), (1, 4));
@@ -445,20 +451,23 @@ mod tests {
         let mut editor = Editor::new(&mut doc);
         let mut scope = Scope::new(&mut editor, crop(), resources, vec![]);
         let mut report = CropReport::default();
-        assert_eq!(scope.trim_form(b"In", &Matrix::IDENTITY, &mut report), None);
         assert_eq!(
-            scope.trim_form(b"Bad", &Matrix::IDENTITY, &mut report),
+            scope.trim_form(b"In", &Matrix::IDENTITY, &StrokeStyle::default(), &mut report),
+            None
+        );
+        assert_eq!(
+            scope.trim_form(b"Bad", &Matrix::IDENTITY, &StrokeStyle::default(), &mut report),
             None
         );
         assert_eq!(report.streams_not_analysed, 1);
         assert_eq!(
-            scope.trim_form(b"Direct", &Matrix::IDENTITY, &mut report),
+            scope.trim_form(b"Direct", &Matrix::IDENTITY, &StrokeStyle::default(), &mut report),
             None
         );
         // The self-reference is not followed again; the path outside is
         // still removed from the one copy.
         assert_eq!(
-            scope.trim_form(b"Loop", &Matrix::IDENTITY, &mut report),
+            scope.trim_form(b"Loop", &Matrix::IDENTITY, &StrokeStyle::default(), &mut report),
             Some(b"Loop_crop1".to_vec())
         );
         assert_eq!(report.paths_removed, 1);

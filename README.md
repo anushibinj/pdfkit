@@ -38,7 +38,7 @@ Currently shipped tools:
   XObjects (trimmed copies where they cross the edge) and annotations, and
   shrinks the MediaBox, using **pdf-crop**, this repository's own Rust
   library compiled to WASM (`crates/pdf-crop`, see its README for why and
-  how). Everything inside the crop area is kept byte for byte, and every
+  how). Content inside the crop area is kept intact, and every
   cropped page is then checked against the original with PDFium; a result
   that differs inside the crop area is never offered. Pictures crossing the
   edge are kept whole, and text in fonts that cannot be measured exactly is

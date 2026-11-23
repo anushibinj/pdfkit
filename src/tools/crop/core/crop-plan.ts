@@ -1,5 +1,10 @@
 import type { PageInfo } from "@/lib/pdfium/pdfium-document";
-import { cropRectForPage, type Margins, type UserRect } from "./margins";
+import {
+  cropRectForPage,
+  validateMargins,
+  type Margins,
+  type UserRect,
+} from "./margins";
 
 /** One page to crop, and the area of it to keep in user space. */
 export interface PageCropRequest {
@@ -56,6 +61,10 @@ export function buildCropPlan(
 ): BuildPlanResult {
   if (selection.length === 0) {
     return { ok: false, pageIndex: -1, message: "No pages are selected." };
+  }
+  const invalid = validateMargins(margins);
+  if (invalid) {
+    return { ok: false, pageIndex: -1, message: invalid.message };
   }
   const requests: PageCropRequest[] = [];
   for (const pageIndex of selection) {

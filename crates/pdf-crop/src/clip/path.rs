@@ -44,6 +44,12 @@ pub struct StrokeStyle {
 }
 
 impl StrokeStyle {
+    /// PDF default stroke style: 1.0 pt line width, 10.0 miter limit.
+    pub const DEFAULT: StrokeStyle = StrokeStyle {
+        line_width: 1.0,
+        miter_limit: 10.0,
+    };
+
     /// How far, in page space, a stroke can reach beyond the path itself.
     ///
     /// Half the line width, scaled by the CTM, times the miter limit (a
@@ -54,6 +60,12 @@ impl StrokeStyle {
     pub fn reach(&self, ctm: &Matrix) -> f64 {
         let width = (self.line_width.max(0.0) * ctm.max_scale()).max(1.0);
         width * self.miter_limit.max(1.0) / 2.0 + 1.0
+    }
+}
+
+impl Default for StrokeStyle {
+    fn default() -> Self {
+        Self::DEFAULT
     }
 }
 

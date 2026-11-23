@@ -126,7 +126,7 @@ export function describeReport(
   }
   if (report.textKeptUnmeasured > 0) {
     kept.push(
-      `Some text is in a font this tool cannot measure exactly, so it was kept as it is, even where it lies outside the crop area.`,
+      `Some text is in a font this tool cannot measure exactly, so it was kept as it is (if any lies outside the crop area, it was not removed).`,
     );
   }
   if (report.formFieldsKept > 0) {

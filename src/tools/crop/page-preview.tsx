@@ -12,6 +12,7 @@ import { CropOverlay } from "./crop-overlay";
 import {
   cropRectInView,
   marginsFromViewRect,
+  validateMargins,
   type Margins,
 } from "./core/margins";
 import type { RenderResult } from "./messages";
@@ -143,7 +144,8 @@ export function PagePreview({
       )}
       {!rect && (
         <p role="alert" className="text-destructive text-sm">
-          The margins leave nothing to keep on this page.
+          {validateMargins(margins)?.message ??
+            "The margins leave nothing to keep on this page."}
         </p>
       )}
     </section>

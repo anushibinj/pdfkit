@@ -43,6 +43,22 @@ describe("buildCropPlan", () => {
     });
   });
 
+  it("explains empty or negative margins with specific messages", () => {
+    const empty = buildCropPlan(pages, [0], { ...margins, top: NaN }, false);
+    expect(empty).toEqual({
+      ok: false,
+      pageIndex: -1,
+      message: "Enter a number for each margin.",
+    });
+
+    const negative = buildCropPlan(pages, [0], { ...margins, right: -5 }, false);
+    expect(negative).toEqual({
+      ok: false,
+      pageIndex: -1,
+      message: "Margins cannot be negative.",
+    });
+  });
+
   it("refuses an empty selection or a missing page", () => {
     expect(buildCropPlan(pages, [], margins, false).ok).toBe(false);
     const missing = buildCropPlan(pages, [5], margins, false);

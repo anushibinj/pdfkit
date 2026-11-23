@@ -8,7 +8,7 @@ pub mod streams;
 
 use lopdf::{Dictionary, Document, Object, ObjectId};
 
-use crate::clip::clip_content;
+use crate::clip::{clip_content, StrokeStyle};
 use crate::content::rewrite::apply_edits;
 use crate::error::CropError;
 use crate::geometry::{Matrix, Rect};
@@ -121,7 +121,9 @@ fn clip_page(editor: &mut Editor, page: ObjectId, crop: &Rect, report: &mut Crop
         .cloned()
         .unwrap_or_default();
     let mut scope = Scope::new(editor, *crop, resources, Vec::new());
-    let Ok(result) = clip_content(&content, crop, Matrix::IDENTITY, &mut scope) else {
+    let Ok(result) =
+        clip_content(&content, crop, Matrix::IDENTITY, StrokeStyle::default(), &mut scope)
+    else {
         report.streams_not_analysed += 1;
         return;
     };

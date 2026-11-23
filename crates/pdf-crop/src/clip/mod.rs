@@ -32,7 +32,8 @@ use crate::content::rewrite::Edit;
 use crate::fonts::FontMetrics;
 use crate::geometry::{Matrix, Placement, Rect};
 use crate::report::CropReport;
-use path::{is_construction, is_painting, PathTracker, StrokeStyle};
+pub use path::StrokeStyle;
+use path::{is_construction, is_painting, PathTracker};
 use text::{split_show, ShowElement, ShowOutcome, TextParams};
 
 /// Deepest `q` nesting followed; deeper streams lose track.
@@ -79,10 +80,16 @@ pub trait ContentContext {
     /// The XObject resource `name`, if it exists.
     fn xobject(&mut self, name: &[u8]) -> Option<XObject>;
     /// Make a trimmed copy of the form `name`, drawn with `ctm` (the form's
-    /// own matrix included), and return the resource name to draw instead.
+    /// own matrix included) and inheriting `stroke`, and return the resource name to draw instead.
     /// `None` keeps the original (nothing to trim, or it cannot be read).
     /// Counts go into `report`.
-    fn trim_form(&mut self, name: &[u8], ctm: &Matrix, report: &mut CropReport) -> Option<Vec<u8>>;
+    fn trim_form(
+        &mut self,
+        name: &[u8],
+        ctm: &Matrix,
+        stroke: &StrokeStyle,
+        report: &mut CropReport,
+    ) -> Option<Vec<u8>>;
 }
 
 /// The edits for one content stream.
@@ -95,7 +102,7 @@ pub struct ClipResult {
 }
 
 /// Work out the edits that delete what lies outside `crop` from a content
-/// stream drawn with `ctm`.
+/// stream drawn with `ctm` and initial `stroke`.
 ///
 /// # Errors
 ///
@@ -105,10 +112,11 @@ pub fn clip_content(
     content: &[u8],
     crop: &Rect,
     ctm: Matrix,
+    stroke: StrokeStyle,
     ctx: &mut dyn ContentContext,
 ) -> Result<ClipResult, LexError> {
     let operations = parse_operations(content)?;
-    let mut clipper = Clipper::new(content, *crop, ctm, ctx);
+    let mut clipper = Clipper::new(content, *crop, ctm, stroke, ctx);
     for op in &operations {
         clipper.operation(op);
     }
@@ -196,26 +204,23 @@ struct Clipper<'c> {
 }
 
 impl<'c> Clipper<'c> {
-    /// A walker starting with the given CTM and PDF's initial state.
-    fn new(src: &'c [u8], crop: Rect, ctm: Matrix, ctx: &'c mut dyn ContentContext) -> Clipper<'c> {
+    /// A walker starting with the given CTM, stroke style and PDF's initial state.
+    fn new(
+        src: &'c [u8],
+        crop: Rect,
+        ctm: Matrix,
+        stroke: StrokeStyle,
+        ctx: &'c mut dyn ContentContext,
+    ) -> Clipper<'c> {
         Clipper {
             src,
             crop,
             ctx,
             gs: GraphicsState {
                 ctm,
-                stroke: StrokeStyle {
-                    line_width: 1.0,
-                    miter_limit: 10.0,
-                },
+                stroke,
                 font: FontLookup::Unmeasurable,
-                text: TextParams {
-                    size: 0.0,
-                    char_spacing: 0.0,
-                    word_spacing: 0.0,
-                    h_scale: 1.0,
-                    rise: 0.0,
-                },
+                text: TextParams::default(),
                 leading: 0.0,
             },
             saved: Vec::new(),
@@ -274,6 +279,7 @@ impl<'c> Clipper<'c> {
             b"Tz" => self.gs.text.h_scale = number_or_nan(op) / 100.0,
             b"TL" => self.gs.leading = number_or_nan(op),
             b"Ts" => self.gs.text.rise = number_or_nan(op),
+            b"Tr" => self.set_render_mode(op),
             b"Td" => self.move_line(op, false),
             b"TD" => self.move_line(op, true),
             b"Tm" => self.set_text_matrix(op),
@@ -376,6 +382,19 @@ impl<'c> Clipper<'c> {
             .start_line(Matrix::translate(0.0, -self.gs.leading).then(&self.text.line_matrix));
     }
 
+    /// `Tr`: set text rendering mode (0..=7).
+    fn set_render_mode(&mut self, op: &Operation) {
+        match op.numbers(1).as_deref() {
+            Some(&[mode]) if (0.0..=7.0).contains(&mode) && mode.fract() == 0.0 => {
+                self.gs.text.render_mode = mode as u8;
+            }
+            _ => {
+                // Unknown or unreadable rendering mode: prevent deleting glyphs.
+                self.gs.text.render_mode = 0xFF;
+            }
+        }
+    }
+
     /// `Tj`, `TJ`, `'` and `"`: show text, deleting glyphs outside.
     ///
     /// `'` and `"` first move to the next line (and `"` sets word and
@@ -427,6 +446,7 @@ impl<'c> Clipper<'c> {
                 elements,
                 font,
                 &self.gs.text,
+                &self.gs.stroke,
                 &self.text.matrix,
                 &self.gs.ctm,
                 &self.crop,
@@ -479,7 +499,7 @@ impl<'c> Clipper<'c> {
                         let name = name.to_vec();
                         if let Some(new_name) =
                             self.ctx
-                                .trim_form(&name, &form_ctm, &mut self.result.report)
+                                .trim_form(&name, &form_ctm, &self.gs.stroke, &mut self.result.report)
                         {
                             self.result.edits.push(Edit::replace(
                                 op.operand_spans[0].clone(),
@@ -553,7 +573,7 @@ mod tests {
     /// (unmeasurable), image Im1, form Fm1 (a 100 x 100 box), state GS1.
     #[derive(Default)]
     struct FakeContext {
-        trimmed: Vec<(Vec<u8>, Matrix)>,
+        trimmed: Vec<(Vec<u8>, Matrix, StrokeStyle)>,
         states: HashMap<Vec<u8>, ExtGState>,
     }
 
@@ -591,9 +611,10 @@ mod tests {
             &mut self,
             name: &[u8],
             ctm: &Matrix,
+            stroke: &StrokeStyle,
             report: &mut CropReport,
         ) -> Option<Vec<u8>> {
-            self.trimmed.push((name.to_vec(), *ctm));
+            self.trimmed.push((name.to_vec(), *ctm, *stroke));
             report.glyphs_removed += 1;
             Some(b"Fm1 copy".to_vec())
         }
@@ -609,7 +630,8 @@ mod tests {
     }
 
     fn run_with(src: &[u8], ctx: &mut FakeContext) -> (Vec<u8>, CropReport) {
-        let result = clip_content(src, &crop(), Matrix::IDENTITY, ctx).unwrap();
+        let result =
+            clip_content(src, &crop(), Matrix::IDENTITY, StrokeStyle::default(), ctx).unwrap();
         (apply_edits(src, result.edits).unwrap(), result.report)
     }
 
@@ -670,7 +692,8 @@ mod tests {
         // same line (two Tj), then reset by Td.
         let mut ctx = FakeContext::default();
         let src = b"BT /F3 20 Tf 0 200 Td (abc) Tj (abc) Tj 0 10 Td (abc) Tj ET";
-        let result = clip_content(src, &crop(), Matrix::IDENTITY, &mut ctx).unwrap();
+        let result =
+            clip_content(src, &crop(), Matrix::IDENTITY, StrokeStyle::default(), &mut ctx).unwrap();
         assert!((result.report.max_text_shift - 0.06).abs() < 1e-9);
     }
 
@@ -805,8 +828,44 @@ mod tests {
         assert_eq!(report.glyphs_removed, 1);
         assert_eq!(
             ctx.trimmed,
-            vec![(b"Fm1".to_vec(), Matrix::translate(50.0, 50.0))]
+            vec![(
+                b"Fm1".to_vec(),
+                Matrix::translate(50.0, 50.0),
+                StrokeStyle::default()
+            )]
         );
+    }
+
+    #[test]
+    fn forms_inherit_caller_stroke_style() {
+        // When the caller sets a line width of 20 before drawing a form,
+        // the form trimmer must inherit that stroke style.
+        let mut ctx = FakeContext::default();
+        let src = b"20 w q 1 0 0 1 50 50 cm /Fm1 Do Q";
+        let (_, report) = run_with(src, &mut ctx);
+        assert_eq!(report.forms_trimmed, 1);
+        assert_eq!(ctx.trimmed.len(), 1);
+        assert_eq!(ctx.trimmed[0].2.line_width, 20.0);
+    }
+
+    #[test]
+    fn text_rendering_mode_tr_is_tracked() {
+        // Mode 1 strokes text; with a wide stroke, text outside the crop box reaches into it
+        // and is kept.
+        let src = b"20 w BT /F1 20 Tf 1 Tr 80 200 Td (a) Tj ET";
+        let (_, report) = run(src);
+        assert_eq!(report.glyphs_removed, 0);
+
+        // Mode 0 fills text; without stroke widening, glyph at 80 is outside crop [100..300]
+        // and is removed.
+        let src_fill = b"20 w BT /F1 20 Tf 0 Tr 80 200 Td (a) Tj ET";
+        let (_, report_fill) = run(src_fill);
+        assert_eq!(report_fill.glyphs_removed, 1);
+
+        // Mode 4 adds text to clipping path; clipping text is never removed even outside.
+        let src_clip = b"BT /F1 20 Tf 4 Tr 0 0 Td (a) Tj ET";
+        let (_, report_clip) = run(src_clip);
+        assert_eq!(report_clip.glyphs_removed, 0);
     }
 
     #[test]
@@ -815,6 +874,7 @@ mod tests {
             b"(unterminated",
             &crop(),
             Matrix::IDENTITY,
+            StrokeStyle::default(),
             &mut FakeContext::default()
         )
         .is_err());

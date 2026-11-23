@@ -53,6 +53,13 @@ describe("findMissingCharacters", () => {
     expect(findMissingCharacters(before, after, crop, 0.05)).toEqual([]);
   });
 
+  it("matches rotated characters that drifted along y within tolerance", () => {
+    // Rotated text (e.g. 90 degrees): fractional glyph width drift occurs along y.
+    const before = [char("a", 50, 20), char("b", 50, 40)];
+    const after = [char("a", 50, 20.03), char("b", 50.01, 40.02)];
+    expect(findMissingCharacters(before, after, crop, 0.05)).toEqual([]);
+  });
+
   it("reports characters that vanished, moved too far or changed", () => {
     const before = [char("a", 10, 50), char("b", 20, 50), char("c", 40, 50)];
     const after = [char("a", 10.2, 50), char("b", 20, 50.5), char("x", 40, 50)];

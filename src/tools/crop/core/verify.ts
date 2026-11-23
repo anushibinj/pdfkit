@@ -66,22 +66,24 @@ export function isInside(box: UserRect, crop: UserRect): boolean {
  * have no match in `after`.
  *
  * Each character is matched to the nearest unused character of `after`
- * with the same code point whose origin is within
- * {@link BASELINE_TOLERANCE} vertically and `xTolerance` horizontally.
+ * with the same code point whose origin is within `tolerance` in 2D Euclidean
+ * distance. Using Euclidean distance accommodates horizontal text, rotated
+ * text (e.g. 90° or 270°), and arbitrary orientations that drift with
+ * fractional widths.
  * Candidates are grouped by code point first, so a page with thousands of
  * characters compares each only with the few that could match.
  *
  * @param before The original page's characters.
  * @param after The cropped page's characters.
  * @param crop The crop area in user space.
- * @param xTolerance Horizontal tolerance in points.
+ * @param tolerance Position tolerance in points (Euclidean distance).
  * @returns The unmatched characters (empty when all are present).
  */
 export function findMissingCharacters(
   before: readonly PageChar[],
   after: readonly PageChar[],
   crop: UserRect,
-  xTolerance: number,
+  tolerance: number,
 ): PageChar[] {
   const pool = new Map<number, PageChar[]>();
   for (const ch of after) {
@@ -96,9 +98,9 @@ export function findMissingCharacters(
     let best = -1;
     let bestDistance = Infinity;
     candidates.forEach((c, i) => {
-      if (Math.abs(c.y - ch.y) > BASELINE_TOLERANCE) return;
-      const distance = Math.abs(c.x - ch.x);
-      if (distance <= xTolerance && distance < bestDistance) {
+      // Euclidean distance in 2D space supports horizontal, rotated, and angled text.
+      const distance = Math.hypot(c.x - ch.x, c.y - ch.y);
+      if (distance <= tolerance && distance < bestDistance) {
         best = i;
         bestDistance = distance;
       }
