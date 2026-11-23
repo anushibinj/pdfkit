@@ -135,4 +135,43 @@ describe("PageRedactor (real PDFium WASM)", () => {
       reopened.close();
     }
   });
+
+  it("renders the overlay label even on narrow inline redaction boxes down to 2.5pt", async () => {
+    const full = await loadNodePdfiumModule();
+    const api = full as unknown as RedactPdfiumApi;
+    const heap = new WasmHeap(api.pdfium);
+    const metrics = new StandardFontMetricsSource();
+    const redactor = new PageRedactor(api, heap, metrics);
+
+    const bytes = new Uint8Array(
+      fs.readFileSync(path.resolve("fixtures/plain.pdf")),
+    );
+    const doc = PdfiumDocument.open(api, heap, bytes, "");
+    try {
+      const info = doc.pageInfo(0);
+      // Width 26pt -> fits "REDACTED" at ~3.0pt (>= 2.5pt cutoff, < old 3.5pt cutoff).
+      const narrowBox = { left: 100, bottom: 700, right: 126, top: 710 };
+      const saved = (() => {
+        doc.withPage(0, (page) =>
+          redactor.redactPage(doc.handle, page, info, [narrowBox], {
+            fill: "black",
+            label: "REDACTED",
+          }),
+        );
+        return doc.save();
+      })();
+
+      const reopened = PdfiumDocument.open(api, heap, saved, "");
+      try {
+        const chars = reopened.withPage(0, (page) =>
+          readPageCharsWithBoxes(api, heap, page),
+        );
+        expect(buildSearchablePageText(chars).text).toContain("REDACTED");
+      } finally {
+        reopened.close();
+      }
+    } finally {
+      doc.close();
+    }
+  });
 });
