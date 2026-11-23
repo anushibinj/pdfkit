@@ -13,6 +13,7 @@
     "icons": "node scripts/generate-icons.mjs",
     "wasm:crop": "node scripts/build-crop-wasm.mjs",
     "wasm:repair": "node scripts/build-repair-wasm.mjs",
+    "wasm:redact": "node scripts/build-redact-wasm.mjs",
     "format": "prettier --write .",
     "predev": "node scripts/copy-wasm.mjs",
     "prebuild": "node scripts/copy-wasm.mjs",

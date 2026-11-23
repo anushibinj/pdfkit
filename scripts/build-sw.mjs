@@ -21,6 +21,8 @@ const ON_FIRST_USE = new Set([
   "wasm/LICENSE-pdf-crop-third-party.txt",
   "wasm/pdf-repair.wasm",
   "wasm/LICENSE-pdf-repair-third-party.txt",
+  "wasm/pdf-redact.wasm",
+  "wasm/LICENSE-pdf-redact-third-party.txt",
 ]);
 
 async function walk(dir) {
