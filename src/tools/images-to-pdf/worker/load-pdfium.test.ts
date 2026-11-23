@@ -12,7 +12,11 @@ describe("load-pdfium", () => {
 
   it("loadImagesToPdfPdfium imports pdfium.js from wasmDir and initializes it", async () => {
     const { api } = fakeImagesToPdfPdfium();
-    const init = vi.fn().mockResolvedValue(api);
+    const wrapped = {
+      ...api,
+      PDFiumExt_Init: vi.fn(),
+    } as unknown as WrappedPdfiumModule;
+    const init = vi.fn().mockResolvedValue(wrapped);
     const importer = vi.fn().mockResolvedValue({ init });
 
     const loaded = await loadImagesToPdfPdfium(
@@ -20,8 +24,12 @@ describe("load-pdfium", () => {
       importer,
     );
 
-    expect(loaded).toBe(api);
+    expect(loaded).toBe(wrapped);
     expect(importer).toHaveBeenCalledWith("https://example.test/wasm/pdfium.js");
     expect(init).toHaveBeenCalledTimes(1);
+    expect(
+      (wrapped as unknown as { PDFiumExt_Init: ReturnType<typeof vi.fn> })
+        .PDFiumExt_Init,
+    ).toHaveBeenCalledTimes(1);
   });
 });

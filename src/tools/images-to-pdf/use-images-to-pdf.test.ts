@@ -14,14 +14,14 @@ import {
 } from "./use-images-to-pdf";
 
 /** Minimal valid PNG header (24 bytes: 8-byte signature + IHDR 32x16). */
-function minimalPngBytes(width = 32, height = 16): Uint8Array {
+function minimalPngBytes(width = 32, height = 16): ArrayBuffer {
   const bytes = new Uint8Array(24);
   bytes.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], 0);
   bytes.set([0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52], 8); // length + "IHDR"
   const view = new DataView(bytes.buffer);
   view.setUint32(16, width, false);
   view.setUint32(20, height, false);
-  return bytes;
+  return bytes.buffer as ArrayBuffer;
 }
 
 describe("use-images-to-pdf helpers", () => {
@@ -46,9 +46,13 @@ describe("use-images-to-pdf helpers", () => {
     });
 
     it("rejects non-PNG/JPEG content", async () => {
-      const file = new File([new Uint8Array([1, 2, 3, 4])], "fake.png", {
-        type: "image/png",
-      });
+      const file = new File(
+        [new Uint8Array([1, 2, 3, 4]).buffer as ArrayBuffer],
+        "fake.png",
+        {
+          type: "image/png",
+        },
+      );
       const res = await validateImageFile(file);
       expect(res).toEqual({ ok: false, message: UNSUPPORTED_IMAGE_MESSAGE });
     });

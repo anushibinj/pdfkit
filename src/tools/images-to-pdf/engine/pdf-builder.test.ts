@@ -94,7 +94,7 @@ describe("ImagesToPdfBuilder", () => {
         pageHeight: 700,
         drawnWidth: 400,
         drawnHeight: 300,
-        matrix: [400, 0, 0, 300, 50, 200],
+        matrix: [400, 0, 0, 300, 50, 200] as const,
       })),
     };
 
