@@ -37,7 +37,8 @@ export interface PagePreviewProps {
   ): Promise<RenderResult>;
   onPageChange(pageIndex: number): void;
   onAddBox(box: PageBox): void;
-  onSelectMark(id: string): void;
+  onSelectMark(id: string | null): void;
+  onDeleteSelectedMark?: () => void;
 }
 
 interface ViewRect {
@@ -87,6 +88,7 @@ export function PagePreview({
   onPageChange,
   onAddBox,
   onSelectMark,
+  onDeleteSelectedMark,
 }: PagePreviewProps) {
   const boxRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -154,7 +156,10 @@ export function PagePreview({
     const maxY = Math.max(drag.startY, drag.curY);
     setDrag(null);
 
-    if (maxX - minX < MIN_BOX_PT || maxY - minY < MIN_BOX_PT) return;
+    if (maxX - minX < MIN_BOX_PT || maxY - minY < MIN_BOX_PT) {
+      onSelectMark(null);
+      return;
+    }
 
     const toUser = viewToUser(info.box, info.rotation);
     const p1 = applyToPoint(toUser, { x: minX, y: minY });
@@ -165,6 +170,24 @@ export function PagePreview({
       right: Math.max(p1.x, p2.x),
       top: Math.max(p1.y, p2.y),
     });
+  };
+
+  /** Support Escape (cancel active drag or deselect mark) and Delete/Backspace to remove selected mark. */
+  const handleKeyDown = (e: React.KeyboardEvent<SVGSVGElement>) => {
+    if (disabled) return;
+    if (e.key === "Escape") {
+      if (drag) {
+        setDrag(null);
+      } else if (selectedMarkId !== null) {
+        onSelectMark(null);
+      }
+    } else if (
+      (e.key === "Delete" || e.key === "Backspace") &&
+      selectedMarkId !== null
+    ) {
+      e.preventDefault();
+      onDeleteSelectedMark?.();
+    }
   };
 
   const pageMarks = marks.filter((m) => m.pageIndex === pageIndex);
@@ -223,15 +246,17 @@ export function PagePreview({
         <svg
           ref={svgRef}
           role="img"
+          tabIndex={disabled ? undefined : 0}
           aria-label={`Redaction canvas for page ${pageNumber}`}
           viewBox={`0 0 ${view.width} ${view.height}`}
-          className={`absolute inset-0 size-full touch-none ${
+          className={`focus-visible:outline-ring absolute inset-0 size-full touch-none focus-visible:outline-2 ${
             disabled ? "cursor-default" : "cursor-crosshair"
           }`}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={finishDrag}
           onPointerCancel={() => setDrag(null)}
+          onKeyDown={handleKeyDown}
         >
           {pageMarks.map((mark) => {
             const vr = userBoxToViewRect(mark.box, info);
@@ -271,15 +296,15 @@ export function PagePreview({
                 />
                 {mark.enabled &&
                   labelText.length > 0 &&
-                  vr.height >= 7 &&
-                  vr.width >= 20 && (
+                  vr.height >= 5 &&
+                  vr.width >= 16 && (
                     <text
                       x={vr.x + vr.width / 2}
                       y={vr.y + vr.height / 2}
                       textAnchor="middle"
                       dominantBaseline="central"
                       fill={isWhiteFill ? "#111827" : "#ffffff"}
-                      fontSize={Math.max(4, Math.min(11, vr.height * 0.58))}
+                      fontSize={Math.max(2.5, Math.min(11, vr.height * 0.58))}
                       fontWeight="bold"
                       style={{ pointerEvents: "none" }}
                     >
