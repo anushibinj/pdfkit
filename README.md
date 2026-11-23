@@ -165,6 +165,19 @@ Currently shipped tools:
   differences (using WebGL on the GPU with a worker CPU fallback) to flag
   moved logos, drawings, and layout shifts. Exports a Comparison Report PDF
   with standard PDF Highlight annotations visible in Adobe Acrobat.
+- **OCR PDF** (`/tools/ocr/`, beta): turns scanned PDFs and PNG/JPEG images
+  into searchable, selectable PDFs in your browser using self-hosted
+  [Tesseract](https://github.com/tesseract-ocr/tesseract) (`tesseract.js-core`
+  WASM), `crates/pdf-ocr` WebAssembly (gzip decompression, DPI-aware BMP
+  encoding, contrast enhancement, overlay normalization, and Unicode text-layer
+  fallback), [PDFium](https://pdfium.googlesource.com/pdfium/), and
+  [qpdf](https://github.com/qpdf/qpdf) (`--overlay`). Supports English plus 10
+  Indian languages (Hindi, Bengali, Tamil, Telugu, Kannada, Malayalam, Marathi,
+  Gujarati, Punjabi, Odia). Pages that already contain real text are skipped
+  automatically (with a "Redo OCR" option), the output looks pixel-identical to
+  the input, and recognized text can be copied or downloaded as `.txt`. All
+  models and engines are served same-origin under `/wasm/` and cached on first
+  use for offline support.
 - **Redact PDF** (`/tools/redact/`, beta): permanently removes sensitive text,
   image pixels, vector paths, annotations, and form field values, then strips
   document metadata (Info + XMP), attachments, JavaScript, hidden layers, and
@@ -179,8 +192,8 @@ Currently shipped tools:
   zero redacted terms remain.
 
 Built with Next.js (App Router, static export), TypeScript (strict), Tailwind
-CSS, shadcn/ui, next-themes and Vitest, plus four Rust crates compiled to
-WebAssembly (`crates/pdf-crop`, `crates/pdf-repair`, `crates/pdf-compress`, and `crates/pdf-redact`). It is an installable, offline-capable PWA.
+CSS, shadcn/ui, next-themes and Vitest, plus five Rust crates compiled to
+WebAssembly (`crates/pdf-crop`, `crates/pdf-repair`, `crates/pdf-compress`, `crates/pdf-ocr`, and `crates/pdf-redact`). It is an installable, offline-capable PWA.
 
 ## How privacy is enforced
 
@@ -608,6 +621,11 @@ Adobe's standard font metrics via **@pdf-lib/standard-fonts** (MIT License).
 Compare PDFs also uses **jsdiff** (`diff`), licensed under the **BSD 3-Clause License**.
 Compress PDF also uses **pdf-compress** (`crates/pdf-compress`, part of this repository,
 with third-party Rust crate licences at `/wasm/LICENSE-pdf-compress-third-party.txt`) and **qpdf** (`@jspawn/qpdf-wasm`).
+OCR PDF uses **Tesseract** (`tesseract.js` and `tesseract.js-core`, Apache-2.0,
+licences at `/wasm/LICENSE-tesseract.txt` and `/wasm/LICENSE-tesseract-core.txt`),
+`@tesseract.js-data/*` (`tessdata_fast` models, Apache-2.0 / MIT), **pdf-ocr**
+(`crates/pdf-ocr`, part of this repository, with third-party Rust crate licences
+at `/wasm/LICENSE-pdf-ocr-third-party.txt`), **PDFium**, and **qpdf**.
 Redact PDF also uses **pdf-redact** (`crates/pdf-redact`, part of this repository),
 which links [lopdf](https://github.com/J-F-Liu/lopdf) (MIT) and other Rust
 crates under MIT, Apache-2.0, BSD, Zlib and Unicode licences; their texts ship

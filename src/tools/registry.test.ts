@@ -203,6 +203,17 @@ describe("tool registry", () => {
     expect(typeof mod.default).toBe("function");
   });
 
+  it("registers OCR PDF as a beta tool", () => {
+    const tool = getTool("ocr");
+    expect(tool?.name).toBe("OCR PDF");
+    expect(tool?.beta).toBe(true);
+  });
+
+  it("loads the OCR PDF component lazily", async () => {
+    const mod = await getTool("ocr")!.component();
+    expect(typeof mod.default).toBe("function");
+  });
+
   it("registers Redact PDF as a beta tool", () => {
     const tool = getTool("redact");
     expect(tool?.name).toBe("Redact PDF");
