@@ -54,6 +54,30 @@ describe("ocrReducer", () => {
     expect(state.isProcessing).toBe(false);
     expect(state.inspectedTextItemId).toBe("1");
     expect(state.items[0].status.kind).toBe("completed");
+
+    // In a multi-file batch, the first completed item auto-opens and subsequent completions preserve selection
+    let batchState = ocrReducer(INITIAL_OCR_STATE, {
+      type: "add-files",
+      entries: [
+        { id: "a", file: SAMPLE_FILE },
+        { id: "b", file: SAMPLE_FILE },
+      ],
+    });
+    batchState = ocrReducer(batchState, {
+      type: "item-completed",
+      id: "a",
+      pdf: blob,
+      report: SAMPLE_REPORT,
+      wasImageInput: false,
+    });
+    batchState = ocrReducer(batchState, {
+      type: "item-completed",
+      id: "b",
+      pdf: blob,
+      report: SAMPLE_REPORT,
+      wasImageInput: false,
+    });
+    expect(batchState.inspectedTextItemId).toBe("a");
   });
 
   it("resets completed items back to ready when options change", () => {

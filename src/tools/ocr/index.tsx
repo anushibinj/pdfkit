@@ -117,6 +117,14 @@ export default function OcrTool() {
     ? state.items.find((i) => i.id === state.inspectedTextItemId)
     : undefined;
 
+  const activeItem = state.items.find((i) => i.status.kind === "processing");
+  const liveAnnouncement =
+    activeItem && activeItem.status.kind === "processing"
+      ? `${activeItem.file.name}: ${activeItem.status.stage ?? "Recognizing…"}`
+      : completedItems.length > 0 && !state.isProcessing
+        ? `${completedItems.length} ${completedItems.length === 1 ? "file" : "files"} converted to searchable PDF.`
+        : "";
+
   const handleDownloadAllZip = async () => {
     if (completedItems.length < 2 || zipping) return;
     setZipping(true);
@@ -357,6 +365,10 @@ export default function OcrTool() {
           cancelLabel="Skip this file"
         />
       )}
+
+      <div role="status" aria-live="polite" className="sr-only">
+        {liveAnnouncement}
+      </div>
     </div>
   );
 }

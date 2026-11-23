@@ -174,22 +174,14 @@ export class OcrSession {
           return { kind: "cancelled" };
         }
 
-        // Prefer Tesseract's native glyphless-font PDF when available, normalized to
-        // exact target PDF points; fall back to Rust TSV-based invisible text-layer PDF.
-        const rawOverlay =
-          recognized.pdfOverlay && recognized.pdfOverlay.length > 0
-            ? this.helper.normalizeOverlay(
-                recognized.pdfOverlay,
-                rendered.placementSize.width,
-                rendered.placementSize.height,
-              )
-            : this.helper.buildTextLayer(
-                recognized.tsv,
-                rendered.placementSize.width,
-                rendered.placementSize.height,
-                rendered.width,
-                rendered.height,
-              );
+        const rawOverlay = this.buildPageOverlay(
+          recognized.pdfOverlay,
+          recognized.tsv,
+          rendered.placementSize.width,
+          rendered.placementSize.height,
+          rendered.width,
+          rendered.height,
+        );
 
         overlays.push({ pageIndex: i, overlayPdf: rawOverlay });
         pageResults.push({
@@ -230,5 +222,39 @@ export class OcrSession {
         message: errorMessage(err) || "Could not perform OCR on this file.",
       };
     }
+  }
+
+  /**
+   * Produces a 1-page invisible Unicode text overlay PDF for a single page:
+   * uses Tesseract's native glyphless-font PDF normalized to the destination
+   * page's displayed point box when available, falling back cleanly to the
+   * Rust TSV-based text layer builder if absent or malformed.
+   */
+  private buildPageOverlay(
+    pdfOverlay: Uint8Array | null,
+    tsv: string,
+    targetWidthPt: number,
+    targetHeightPt: number,
+    imageWidthPx: number,
+    imageHeightPx: number,
+  ): Uint8Array {
+    if (pdfOverlay && pdfOverlay.length > 0) {
+      try {
+        return this.helper.normalizeOverlay(
+          pdfOverlay,
+          targetWidthPt,
+          targetHeightPt,
+        );
+      } catch {
+        // Fall through to Rust TSV text layer builder below.
+      }
+    }
+    return this.helper.buildTextLayer(
+      tsv,
+      targetWidthPt,
+      targetHeightPt,
+      imageWidthPx,
+      imageHeightPx,
+    );
   }
 }

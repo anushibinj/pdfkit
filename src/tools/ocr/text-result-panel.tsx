@@ -8,7 +8,7 @@
  */
 
 import { Check, Copy, FileText, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { downloadBlob } from "@/lib/download";
@@ -35,6 +35,15 @@ export function TextResultPanel({
   onClose,
 }: TextResultPanelProps) {
   const [copied, setCopied] = useState(false);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current !== null) {
+        clearTimeout(copyTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleCopy = async () => {
     if (!report.fullText) return;
@@ -42,7 +51,10 @@ export function TextResultPanel({
       await navigator.clipboard.writeText(report.fullText);
       setCopied(true);
       toast.success("Recognized text copied to clipboard.");
-      setTimeout(() => setCopied(false), 2000);
+      if (copyTimerRef.current !== null) {
+        clearTimeout(copyTimerRef.current);
+      }
+      copyTimerRef.current = setTimeout(() => setCopied(false), 2000);
     } catch {
       toast.error("Could not copy text to clipboard.");
     }

@@ -126,6 +126,24 @@ describe("OcrSession", () => {
     expect(helper.buildTextLayer).toHaveBeenCalledTimes(1);
   });
 
+  it("falls back to buildTextLayer when normalizeOverlay throws", async () => {
+    const { helper, pageProcessor, recognizer, overlayApplier } = createMocks();
+    helper.normalizeOverlay.mockImplementationOnce(() => {
+      throw new Error("Malformed overlay PDF");
+    });
+
+    const session = new OcrSession(
+      helper,
+      pageProcessor,
+      recognizer,
+      overlayApplier,
+    );
+    const out = await session.run(new Uint8Array([1]), DEFAULT_OCR_OPTIONS);
+    expect(out.kind).toBe("completed");
+    expect(helper.normalizeOverlay).toHaveBeenCalledTimes(1);
+    expect(helper.buildTextLayer).toHaveBeenCalledTimes(1);
+  });
+
   it("handles password-required, empty input, and cancellation cleanly", async () => {
     const { helper, pageProcessor, recognizer, overlayApplier } = createMocks();
     const session = new OcrSession(

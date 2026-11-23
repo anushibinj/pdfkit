@@ -191,9 +191,8 @@ export function ocrReducer(state: OcrState, action: OcrAction): OcrState {
               }
             : item,
         ),
-        // Automatically open the text result panel for single-file runs
-        inspectedTextItemId:
-          state.items.length === 1 ? action.id : state.inspectedTextItemId,
+        // Automatically open the text result panel for the first completed file
+        inspectedTextItemId: state.inspectedTextItemId ?? action.id,
       };
 
     case "item-password-required":
