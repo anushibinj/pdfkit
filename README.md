@@ -115,6 +115,16 @@ Currently shipped tools:
   not extracted, and a gray or RGB JPEG stored with an inverting /Decode
   array (rare) is kept as stored.
 
+- **Images to PDF** (`/tools/images-to-pdf/`, beta): turns PNG and JPEG images
+  into a single PDF in the order you choose, using
+  [PDFium](https://pdfium.googlesource.com/pdfium/) inside a Web Worker (reuses
+  the same cached WASM build, no extra download). JPEG photos are embedded as
+  their original compressed bytes (`/DCTDecode`, no re-encoding) and PNG images
+  keep their transparency as a soft mask. Each image can be reordered or rotated
+  in 90° steps, placed on Fit-to-image, A4, Letter, or Legal pages with Auto,
+  Portrait, or Landscape orientation, custom margins (0–50 mm), and Fit or
+  Actual-size (72 DPI) scaling.
+
 Built with Next.js (App Router, static export), TypeScript (strict), Tailwind
 CSS, shadcn/ui, next-themes and Vitest. It is an installable, offline-capable PWA.
 
@@ -498,8 +508,8 @@ Gouron, licensed under the **MIT License** (licence at
 under the **MIT License**. Fonts: Geist and
 Inter (SIL Open Font License 1.1), bundled locally.
 
-The PDF Editor, Add Watermark, Split PDF's thumbnails, Organize Pages and PDF
-to Images use **PDFium**, Copyright The PDFium Authors, licensed under the **BSD 3-Clause
+The PDF Editor, Add Watermark, Split PDF's thumbnails, Organize Pages, PDF
+to Images and Images to PDF use **PDFium**, Copyright The PDFium Authors, licensed under the **BSD 3-Clause
 License** and the **Apache License 2.0** (licence at
 `/wasm/LICENSE-pdfium.txt`), compiled to WebAssembly by **@embedpdf/pdfium**,
 Copyright (c) 2024 CloudPDF, Ji Chang, licensed under the **MIT License**

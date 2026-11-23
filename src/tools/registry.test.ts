@@ -139,4 +139,15 @@ describe("tool registry", () => {
     const mod = await getTool("pdf-to-images")!.component();
     expect(typeof mod.default).toBe("function");
   });
+
+  it("registers Images to PDF as a beta tool", () => {
+    const tool = getTool("images-to-pdf");
+    expect(tool?.name).toBe("Images to PDF");
+    expect(tool?.beta).toBe(true);
+  });
+
+  it("loads the Images to PDF component lazily", async () => {
+    const mod = await getTool("images-to-pdf")!.component();
+    expect(typeof mod.default).toBe("function");
+  });
 });

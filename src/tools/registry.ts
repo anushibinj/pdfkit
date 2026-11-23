@@ -4,6 +4,7 @@ import {
   FileCode,
   FileImage,
   FilePen,
+  Images,
   LayoutGrid,
   Lock,
   LockOpen,
@@ -220,6 +221,25 @@ export const tools: ToolDefinition[] = [
     icon: FileImage,
     beta: true,
     component: () => import("./pdf-to-images"),
+  },
+  {
+    slug: "images-to-pdf",
+    name: "Images to PDF",
+    tagline: "Combine PNG and JPEG images into one PDF, locally.",
+    description:
+      "Free images to PDF converter in your browser. Combine PNG and JPEG photos into one PDF, reorder or rotate pages, and pick paper size. Nothing is uploaded.",
+    keywords: [
+      "images to pdf",
+      "jpg to pdf",
+      "png to pdf",
+      "convert images to pdf",
+      "photos to pdf",
+      "combine images into pdf",
+      "private images to pdf",
+    ],
+    icon: Images,
+    beta: true,
+    component: () => import("./images-to-pdf"),
   },
 ];
 
