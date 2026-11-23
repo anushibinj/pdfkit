@@ -28,6 +28,7 @@
     "asn1js": "^4.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "diff": "^9.0.0",
     "geist": "^1.9.0",
     "ironpress": "1.7.0",
     "lucide-react": "^1.66.0",
