@@ -178,10 +178,22 @@ Currently shipped tools:
   the input, and recognized text can be copied or downloaded as `.txt`. All
   models and engines are served same-origin under `/wasm/` and cached on first
   use for offline support.
+- **Redact PDF** (`/tools/redact/`, beta): permanently removes sensitive text,
+  image pixels, vector paths, annotations, and form field values, then strips
+  document metadata (Info + XMP), attachments, JavaScript, hidden layers, and
+  matching bookmark titles using **pdf-redact** (`crates/pdf-redact`) and
+  [PDFium](https://pdfium.googlesource.com/pdfium/) inside a Web Worker.
+  Text objects whose glyphs straddle a redaction box are split in place rather
+  than painted over, image pixels are blanked inside copy-on-write bitmaps, and
+  earlier incremental revisions are purged by pruning unreferenced objects and
+  rewriting a single-revision PDF. An optional **Rasterise redacted pages** mode
+  flattens redacted pages into bitmap images for maximum certainty. Before the
+  download is offered, the saved file is reopened, re-extracted, and verified so
+  zero redacted terms remain.
 
 Built with Next.js (App Router, static export), TypeScript (strict), Tailwind
-CSS, shadcn/ui, next-themes and Vitest, plus four Rust crates compiled to
-WebAssembly (`crates/pdf-crop`, `crates/pdf-repair`, `crates/pdf-compress`, and `crates/pdf-ocr`). It is an installable, offline-capable PWA.
+CSS, shadcn/ui, next-themes and Vitest, plus five Rust crates compiled to
+WebAssembly (`crates/pdf-crop`, `crates/pdf-repair`, `crates/pdf-compress`, `crates/pdf-ocr`, and `crates/pdf-redact`). It is an installable, offline-capable PWA.
 
 ## How privacy is enforced
 
@@ -600,7 +612,7 @@ and its encoding tables from ISO 32000-1 Annex D as transcribed by
 and checks pages with PDFium (below).
 
 The PDF Editor, Add Watermark, Split PDF's thumbnails, Organize Pages, PDF
-to Images, Images to PDF, Compare PDFs, Compress PDF and Crop PDF use **PDFium**, Copyright The PDFium Authors, licensed under the **BSD 3-Clause
+to Images, Images to PDF, Compare PDFs, Compress PDF, Redact PDF and Crop PDF use **PDFium**, Copyright The PDFium Authors, licensed under the **BSD 3-Clause
 License** and the **Apache License 2.0** (licence at
 `/wasm/LICENSE-pdfium.txt`), compiled to WebAssembly by **@embedpdf/pdfium**,
 Copyright (c) 2024 CloudPDF, Ji Chang, licensed under the **MIT License**
@@ -614,5 +626,9 @@ licences at `/wasm/LICENSE-tesseract.txt` and `/wasm/LICENSE-tesseract-core.txt`
 `@tesseract.js-data/*` (`tessdata_fast` models, Apache-2.0 / MIT), **pdf-ocr**
 (`crates/pdf-ocr`, part of this repository, with third-party Rust crate licences
 at `/wasm/LICENSE-pdf-ocr-third-party.txt`), **PDFium**, and **qpdf**.
+Redact PDF also uses **pdf-redact** (`crates/pdf-redact`, part of this repository),
+which links [lopdf](https://github.com/J-F-Liu/lopdf) (MIT) and other Rust
+crates under MIT, Apache-2.0, BSD, Zlib and Unicode licences; their texts ship
+at `/wasm/LICENSE-pdf-redact-third-party.txt`.
 PDF to Images' PNG encoder (`src/lib/png`) is part of this project;
 compression uses the browser's built-in `CompressionStream`.

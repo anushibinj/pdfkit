@@ -45,6 +45,8 @@ const ON_FIRST_USE = new Set([
   "wasm/guj.traineddata.gz",
   "wasm/pan.traineddata.gz",
   "wasm/ori.traineddata.gz",
+  "wasm/pdf-redact.wasm",
+  "wasm/LICENSE-pdf-redact-third-party.txt",
 ]);
 
 async function walk(dir) {

@@ -15,6 +15,7 @@
     "wasm:repair": "node scripts/build-repair-wasm.mjs",
     "wasm:compress": "node scripts/build-compress-wasm.mjs",
     "wasm:ocr": "node scripts/build-ocr-wasm.mjs",
+    "wasm:redact": "node scripts/build-redact-wasm.mjs",
     "format": "prettier --write .",
     "predev": "node scripts/copy-wasm.mjs",
     "prebuild": "node scripts/copy-wasm.mjs",

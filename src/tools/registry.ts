@@ -2,6 +2,7 @@ import {
   CodeXml,
   Combine,
   Crop,
+  EyeOff,
   FileCode,
   FileDiff,
   FileDown,
@@ -468,6 +469,33 @@ export const tools: ToolDefinition[] = [
       ],
     },
     component: () => import("./ocr"),
+  },
+  {
+    slug: "redact",
+    name: "Redact PDF",
+    tagline: "Permanently remove sensitive text and images from PDFs, locally.",
+    description:
+      "Free PDF redaction tool in your browser. Permanently remove text, image pixels, metadata, and revision history, then verify 0 terms remain. Nothing is uploaded.",
+    keywords: [
+      "redact pdf",
+      "pdf redaction",
+      "remove sensitive text from pdf",
+      "sanitize pdf metadata",
+      "black out pdf permanently",
+      "verify pdf redaction",
+      "private pdf redactor",
+    ],
+    icon: EyeOff,
+    beta: true,
+    betaNote: {
+      title: "Beta: how permanent PDF redaction works",
+      items: [
+        "Removes text characters from the PDF content stream (splitting lines when a box covers part of a line) and blanks pixels inside embedded images rather than drawing a box on top.",
+        "Strips metadata (Info + XMP), attachments, JavaScript, hidden layers, matching bookmark titles, and earlier incremental revisions using pdf-redact WebAssembly.",
+        "Reopens the saved PDF and re-extracts all text to verify 0 redacted terms remain before offering the download.",
+      ],
+    },
+    component: () => import("./redact"),
   },
 ];
 

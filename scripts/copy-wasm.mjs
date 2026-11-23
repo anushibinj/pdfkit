@@ -160,6 +160,21 @@ const engines = [
       `OCR language model (${lang}): @tesseract.js-data/${lang} ${version} (Apache-2.0 / MIT).\n` +
       "https://github.com/tesseract-ocr/tessdata_fast\n",
   })),
+  {
+    // Built from crates/pdf-redact by `pnpm wasm:redact`; the binary is committed.
+    pkg: "pdf-redact",
+    dir: "crates/pdf-redact",
+    files: [{ from: "dist/pdf_redact.wasm", to: "pdf-redact.wasm" }],
+    licenses: [
+      {
+        from: "dist/THIRD_PARTY_LICENSES.txt",
+        to: "LICENSE-pdf-redact-third-party.txt",
+      },
+    ],
+    notice: (version) =>
+      `PDF redaction: pdf-redact ${version}, part of pdfkit (crates/pdf-redact), built on lopdf (MIT)\n` +
+      "and other Rust crates (see LICENSE-pdf-redact-third-party.txt). https://github.com/J-F-Liu/lopdf\n",
+  },
 ];
 
 /**

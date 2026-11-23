@@ -213,4 +213,15 @@ describe("tool registry", () => {
     const mod = await getTool("ocr")!.component();
     expect(typeof mod.default).toBe("function");
   });
+
+  it("registers Redact PDF as a beta tool", () => {
+    const tool = getTool("redact");
+    expect(tool?.name).toBe("Redact PDF");
+    expect(tool?.beta).toBe(true);
+  });
+
+  it("loads the Redact PDF component lazily", async () => {
+    const mod = await getTool("redact")!.component();
+    expect(typeof mod.default).toBe("function");
+  });
 });
