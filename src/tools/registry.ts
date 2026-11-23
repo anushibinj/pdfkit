@@ -3,6 +3,7 @@ import {
   Combine,
   Crop,
   FileCode,
+  FileDiff,
   FileImage,
   FilePen,
   Images,
@@ -260,6 +261,25 @@ export const tools: ToolDefinition[] = [
     icon: Images,
     beta: true,
     component: () => import("./images-to-pdf"),
+  },
+  {
+    slug: "compare",
+    name: "Compare PDFs",
+    tagline: "Compare two PDFs for text and visual differences, locally.",
+    description:
+      "Free PDF comparison tool in your browser. Compare two PDFs side by side for word-level text differences and visual pixel overlays. Nothing is uploaded.",
+    keywords: [
+      "compare pdf",
+      "pdf diff",
+      "compare two pdfs",
+      "pdf text comparison",
+      "visual pdf compare",
+      "pdf revision compare",
+      "private pdf compare",
+    ],
+    icon: FileDiff,
+    beta: true,
+    component: () => import("./compare"),
   },
 ];
 
