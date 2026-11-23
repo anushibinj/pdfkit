@@ -35,7 +35,7 @@ describe("MarkdownTool", () => {
     render(<MarkdownTool />);
     expect(markdownBox().value).toBe(SAMPLE_MARKDOWN);
     expect(cssBox().value).toBe(DEFAULT_STYLESHEET);
-    expect(screen.getByRole("note")).toHaveTextContent(/Beta/);
+    expect(screen.queryByRole("note")).toBeNull();
   });
 
   it("converts the current Markdown, CSS and page settings", async () => {

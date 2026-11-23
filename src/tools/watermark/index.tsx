@@ -3,7 +3,6 @@
 import { Download, FilePlus2 } from "lucide-react";
 import { useId, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { BetaNotice } from "@/components/beta-notice";
 import { Dropzone } from "@/components/dropzone";
 import { PasswordPrompt } from "@/components/password-prompt";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -102,22 +101,6 @@ export default function WatermarkTool() {
 
   return (
     <div className="space-y-6">
-      <BetaNotice title="Beta: what the watermark tool can and cannot do yet">
-        <li>
-          Text watermarks use the standard PDF fonts (Helvetica, Times,
-          Courier), which cover English and other Western European languages,
-          not other scripts (such as Devanagari, Chinese or Arabic) or emoji.
-          For those, use a picture of the text.
-        </li>
-        <li>
-          The page content is not rewritten: the watermark is added on top of it
-          or underneath it. Password-protected PDFs keep their password.
-        </li>
-        <li>
-          Adding a watermark invalidates the PDF&apos;s digital signatures.
-        </li>
-      </BetaNotice>
-
       {status.kind === "failed" && (
         <Alert variant="destructive">
           <AlertTitle>Could not open {status.fileName}</AlertTitle>

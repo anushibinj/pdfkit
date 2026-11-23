@@ -41,6 +41,14 @@ describe("tool registry", () => {
     expect(getTool("unlock")?.beta).toBeFalsy();
   });
 
+  it.each(tools.filter((t) => t.beta).map((t) => [t.slug, t] as const))(
+    "%s beta tool has a betaNote with title and items",
+    (_slug, tool) => {
+      expect(tool.betaNote?.title.trim()).not.toBe("");
+      expect(tool.betaNote?.items.length).toBeGreaterThan(0);
+    },
+  );
+
   it("registers the Markdown to PDF converter as a beta tool", () => {
     const tool = getTool("markdown-to-pdf");
     expect(tool?.name).toBe("Markdown to PDF");

@@ -103,12 +103,9 @@ async function openDocument(pages = 2) {
 }
 
 describe("EditTool", () => {
-  it("starts with the beta note and a PDF drop area", () => {
+  it("starts with a PDF drop area without an inline beta note", () => {
     const { container } = render(<EditTool />);
-    expect(screen.getByRole("note")).toHaveTextContent(/Beta/);
-    expect(screen.getByRole("note")).toHaveTextContent(
-      /Change the PDF's own text in place with Edit text/,
-    );
+    expect(screen.queryByRole("note")).toBeNull();
     expect(screen.getByText("Drop a PDF here")).toBeInTheDocument();
     expect(fileInput(container)).not.toBeNull();
   });

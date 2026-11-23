@@ -1,10 +1,8 @@
 "use client";
 
-import { TriangleAlert } from "lucide-react";
 import { useState, type DragEvent } from "react";
 import { toast } from "sonner";
 import { Dropzone } from "@/components/dropzone";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { downloadBlob } from "@/lib/download";
 import { isPdfFile } from "@/lib/format";
@@ -135,35 +133,6 @@ export default function OrganizeTool() {
 
   return (
     <div className="space-y-6">
-      <Alert
-        role="note"
-        className="border-yellow-300 bg-yellow-50 text-yellow-950 dark:border-yellow-800 dark:bg-yellow-950/40 dark:text-yellow-100"
-      >
-        <TriangleAlert aria-hidden="true" />
-        <AlertTitle>Beta: what the organizer can and cannot do yet</AlertTitle>
-        <AlertDescription className="text-yellow-900 dark:text-yellow-200">
-          <ul className="list-disc space-y-1 pl-4">
-            <li>
-              Add several PDFs: their pages appear on one board, numbered and
-              coloured by file. Drag pages (or press Ctrl or ⌘ with the arrow
-              keys) to reorder them; Ctrl, ⌘ or Shift with a click selects
-              several.
-            </li>
-            <li>
-              Rotate, duplicate or delete pages, insert blank pages, reverse the
-              order, or interleave a double-sided scan (fronts, then backs in
-              reverse). Rotating only turns the page: text stays text.
-            </li>
-            <li>
-              The download is a new PDF made of the pages. Bookmarks, form
-              fields and document properties are not carried over, links between
-              pages may stop working, digital signatures are not kept, and files
-              opened with a password are saved without one.
-            </li>
-          </ul>
-        </AlertDescription>
-      </Alert>
-
       {!hasBoard && !org.opening && (
         <Dropzone
           accept=".pdf,application/pdf"

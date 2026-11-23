@@ -2,12 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { BetaNotice } from "@/components/beta-notice";
 import { CodeEditor } from "@/components/code-editor";
 import { ConversionActions } from "@/components/conversion-actions";
 import { ConversionStatus } from "@/components/conversion-status";
 import { Dropzone } from "@/components/dropzone";
 import { PageSettings } from "@/components/page-settings";
+import { StartOverButton } from "@/components/start-over-button";
 import { downloadBlob } from "@/lib/download";
 import { DEFAULT_PAGE_SETUP } from "@/lib/html-pdf/page-setup";
 import type { PageSetup } from "@/lib/html-pdf/types";
@@ -105,40 +105,32 @@ export default function HtmlTool() {
 
   return (
     <div className="space-y-6">
-      <BetaNotice title="Beta: what the PDF engine can and cannot do yet">
-        <li>
-          Only what is inside the HTML is used: CSS in{" "}
-          <code>&lt;style&gt;</code> elements and <code>style</code> attributes,
-          and PNG or JPEG images embedded as <code>data:</code> URLs. Linked
-          stylesheets, images from the web or your computer, and scripts are
-          left out; you are told after converting.
-        </li>
-        <li>
-          Fonts cover Latin, Greek, Cyrillic, Hebrew and Arabic, in sans-serif,
-          serif and monospace styles (look-alikes of Arial, Times New Roman and
-          Courier New); other font families, including web fonts, fall back to
-          one of them. Indic scripts (such as Devanagari), Chinese, Japanese,
-          Korean and emoji do not display correctly yet.
-        </li>
-        <li>
-          An <code>@page</code> rule in the HTML sets the paper size and
-          margins, and overrides the page settings below.
-        </li>
-      </BetaNotice>
-
-      <Dropzone
-        accept={HTML_ACCEPT}
-        isAccepted={isHtmlFile}
-        onFiles={(files) => void openFiles(files)}
-        onRejected={(files) =>
-          toast.error(
-            `Only HTML files are supported. Skipped: ${files.map((f) => f.name).join(", ")}`,
-          )
-        }
-        title="Drop an HTML file here"
-        buttonLabel="Open HTML file"
-        disabled={converting}
-      />
+      {!sourceName ? (
+        <Dropzone
+          accept={HTML_ACCEPT}
+          isAccepted={isHtmlFile}
+          onFiles={(files) => void openFiles(files)}
+          onRejected={(files) =>
+            toast.error(
+              `Only HTML files are supported. Skipped: ${files.map((f) => f.name).join(", ")}`,
+            )
+          }
+          title="Drop an HTML file here"
+          buttonLabel="Open HTML file"
+          disabled={converting}
+        />
+      ) : (
+        <div className="flex items-center justify-end">
+          <StartOverButton
+            disabled={converting}
+            onClick={() => {
+              setSourceName(undefined);
+              setHtml(SAMPLE_HTML);
+              inputChanged();
+            }}
+          />
+        </div>
+      )}
 
       <CodeEditor
         label={sourceName ? `HTML (${sourceName})` : "HTML"}

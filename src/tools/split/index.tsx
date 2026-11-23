@@ -3,7 +3,6 @@
 import { LockKeyhole, X } from "lucide-react";
 import { useMemo, useReducer, useState } from "react";
 import { toast } from "sonner";
-import { BetaNotice } from "@/components/beta-notice";
 import { Dropzone } from "@/components/dropzone";
 import { PasswordPrompt } from "@/components/password-prompt";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -139,21 +138,6 @@ export default function SplitTool() {
 
   return (
     <div className="space-y-6">
-      <BetaNotice title="Beta: what is and is not kept">
-        <li>
-          Pages are copied as they are: text, images, comments, form fields and
-          links between kept pages stay, and nothing is re-compressed.
-        </li>
-        <li>
-          The new files keep the original&apos;s password and document
-          properties such as the title.
-        </li>
-        <li>
-          Bookmarks and links that pointed to a page left out no longer go
-          anywhere, and digital signatures are no longer valid in the new files.
-        </li>
-      </BetaNotice>
-
       {doc.status.kind === "failed" && (
         <Alert variant="destructive">
           <AlertTitle>Could not open {doc.status.fileName}</AlertTitle>

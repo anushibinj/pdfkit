@@ -6,15 +6,14 @@ import {
   Combine,
   Download,
   KeyRound,
-  Trash2,
   X,
 } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
-import { BetaNotice } from "@/components/beta-notice";
 import { Dropzone } from "@/components/dropzone";
 import { FileRow } from "@/components/file-row";
 import { PasswordPrompt } from "@/components/password-prompt";
+import { StartOverButton } from "@/components/start-over-button";
 import { StatusBadge } from "@/components/status-badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -198,32 +197,19 @@ export default function MergeTool() {
 
   return (
     <div className="space-y-6">
-      <BetaNotice title="Beta: what is and is not kept">
-        <li>
-          Every page is copied as it is: text, images, links, comments and form
-          fields stay, and nothing is re-compressed.
-        </li>
-        <li>
-          Bookmarks (the outline) and document properties such as the title are
-          not carried over.
-        </li>
-        <li>
-          The merged file has no password, and digital signatures in the
-          original files are no longer valid in it.
-        </li>
-      </BetaNotice>
-
-      <Dropzone
-        accept=".pdf,application/pdf"
-        isAccepted={isPdfFile}
-        onFiles={onFiles}
-        onRejected={(files) =>
-          toast.error(
-            `Only PDF files are supported. Skipped: ${files.map((f) => f.name).join(", ")}`,
-          )
-        }
-        disabled={merging}
-      />
+      {items.length === 0 && (
+        <Dropzone
+          accept=".pdf,application/pdf"
+          isAccepted={isPdfFile}
+          onFiles={onFiles}
+          onRejected={(files) =>
+            toast.error(
+              `Only PDF files are supported. Skipped: ${files.map((f) => f.name).join(", ")}`,
+            )
+          }
+          disabled={merging}
+        />
+      )}
 
       <div role="status" aria-live="polite" className="sr-only">
         {outcomeAnnouncement(outcome)}
@@ -233,14 +219,7 @@ export default function MergeTool() {
         <section aria-label="Files to merge" className="space-y-3">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-lg font-semibold">Files ({items.length})</h2>
-            <Button
-              variant="outline"
-              className="min-h-11"
-              disabled={merging}
-              onClick={clear}
-            >
-              <Trash2 aria-hidden="true" /> Clear all
-            </Button>
+            <StartOverButton disabled={merging} onClick={clear} />
           </div>
 
           {/* An ordered list: the order is the merge order, and screen
