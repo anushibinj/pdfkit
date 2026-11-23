@@ -34,12 +34,10 @@ const fileInput = (container: HTMLElement) =>
 const pdf = new Blob(["%PDF-1.4"], { type: "application/pdf" });
 
 describe("HtmlTool", () => {
-  it("starts with the sample document and lists the engine's limits", () => {
+  it("starts with the sample document without an inline beta note", () => {
     render(<HtmlTool />);
     expect(htmlBox().value).toBe(SAMPLE_HTML);
-    const note = screen.getByRole("note");
-    expect(note).toHaveTextContent(/Beta/);
-    expect(note).toHaveTextContent(/@page/);
+    expect(screen.queryByRole("note")).toBeNull();
   });
 
   it("converts the current HTML and page settings", async () => {

@@ -1,10 +1,11 @@
 "use client";
 
-import { Download, ShieldCheck, Trash2, TriangleAlert, X } from "lucide-react";
+import { Download, ShieldCheck, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Dropzone } from "@/components/dropzone";
 import { FileRow } from "@/components/file-row";
+import { StartOverButton } from "@/components/start-over-button";
 import { StatusBadge } from "@/components/status-badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -175,46 +176,18 @@ export default function VerifyTool() {
 
   return (
     <div className="space-y-6">
-      <Alert
-        role="note"
-        className="border-yellow-300 bg-yellow-50 text-yellow-950 dark:border-yellow-800 dark:bg-yellow-950/40 dark:text-yellow-100"
-      >
-        <TriangleAlert aria-hidden="true" />
-        <AlertTitle>Beta: signature checks are limited for now</AlertTitle>
-        <AlertDescription className="text-yellow-900 dark:text-yellow-200">
-          <ul className="list-disc space-y-1 pl-4">
-            <li>
-              We check that the signed content is unchanged and that the
-              signature is cryptographically correct.
-            </li>
-            <li>
-              We do not yet check who signed. Certificates are not validated
-              against a trusted list (such as Adobe or EU trust lists) or for
-              revocation, so a green tick means &ldquo;signature intact&rdquo;,
-              not &ldquo;signer trusted&rdquo;.
-            </li>
-            <li>
-              The tick is added as an annotation after the original signature.
-              The signature stays valid, but some PDF readers will report a
-              change made after signing.
-            </li>
-          </ul>
-          <p className="mt-2">
-            We are working on full certificate and revocation checks.
-          </p>
-        </AlertDescription>
-      </Alert>
-
-      <Dropzone
-        accept=".pdf,application/pdf"
-        isAccepted={isPdfFile}
-        onFiles={onFiles}
-        onRejected={(files) =>
-          toast.error(
-            `Only PDF files are supported. Skipped: ${files.map((f) => f.name).join(", ")}`,
-          )
-        }
-      />
+      {items.length === 0 && (
+        <Dropzone
+          accept=".pdf,application/pdf"
+          isAccepted={isPdfFile}
+          onFiles={onFiles}
+          onRejected={(files) =>
+            toast.error(
+              `Only PDF files are supported. Skipped: ${files.map((f) => f.name).join(", ")}`,
+            )
+          }
+        />
+      )}
 
       <div role="status" aria-live="polite" className="sr-only">
         {announcement}
@@ -224,13 +197,7 @@ export default function VerifyTool() {
         <section aria-label="Files" className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">Files ({items.length})</h2>
-            <Button
-              variant="outline"
-              className="min-h-11"
-              onClick={() => setItems([])}
-            >
-              <Trash2 aria-hidden="true" /> Clear all
-            </Button>
+            <StartOverButton onClick={() => setItems([])} />
           </div>
           <ul className="space-y-3">
             {items.map((item) => {

@@ -70,9 +70,9 @@ async function openPdf(file = pdf()) {
 }
 
 describe("WatermarkTool", () => {
-  it("starts with the beta note and a drop area, without extra text under it", () => {
+  it("starts with a drop area, without extra text under it", () => {
     render(<WatermarkTool />);
-    expect(screen.getByRole("note")).toHaveTextContent(/Beta/);
+    expect(screen.queryByRole("note")).toBeNull();
     expect(screen.getByText("Drop a PDF here")).toBeInTheDocument();
     // the drop area's own hint is the only text below it (CLAUDE.md)
     expect(

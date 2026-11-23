@@ -1,6 +1,5 @@
 "use client";
 
-import { TriangleAlert } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Dropzone } from "@/components/dropzone";
@@ -259,37 +258,6 @@ export default function EditTool() {
 
   return (
     <div className="space-y-6">
-      <Alert
-        role="note"
-        className="border-yellow-300 bg-yellow-50 text-yellow-950 dark:border-yellow-800 dark:bg-yellow-950/40 dark:text-yellow-100"
-      >
-        <TriangleAlert aria-hidden="true" />
-        <AlertTitle>Beta: what the editor can and cannot do yet</AlertTitle>
-        <AlertDescription className="text-yellow-900 dark:text-yellow-200">
-          <ul className="list-disc space-y-1 pl-4">
-            <li>
-              Change the PDF&apos;s own text in place with Edit text: click a
-              line and type. The line keeps its font when the file&apos;s font
-              has every character you type; otherwise it switches to the closest
-              standard font (Helvetica, Times or Courier) in the same place,
-              size and colour.
-            </li>
-            <li>
-              Add text, drawings, boxes, highlights and pictures (such as a
-              signature); rotate, reorder or delete pages.
-            </li>
-            <li>
-              Text in scanned pages (pictures of text) and in some reused page
-              parts cannot be edited. New and substituted text uses the standard
-              PDF fonts, which cover English and other Western European
-              languages, not other scripts (such as Devanagari, Chinese or
-              Arabic) or emoji.
-            </li>
-            <li>Editing a digitally signed PDF invalidates its signatures.</li>
-          </ul>
-        </AlertDescription>
-      </Alert>
-
       {status.kind === "failed" && (
         <Alert variant="destructive">
           <AlertTitle>Could not open {status.fileName}</AlertTitle>

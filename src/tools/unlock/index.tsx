@@ -1,10 +1,11 @@
 "use client";
 
-import { Download, KeyRound, Trash2, X } from "lucide-react";
+import { Download, KeyRound, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Dropzone } from "@/components/dropzone";
 import { FileRow } from "@/components/file-row";
+import { StartOverButton } from "@/components/start-over-button";
 import { StatusBadge } from "@/components/status-badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -84,16 +85,18 @@ export default function UnlockTool() {
 
   return (
     <div className="space-y-6">
-      <Dropzone
-        accept=".pdf,application/pdf"
-        isAccepted={isPdfFile}
-        onFiles={onFiles}
-        onRejected={(files) =>
-          toast.error(
-            `Only PDF files are supported. Skipped: ${files.map((f) => f.name).join(", ")}`,
-          )
-        }
-      />
+      {items.length === 0 && (
+        <Dropzone
+          accept=".pdf,application/pdf"
+          isAccepted={isPdfFile}
+          onFiles={onFiles}
+          onRejected={(files) =>
+            toast.error(
+              `Only PDF files are supported. Skipped: ${files.map((f) => f.name).join(", ")}`,
+            )
+          }
+        />
+      )}
 
       <div role="status" aria-live="polite" className="sr-only">
         {announcement}
@@ -105,9 +108,7 @@ export default function UnlockTool() {
             <h2 className="text-lg font-semibold">
               Files ({items.length})
             </h2>
-            <Button variant="outline" className="min-h-11" onClick={clear}>
-              <Trash2 aria-hidden="true" /> Clear all
-            </Button>
+            <StartOverButton onClick={clear} />
           </div>
           <ul className="space-y-3">
             {items.map((item) => {

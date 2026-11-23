@@ -75,9 +75,9 @@ async function openPdf(file = pdf()) {
 }
 
 describe("SplitTool", () => {
-  it("starts with the beta notice and the drop area only", () => {
+  it("starts with the drop area only", () => {
     render(<SplitTool />);
-    expect(screen.getByRole("note")).toHaveTextContent("what is and is not kept");
+    expect(screen.queryByRole("note")).toBeNull();
     expect(screen.getByRole("button", { name: "Choose a PDF" })).toBeInTheDocument();
     expect(screen.queryByRole("group", { name: "What to do" })).toBeNull();
   });

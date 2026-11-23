@@ -9,7 +9,6 @@
 import { TriangleAlert } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { BetaNotice } from "@/components/beta-notice";
 import { PasswordPrompt } from "@/components/password-prompt";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { downloadBlob } from "@/lib/download";
@@ -124,22 +123,6 @@ export default function CompareTool() {
 
   return (
     <div className="space-y-6">
-      <BetaNotice title="Beta: how PDF comparison works">
-        <li>
-          Text mode aligns pages by similarity so inserted or removed pages do
-          not mark later pages as changed, and highlights word-level insertions
-          and deletions.
-        </li>
-        <li>
-          Visual mode renders pages at equal DPI and tints per-pixel changes,
-          catching moved logos, drawings, and layout shifts.
-        </li>
-        <li>
-          Exported comparison reports embed standard PDF Highlight annotations
-          visible in Adobe Acrobat and other readers.
-        </li>
-      </BetaNotice>
-
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <FileSlot
           side="left"

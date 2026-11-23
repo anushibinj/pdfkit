@@ -75,9 +75,9 @@ async function openTwo() {
 }
 
 describe("OrganizeTool", () => {
-  it("starts with the beta notice and the dropzone only", () => {
+  it("starts with the dropzone only", () => {
     render(<OrganizeTool />);
-    expect(screen.getByRole("note")).toHaveTextContent("Beta");
+    expect(screen.queryByRole("note")).toBeNull();
     expect(button("Choose PDFs")).toBeInTheDocument();
     expect(screen.queryByRole("listbox")).toBeNull();
   });

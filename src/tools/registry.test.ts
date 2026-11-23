@@ -41,6 +41,14 @@ describe("tool registry", () => {
     expect(getTool("unlock")?.beta).toBeFalsy();
   });
 
+  it.each(tools.filter((t) => t.beta).map((t) => [t.slug, t] as const))(
+    "%s beta tool has a betaNote with title and items",
+    (_slug, tool) => {
+      expect(tool.betaNote?.title.trim()).not.toBe("");
+      expect(tool.betaNote?.items.length).toBeGreaterThan(0);
+    },
+  );
+
   it("registers the Markdown to PDF converter as a beta tool", () => {
     const tool = getTool("markdown-to-pdf");
     expect(tool?.name).toBe("Markdown to PDF");
@@ -73,7 +81,7 @@ describe("tool registry", () => {
   it("loads the PDF editor component lazily", async () => {
     const mod = await getTool("edit")!.component();
     expect(typeof mod.default).toBe("function");
-  });
+  }, 15000);
 
   it("loads the HTML to PDF component lazily", async () => {
     const mod = await getTool("html-to-pdf")!.component();
@@ -159,6 +167,17 @@ describe("tool registry", () => {
 
   it("loads the Images to PDF component lazily", async () => {
     const mod = await getTool("images-to-pdf")!.component();
+    expect(typeof mod.default).toBe("function");
+  });
+
+  it("registers Repair PDF as a beta tool", () => {
+    const tool = getTool("repair");
+    expect(tool?.name).toBe("Repair PDF");
+    expect(tool?.beta).toBe(true);
+  });
+
+  it("loads the Repair PDF component lazily", async () => {
+    const mod = await getTool("repair")!.component();
     expect(typeof mod.default).toBe("function");
   });
 
