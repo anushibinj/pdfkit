@@ -1,0 +1,6 @@
+# Pinned so the committed WebAssembly binary can be rebuilt byte for byte.
+[toolchain]
+channel = "1.97.0"
+targets = ["wasm32-unknown-unknown"]
+components = ["clippy", "rustfmt"]
+profile = "minimal"

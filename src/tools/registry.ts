@@ -5,6 +5,7 @@ import {
   EyeOff,
   FileCode,
   FileDiff,
+  FileDown,
   FileImage,
   FilePen,
   Images,
@@ -385,6 +386,33 @@ export const tools: ToolDefinition[] = [
       ],
     },
     component: () => import("./repair"),
+  },
+  {
+    slug: "compress",
+    name: "Compress PDF",
+    tagline: "Shrink PDF file sizes or fit under a target MB limit, locally.",
+    description:
+      "Free PDF compressor that runs in your browser. Shrink PDFs with lossless, balanced, or custom DPI presets, or fit under a target MB limit. Nothing is uploaded.",
+    keywords: [
+      "compress pdf",
+      "reduce pdf size",
+      "shrink pdf",
+      "make pdf under 2mb",
+      "optimize pdf",
+      "compress pdf offline",
+      "private pdf compressor",
+    ],
+    icon: FileDown,
+    beta: true,
+    betaNote: {
+      title: "Beta: how PDF compression works",
+      items: [
+        "Lossless mode deduplicates identical streams, recompresses Flate streams at level 9, and optimizes object streams with qpdf without changing appearance.",
+        "Balanced, Small, Custom, and Target size modes downsample and re-encode opaque images to JPEG while preserving transparent PNG soft masks.",
+        "If an image or document does not shrink, the original bytes are kept so files never grow.",
+      ],
+    },
+    component: () => import("./compress"),
   },
   {
     slug: "compare",

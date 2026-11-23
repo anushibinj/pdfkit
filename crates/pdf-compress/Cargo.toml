@@ -1,0 +1,27 @@
+[package]
+name = "pdf-compress"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.88"
+description = "Compresses PDF documents: stream deduplication, Flate level-9 recompression, image downsampling and baseline JPEG re-encoding. Compiled to WebAssembly for pdfkit."
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# The PDF object model (parse, edit, save). Default features pull in a clock
+# and a thread pool, neither of which exists in a browser worker.
+lopdf = { version = "=0.47.0", default-features = false }
+# Strict Flate decoding and level-9 recompression of PDF streams.
+flate2 = "1"
+# lopdf depends on getrandom (for encrypting, which this crate never does).
+# The crate registers a custom backend that always fails; see `src/ffi.rs`.
+getrandom = "0.4"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
