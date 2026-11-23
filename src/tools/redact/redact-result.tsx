@@ -44,6 +44,11 @@ export function RedactResult({
   if (report.annotationsRemoved > 0) {
     details.push(`${report.annotationsRemoved} annotations/links removed`);
   }
+  if (report.sanitize.formValuesCleared > 0) {
+    details.push(
+      `${report.sanitize.formValuesCleared} ${report.sanitize.formValuesCleared === 1 ? "form value" : "form values"} cleared`,
+    );
+  }
   if (report.pagesRasterized > 0) {
     details.push(`${report.pagesRasterized} pages rasterised`);
   }
@@ -54,6 +59,21 @@ export function RedactResult({
   ) {
     details.push(
       `Metadata scrubbed (${report.sanitize.metadataEntriesRemoved} entries, ${report.sanitize.xmpStreamsRemoved} XMP streams)`,
+    );
+  }
+  if (report.sanitize.attachmentsRemoved > 0) {
+    details.push(
+      `${report.sanitize.attachmentsRemoved} ${report.sanitize.attachmentsRemoved === 1 ? "attachment" : "attachments"} removed`,
+    );
+  }
+  if (report.sanitize.javascriptActionsRemoved > 0) {
+    details.push(
+      `${report.sanitize.javascriptActionsRemoved} JavaScript ${report.sanitize.javascriptActionsRemoved === 1 ? "action" : "actions"} removed`,
+    );
+  }
+  if (report.sanitize.hiddenLayersRemoved > 0) {
+    details.push(
+      `${report.sanitize.hiddenLayersRemoved} hidden ${report.sanitize.hiddenLayersRemoved === 1 ? "layer" : "layers"} stripped`,
     );
   }
   if (report.sanitize.bookmarksCleaned > 0) {

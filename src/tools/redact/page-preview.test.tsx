@@ -79,4 +79,54 @@ describe("PagePreview", () => {
     expect(added.bottom).toBeCloseTo(660, 2);
     expect(added.top).toBeCloseTo(700, 2);
   });
+
+  it("supports clicking empty canvas to deselect, Escape to cancel drag, and Delete to remove selected mark", () => {
+    const onAddBox = vi.fn();
+    const onSelectMark = vi.fn();
+    const onDeleteSelectedMark = vi.fn();
+    const renderPage = vi.fn(async () => ({
+      status: "rendered" as const,
+      width: 100,
+      height: 133,
+      pixels: new ArrayBuffer(100 * 133 * 4),
+    }));
+
+    render(
+      <PagePreview
+        pageIndex={0}
+        pageCount={1}
+        info={INFO}
+        marks={MARKS}
+        selectedMarkId="m1"
+        style={DEFAULT_MARK_STYLE}
+        renderPage={renderPage}
+        onPageChange={vi.fn()}
+        onAddBox={onAddBox}
+        onSelectMark={onSelectMark}
+        onDeleteSelectedMark={onDeleteSelectedMark}
+      />,
+    );
+
+    const svg = screen.getByRole("img", { name: /redaction canvas for page 1/i });
+    Object.defineProperty(svg, "getBoundingClientRect", {
+      value: () => ({ left: 0, top: 0, width: 600, height: 800 }),
+    });
+
+    // Click without dragging clears selection instead of creating a tiny box.
+    fireEvent.pointerDown(svg, { button: 0, pointerId: 1, clientX: 10, clientY: 10 });
+    fireEvent.pointerUp(svg, { button: 0, pointerId: 1, clientX: 11, clientY: 11 });
+    expect(onAddBox).not.toHaveBeenCalled();
+    expect(onSelectMark).toHaveBeenCalledWith(null);
+
+    // Pressing Escape during an active drag aborts it before pointerUp.
+    fireEvent.pointerDown(svg, { button: 0, pointerId: 2, clientX: 50, clientY: 50 });
+    fireEvent.pointerMove(svg, { button: 0, pointerId: 2, clientX: 150, clientY: 150 });
+    fireEvent.keyDown(svg, { key: "Escape" });
+    fireEvent.pointerUp(svg, { button: 0, pointerId: 2, clientX: 150, clientY: 150 });
+    expect(onAddBox).not.toHaveBeenCalled();
+
+    // Pressing Delete removes the currently selected mark.
+    fireEvent.keyDown(svg, { key: "Delete" });
+    expect(onDeleteSelectedMark).toHaveBeenCalledTimes(1);
+  });
 });

@@ -125,6 +125,41 @@ describe("RedactTool", () => {
     });
   });
 
+  it("ignores stale async box-text extraction results after resetting the document", async () => {
+    let resolveBox!: (value: string) => void;
+    extractTextUnderBox.mockImplementationOnce(
+      () =>
+        new Promise<string>((r) => {
+          resolveBox = r;
+        }),
+    );
+
+    mockState.status = {
+      kind: "ready",
+      fileName: "first.pdf",
+      pages: [{ box: { left: 0, bottom: 0, right: 612, top: 792 }, rotation: 0 }],
+    };
+    mockState.job = { kind: "idle" };
+    render(<RedactTool />);
+
+    const svg = screen.getByRole("img", { name: /redaction canvas for page 1/i });
+    Object.defineProperty(svg, "getBoundingClientRect", {
+      value: () => ({ left: 0, top: 0, width: 612, height: 792 }),
+    });
+    fireEvent.pointerDown(svg, { button: 0, pointerId: 1, clientX: 20, clientY: 20 });
+    fireEvent.pointerMove(svg, { button: 0, pointerId: 1, clientX: 120, clientY: 60 });
+    fireEvent.pointerUp(svg, { button: 0, pointerId: 1, clientX: 120, clientY: 60 });
+
+    // User closes / switches PDFs before extractTextUnderBox resolves.
+    fireEvent.click(screen.getByRole("button", { name: /open another pdf/i }));
+    resolveBox("stale secret");
+
+    await waitFor(() => {
+      expect(close).toHaveBeenCalledTimes(1);
+    });
+    expect(screen.queryByText("stale secret")).not.toBeInTheDocument();
+  });
+
   it("shows verified result screen when job is done", () => {
     mockState.status = {
       kind: "ready",

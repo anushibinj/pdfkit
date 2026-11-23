@@ -15,12 +15,12 @@ const REPORT: RedactionReport = {
   sanitize: {
     metadataEntriesRemoved: 3,
     xmpStreamsRemoved: 1,
-    attachmentsRemoved: 0,
-    javascriptActionsRemoved: 0,
-    hiddenLayersRemoved: 0,
+    attachmentsRemoved: 2,
+    javascriptActionsRemoved: 1,
+    hiddenLayersRemoved: 1,
     bookmarksCleaned: 1,
     annotationsRemoved: 0,
-    formValuesCleared: 0,
+    formValuesCleared: 2,
     objectsPruned: 12,
   },
   verification: {
@@ -49,6 +49,10 @@ describe("RedactResult", () => {
     expect(screen.getByText("Verified after saving")).toBeInTheDocument();
     expect(screen.getByText("0 of 5 redacted terms remain")).toBeInTheDocument();
     expect(screen.getByText(/1 image pixel-blanked/i)).toBeInTheDocument();
+    expect(screen.getByText(/2 form values cleared/i)).toBeInTheDocument();
+    expect(screen.getByText(/2 attachments removed/i)).toBeInTheDocument();
+    expect(screen.getByText(/1 JavaScript action removed/i)).toBeInTheDocument();
+    expect(screen.getByText(/1 hidden layer stripped/i)).toBeInTheDocument();
     expect(
       screen.getByText(/1 bookmark titles scrubbed/i),
     ).toBeInTheDocument();

@@ -672,7 +672,7 @@ export class PageRedactor {
       const maxSizeByHeight = h * 0.65;
       const maxSizeByWidth = (w * 0.85) / unitWidth;
       const fontSize = Math.min(12, maxSizeByHeight, maxSizeByWidth);
-      if (fontSize < 3.5) continue;
+      if (fontSize < 2.5) continue;
 
       const labelWidth = lineWidth(cleanLabel, fontMetrics, fontSize);
       const tx = box.left + (w - labelWidth) / 2;

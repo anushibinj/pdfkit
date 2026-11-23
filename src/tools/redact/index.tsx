@@ -50,6 +50,7 @@ export default function RedactTool() {
   const [searching, setSearching] = useState(false);
   const [announcement, setAnnouncement] = useState("");
   const markSeq = useRef(0);
+  const docGenRef = useRef(0);
 
   const ready = status.kind === "ready" ? status : null;
   const working = job.kind === "working";
@@ -58,6 +59,7 @@ export default function RedactTool() {
   const nextMarkId = useCallback(() => `m${++markSeq.current}`, []);
 
   const resetUi = () => {
+    docGenRef.current++;
     dispatchMarks({ type: "clear" });
     setPageIndex(0);
     setSelectedMarkId(null);
@@ -82,11 +84,14 @@ export default function RedactTool() {
   };
 
   const handleAddBox = async (box: PageBox) => {
-    const term = await redact.extractTextUnderBox(pageIndex, box);
+    const gen = docGenRef.current;
+    const targetPage = pageIndex;
+    const term = await redact.extractTextUnderBox(targetPage, box);
+    if (gen !== docGenRef.current) return;
     const id = nextMarkId();
     const mark: RedactionMark = {
       id,
-      pageIndex,
+      pageIndex: targetPage,
       box,
       term,
       source: "manual",
@@ -97,15 +102,17 @@ export default function RedactTool() {
     setSelectedMarkId(id);
     setAnnouncement(
       term
-        ? `Added redaction mark for "${term}" on page ${pageIndex + 1}.`
-        : `Added area redaction mark on page ${pageIndex + 1}.`,
+        ? `Added redaction mark for "${term}" on page ${targetPage + 1}.`
+        : `Added area redaction mark on page ${targetPage + 1}.`,
     );
   };
 
   const handleSearch = async (query: SearchQuery) => {
+    const gen = docGenRef.current;
     setSearching(true);
     try {
       const candidates = await redact.search(query);
+      if (gen !== docGenRef.current) return;
       if (!candidates || candidates.length === 0) {
         toast.info("No matches found in this PDF.");
         setAnnouncement("No matches found.");
@@ -122,7 +129,9 @@ export default function RedactTool() {
       toast.success(msg);
       setAnnouncement(msg);
     } finally {
-      setSearching(false);
+      if (gen === docGenRef.current) {
+        setSearching(false);
+      }
     }
   };
 
@@ -240,6 +249,11 @@ export default function RedactTool() {
               onPageChange={setPageIndex}
               onAddBox={(box) => void handleAddBox(box)}
               onSelectMark={setSelectedMarkId}
+              onDeleteSelectedMark={() => {
+                if (!selectedMarkId) return;
+                dispatchMarks({ type: "remove", id: selectedMarkId });
+                setSelectedMarkId(null);
+              }}
             />
 
             <div className="space-y-4">
