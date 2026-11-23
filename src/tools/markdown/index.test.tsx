@@ -1,9 +1,9 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ConversionState } from "./conversion-state";
+import type { ConversionState } from "@/lib/html-pdf/conversion-state";
+import { DEFAULT_PAGE_SETUP } from "@/lib/html-pdf/page-setup";
 import { DEFAULT_STYLESHEET, SAMPLE_MARKDOWN } from "./core/default-stylesheet";
-import { DEFAULT_PAGE_SETUP } from "./core/page-setup";
 
 const hook = vi.hoisted(() => ({
   state: { kind: "idle" } as ConversionState,

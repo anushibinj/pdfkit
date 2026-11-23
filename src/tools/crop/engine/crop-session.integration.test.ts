@@ -9,11 +9,13 @@ import { readFileSync } from "node:fs";
 import { inflateSync } from "node:zlib";
 import { PDFDocument, StandardFonts, degrees, rgb } from "pdf-lib";
 import { beforeAll, describe, expect, it } from "vitest";
+import type { WrappedPdfiumModule } from "@embedpdf/pdfium";
 import {
   extractText,
-  loadNodePdfium,
-  type FullPdfium,
-} from "@/lib/pdfium/test-utils/pdfium-node";
+  loadNodePdfiumModule,
+} from "@/lib/pdfium/test-utils/node-pdfium";
+
+type FullPdfium = WrappedPdfiumModule;
 import { buildCropPlan, type CropPlan } from "../core/crop-plan";
 import { asCropPdfiumApi, type CropPdfiumApi } from "./crop-pdfium-api";
 import {
@@ -40,7 +42,7 @@ let simple: Uint8Array;
 let rotated: Uint8Array;
 
 beforeAll(async () => {
-  full = await loadNodePdfium();
+  full = await loadNodePdfiumModule();
   api = asCropPdfiumApi(full);
   cropModule = await PdfCropModule.load(
     new URL("crates/pdf-crop/dist/pdf_crop.wasm", repo).href,

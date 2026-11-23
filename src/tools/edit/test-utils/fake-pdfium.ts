@@ -1,9 +1,8 @@
 /**
- * Test doubles for the editor's PDFium API: the shared core fakes
- * (`src/lib/pdfium/test-utils/fake-pdfium-core.ts`) plus the editing
- * functions. Unit tests use them to check call order and clean-up; real
- * behaviour is covered by the integration tests, which run the actual
- * WebAssembly build.
+ * Test doubles for the editor's PDFium interface: the shared core fake
+ * (`@/lib/pdfium/test-utils/fake-pdfium`) plus the editing functions. Unit
+ * tests use them to check call order and clean-up; real behaviour is
+ * covered by the integration tests, which run the actual WebAssembly build.
  */
 import {
   FakeRuntime,
@@ -12,12 +11,12 @@ import {
   mockApi,
   type MockedApi,
   type PdfiumFunctions,
-} from "@/lib/pdfium/test-utils/fake-pdfium-core";
+} from "@/lib/pdfium/test-utils/fake-pdfium";
 import type { PdfiumApi } from "../engine/pdfium-api";
 
-export { FakeRuntime };
+export { FakeRuntime } from "@/lib/pdfium/test-utils/fake-pdfium";
 
-/** Each PDFium function as a typed `vi.fn` mock. */
+/** Each editor PDFium function as a typed `vi.fn` mock. */
 export type MockedPdfium = MockedApi<PdfiumApi>;
 
 /**
@@ -91,5 +90,5 @@ export function fakePdfium(runtime = new FakeRuntime()): {
     FPDFText_GetTextObject: () => 0,
     FPDFText_GetCharOrigin: ok,
   };
-  return { api: mockApi<PdfiumApi>(defaults, runtime), runtime };
+  return { api: mockApi(defaults, runtime), runtime };
 }

@@ -1,8 +1,8 @@
+import { normalizePageSetup } from "@/lib/html-pdf/page-setup";
+import type { PdfEngine } from "@/lib/html-pdf/pdf-engine";
 import type { ConvertRequest } from "../messages";
 import { buildHtmlDocument } from "./html-document";
 import type { MarkdownRenderer } from "./markdown-renderer";
-import { normalizePageSetup } from "./page-setup";
-import type { PdfEngine } from "./pdf-engine";
 
 /**
  * Orchestrates one conversion: Markdown -> HTML fragment -> styled HTML

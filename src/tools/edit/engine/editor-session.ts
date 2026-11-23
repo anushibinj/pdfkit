@@ -1,5 +1,7 @@
 import type { PageInfo, QuarterTurns, TextEditOutcome } from "../core/model";
-import { addTurns, viewSize } from "@/lib/geometry/page-geometry";
+import { viewSize } from "@/lib/pdfium/page-box";
+import { fitRenderSize } from "@/lib/pdfium/render-size";
+import { addTurns } from "../core/page-geometry";
 import { sanitizeSavePlan, sanitizeTextEdits } from "../core/sanitize-plan";
 import type { FontMetricsSource } from "../core/text-layout";
 import { groupFragments, type TextRun } from "../core/text-runs";
@@ -11,7 +13,6 @@ import {
   type RenderedPage,
 } from "@/lib/pdfium/pdfium-document";
 import { applyTextEdits } from "./text-edits";
-import { fitRenderSize } from "@/lib/pdfium/render-size";
 import { WasmHeap } from "@/lib/pdfium/wasm-heap";
 import { createWriterRegistry, type WriterRegistry } from "./writers/registry";
 

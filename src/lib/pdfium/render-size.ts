@@ -1,4 +1,4 @@
-import type { Size } from "../geometry/page-geometry";
+import type { Size } from "./page-box";
 
 /** Widest page bitmap the worker renders, in pixels. */
 export const MAX_RENDER_WIDTH = 4096;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Matrix } from "@/lib/geometry/affine";
+import type { Matrix } from "@/lib/affine";
 import type {
   FontDescription,
   PageTextSnapshot,

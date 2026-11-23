@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyToPoint, applyToVector } from "@/lib/geometry/affine";
+import { applyToPoint, applyToVector } from "@/lib/affine";
 import type { PageBox, QuarterTurns } from "./model";
 import {
   objectToUser,

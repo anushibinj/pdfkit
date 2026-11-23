@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   HIGHLIGHT_OPACITY,
   type EditObject,
@@ -14,7 +14,7 @@ import { WasmHeap } from "@/lib/pdfium/wasm-heap";
 import { HighlightWriter, RectWriter } from "./box-writers";
 import { ImageWriter } from "./image-writer";
 import { InkWriter } from "./ink-writer";
-import { check, insertNewObject, type WriteContext } from "./object-writer";
+import type { WriteContext } from "./object-writer";
 import { createWriterRegistry, writePageObjects, writerFor } from "./registry";
 import { TextWriter } from "./text-writer";
 
@@ -35,59 +35,6 @@ function setup(images: WriteContext["images"] = new Map()) {
 
 const frame = { id: "o", x: 100, y: 200, rotation: 0 } as const;
 const red = { r: 255, g: 0, b: 0 };
-
-describe("check", () => {
-  it("passes truthy results and throws on failure", () => {
-    expect(() => check(true, "x")).not.toThrow();
-    expect(() => check(1, "x")).not.toThrow();
-    expect(() => check(false, "draw")).toThrow("PDFium could not draw");
-    expect(() => check(0, "draw")).toThrow("PDFium could not draw");
-  });
-});
-
-describe("insertNewObject", () => {
-  it("configures, transforms and inserts the object", () => {
-    const { api, ctx } = setup();
-    const configure = vi.fn();
-    insertNewObject(ctx, () => 55, configure, [1, 2, 3, 4, 5, 6], "a thing");
-    expect(configure).toHaveBeenCalledWith(55);
-    expect(api.FPDFPageObj_Transform).toHaveBeenCalledWith(
-      55,
-      1,
-      2,
-      3,
-      4,
-      5,
-      6,
-    );
-    expect(api.FPDFPage_InsertObject).toHaveBeenCalledWith(PAGE, 55);
-    expect(api.FPDFPageObj_Destroy).not.toHaveBeenCalled();
-  });
-
-  it("destroys the object when configuring fails, and never inserts it", () => {
-    const { api, ctx } = setup();
-    expect(() =>
-      insertNewObject(
-        ctx,
-        () => 55,
-        () => {
-          throw new Error("bad");
-        },
-        [1, 0, 0, 1, 0, 0],
-        "a thing",
-      ),
-    ).toThrow("bad");
-    expect(api.FPDFPageObj_Destroy).toHaveBeenCalledWith(55);
-    expect(api.FPDFPage_InsertObject).not.toHaveBeenCalled();
-  });
-
-  it("reports a failed creation", () => {
-    const { ctx } = setup();
-    expect(() =>
-      insertNewObject(ctx, () => 0, vi.fn(), [1, 0, 0, 1, 0, 0], "a thing"),
-    ).toThrow("PDFium could not create a thing");
-  });
-});
 
 describe("TextWriter", () => {
   const text: TextObject = {

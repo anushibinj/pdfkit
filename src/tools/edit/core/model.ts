@@ -10,19 +10,17 @@
  * `object-frame.ts` for the conversions to and from the screen.
  */
 
-import type { Point } from "@/lib/geometry/affine";
-import type { PageBox, QuarterTurns } from "@/lib/geometry/page-geometry";
-import type { PageInfo } from "@/lib/pdfium/pdfium-document";
+import type { Point } from "@/lib/affine";
+import type { Rgb } from "@/lib/color";
+import type { ImageMime } from "@/lib/image-info";
+import type { QuarterTurns } from "@/lib/pdfium/page-box";
 
-// Shared with other tools; re-exported so the editor keeps one model module.
-export type { PageBox, PageInfo, Point, QuarterTurns };
-
-/** An sRGB colour with 8-bit channels (0-255). */
-export interface Rgb {
-  r: number;
-  g: number;
-  b: number;
-}
+// Points, colours, image formats and page geometry are shared with other
+// tools; they are part of the editor's model too, so they are re-exported here.
+export type { Point } from "@/lib/affine";
+export type { Rgb } from "@/lib/color";
+export type { ImageMime } from "@/lib/image-info";
+export type { PageBox, PageInfo, QuarterTurns } from "@/lib/pdfium/page-box";
 
 /**
  * Text font families. Each maps to one of the PDF "standard 14" fonts, which
@@ -109,9 +107,6 @@ export type EditObjectKind = EditObject["kind"];
 
 /** The objects that are sized by a width and a height. */
 export type BoxObject = RectObject | HighlightObject | ImageObject;
-
-/** Image formats PDFium can embed directly. */
-export type ImageMime = "image/png" | "image/jpeg";
 
 /** The bytes behind an {@link ImageObject}. Kept outside undo history. */
 export interface ImageAsset {

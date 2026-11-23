@@ -1,93 +1,18 @@
 import * as asn1js from "asn1js";
 import * as pkijs from "pkijs";
 import type { SignatureReport } from "./messages";
+import { findSignatures, type FoundSignature } from "@/lib/pdf-signature-scan";
 
-export interface FoundSignature {
-  /** [start1, len1, start2, len2] as written in the PDF */
-  byteRange: [number, number, number, number];
-  /** DER-ish bytes of the signature container (may have trailing zero padding) */
-  contents: Uint8Array;
-}
-
-const BYTE_RANGE = new TextEncoder().encode("/ByteRange");
-
-function indexOfBytes(hay: Uint8Array, needle: Uint8Array, from: number) {
-  outer: for (let i = from; i <= hay.length - needle.length; i++) {
-    for (let j = 0; j < needle.length; j++) {
-      if (hay[i + j] !== needle[j]) continue outer;
-    }
-    return i;
-  }
-  return -1;
-}
-
-function hexToBytes(hex: string): Uint8Array | null {
-  const clean = hex.replace(/\s+/g, "");
-  if (clean.length % 2 !== 0 || /[^0-9a-fA-F]/.test(clean)) return null;
-  const out = new Uint8Array(clean.length / 2);
-  for (let i = 0; i < out.length; i++) {
-    out[i] = parseInt(clean.slice(i * 2, i * 2 + 2), 16);
-  }
-  return out;
-}
-
-/**
- * Find every signature by scanning for `/ByteRange [a b c d]`. Signature
- * dictionaries must be stored uncompressed (the signed bytes are the file
- * bytes), so a byte scan is reliable and avoids a full PDF parse. The hex
- * `/Contents <...>` string is exactly the gap between the two ranges.
- */
-export function findSignatures(
-  pdf: Uint8Array,
-): { found: FoundSignature[]; skipped: number } {
-  const found: FoundSignature[] = [];
-  let skipped = 0;
-  let pos = 0;
-  for (;;) {
-    const at = indexOfBytes(pdf, BYTE_RANGE, pos);
-    if (at < 0) break;
-    pos = at + BYTE_RANGE.length;
-    const window = new TextDecoder("latin1").decode(
-      pdf.subarray(pos, Math.min(pos + 120, pdf.length)),
-    );
-    const m = /^\s*\[\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s*\]/.exec(window);
-    if (!m) {
-      skipped++;
-      continue;
-    }
-    const [a, b, c, d] = m.slice(1).map(Number);
-    // Gap must be a hex string <...>, within the file, ranges ordered.
-    if (a !== 0 || a + b >= c || c + d > pdf.length) {
-      skipped++;
-      continue;
-    }
-    const gapStart = a + b;
-    if (pdf[gapStart] !== 0x3c || pdf[c - 1] !== 0x3e) {
-      skipped++;
-      continue;
-    }
-    const hex = new TextDecoder("latin1").decode(
-      pdf.subarray(gapStart + 1, c - 1),
-    );
-    const contents = hexToBytes(hex);
-    if (!contents || contents.length === 0) {
-      skipped++;
-      continue;
-    }
-    found.push({ byteRange: [a, b, c, d], contents });
-  }
-  return { found, skipped };
-}
+// The byte scanner is shared with Protect PDF; re-exported so existing
+// imports keep working.
+export { findSignatures, type FoundSignature } from "@/lib/pdf-signature-scan";
 
 let engineReady = false;
 function ensureEngine() {
   if (engineReady) return;
   const crypto = globalThis.crypto;
   if (!crypto?.subtle) throw new Error("Web Crypto is not available");
-  pkijs.setEngine(
-    "pdfkit",
-    new pkijs.CryptoEngine({ name: "pdfkit", crypto }),
-  );
+  pkijs.setEngine("pdfkit", new pkijs.CryptoEngine({ name: "pdfkit", crypto }));
   engineReady = true;
 }
 
@@ -98,20 +23,24 @@ function concat(a: Uint8Array, b: Uint8Array): Uint8Array {
   return out;
 }
 
-function signerName(signed: pkijs.SignedData, signerIndex: number): string | undefined {
+function signerName(
+  signed: pkijs.SignedData,
+  signerIndex: number,
+): string | undefined {
   const sid = signed.signerInfos[signerIndex]?.sid;
   const certs = (signed.certificates ?? []).filter(
     (c): c is pkijs.Certificate => c instanceof pkijs.Certificate,
   );
-  const cert = certs.find((c) => {
-    if (sid instanceof pkijs.IssuerAndSerialNumber) {
-      return (
-        c.issuer.isEqual(sid.issuer) &&
-        c.serialNumber.isEqual(sid.serialNumber)
-      );
-    }
-    return false;
-  }) ?? certs[0];
+  const cert =
+    certs.find((c) => {
+      if (sid instanceof pkijs.IssuerAndSerialNumber) {
+        return (
+          c.issuer.isEqual(sid.issuer) &&
+          c.serialNumber.isEqual(sid.serialNumber)
+        );
+      }
+      return false;
+    }) ?? certs[0];
   if (!cert) return undefined;
   const cn = cert.subject.typesAndValues.find((t) => t.type === "2.5.4.3");
   const value = cn?.value.valueBlock.value;
@@ -139,20 +68,29 @@ export async function verifyOne(
       ) as ArrayBuffer,
     );
     if (parsed.offset === -1) {
-      return { ...base, status: "unsupported", reason: "Signature data is not valid ASN.1/CMS." };
+      return {
+        ...base,
+        status: "unsupported",
+        reason: "Signature data is not valid ASN.1/CMS.",
+      };
     }
     const info = new pkijs.ContentInfo({ schema: parsed.result });
     if (info.contentType !== pkijs.ContentInfo.SIGNED_DATA) {
-      return { ...base, status: "unsupported", reason: "Signature is not a CMS SignedData container." };
+      return {
+        ...base,
+        status: "unsupported",
+        reason: "Signature is not a CMS SignedData container.",
+      };
     }
     const signed = new pkijs.SignedData({ schema: info.content });
     if (signed.signerInfos.length === 0) {
-      return { ...base, status: "invalid", reason: "Signature contains no signer." };
+      return {
+        ...base,
+        status: "invalid",
+        reason: "Signature contains no signer.",
+      };
     }
-    const signedBytes = concat(
-      pdf.subarray(a, a + b),
-      pdf.subarray(c, c + d),
-    );
+    const signedBytes = concat(pdf.subarray(a, a + b), pdf.subarray(c, c + d));
     let allOk = true;
     let failure = "";
     for (let s = 0; s < signed.signerInfos.length; s++) {

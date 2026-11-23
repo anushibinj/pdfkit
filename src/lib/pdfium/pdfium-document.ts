@@ -1,17 +1,7 @@
-import {
-  isQuarterTurns,
-  type PageBox,
-  type QuarterTurns,
-} from "../geometry/page-geometry";
-import { FPDF_ERR, RENDER_FLAGS, type PdfiumCoreApi } from "./pdfium-core-api";
+import { FPDF_ERR, RENDER_FLAGS, type PdfiumCoreApi } from "./core-api";
+import { isQuarterTurns, type PageInfo, type QuarterTurns } from "./page-box";
+export type { PageInfo } from "./page-box";
 import type { WasmHeap } from "./wasm-heap";
-
-/** What PDFium reports about one page of an opened file. */
-export interface PageInfo {
-  box: PageBox;
-  /** The page's own /Rotate, as clockwise quarter turns. */
-  rotation: QuarterTurns;
-}
 
 /** Why a file could not be opened, from PDFium's error code. */
 export type OpenFailure = "password" | "format" | "security" | "unknown";
@@ -80,7 +70,8 @@ export class PdfiumDocument {
    * @param api The PDFium module.
    * @param heap Memory helper for that module.
    * @param handle The `FPDF_DOCUMENT`.
-   * @param dataPtr Address of the file bytes the document reads from.
+   * @param dataPtr Address of the file bytes the document reads from, or 0
+   *   for a document created empty.
    */
   private constructor(
     private readonly api: PdfiumCoreApi,
@@ -115,6 +106,28 @@ export class PdfiumDocument {
     return new PdfiumDocument(api, heap, handle, dataPtr);
   }
 
+  /**
+   * Create a new, empty document (no pages), for example to draw content
+   * into and then save.
+   *
+   * There is no file behind a created document, so the file address is 0,
+   * which {@link WasmHeap.free} ignores; {@link close} therefore only
+   * closes the document. `FPDF_CreateNewDocument` can only fail when PDFium
+   * cannot allocate memory, so a failure is reported as a `RangeError`
+   * (classified as "out of memory" by the workers).
+   *
+   * @param api The PDFium module.
+   * @param heap Memory helper for that module.
+   * @returns The new document.
+   * @throws {RangeError} When PDFium could not create it.
+   */
+  static create(api: PdfiumCoreApi, heap: WasmHeap): PdfiumDocument {
+    const handle = api.FPDF_CreateNewDocument();
+    if (!handle)
+      throw new RangeError("out of memory: could not create a document");
+    return new PdfiumDocument(api, heap, handle, 0);
+  }
+
   /** @returns The number of pages. */
   pageCount(): number {
     return this.api.FPDF_GetPageCount(this.handle);
@@ -131,6 +144,64 @@ export class PdfiumDocument {
   withPage<T>(index: number, fn: (page: number) => T): T {
     const page = this.api.FPDF_LoadPage(this.handle, index);
     if (!page) throw new Error(`Could not load page ${index + 1}`);
+    try {
+      return fn(page);
+    } finally {
+      this.api.FPDF_ClosePage(page);
+    }
+  }
+
+  /**
+   * Like {@link withPage}, for work that awaits while the page is open
+   * (hashing or encoding between PDFium calls). The page is closed once the
+   * returned promise settles, whether it resolves or rejects.
+   *
+   * The caller must make sure nothing closes the document while `fn` is
+   * waiting: PDFium would then free memory the page still points into.
+   * Worker handlers guarantee it by running one request at a time.
+   *
+   * @param index Zero-based page index.
+   * @param fn Receives the `FPDF_PAGE` handle.
+   * @returns What `fn` resolves to.
+   * @throws When the page cannot be loaded.
+   */
+  async withPageAsync<T>(
+    index: number,
+    fn: (page: number) => Promise<T>,
+  ): Promise<T> {
+    const page = this.api.FPDF_LoadPage(this.handle, index);
+    if (!page) throw new Error(`Could not load page ${index + 1}`);
+    try {
+      return await fn(page);
+    } finally {
+      this.api.FPDF_ClosePage(page);
+    }
+  }
+
+  /**
+   * Insert a new, empty page, run `fn` with it and close it again, even if
+   * `fn` throws.
+   *
+   * The page stays in the document after closing: closing only releases
+   * PDFium's loaded copy. Changes `fn` makes to the page's objects must be
+   * written into its content with `FPDFPage_GenerateContent` before it is
+   * closed, or they are lost.
+   *
+   * @param index Where to insert the page (0 = first).
+   * @param width Page width in points.
+   * @param height Page height in points.
+   * @param fn Receives the `FPDF_PAGE` handle.
+   * @returns What `fn` returns.
+   * @throws {RangeError} When PDFium could not create the page.
+   */
+  withNewPage<T>(
+    index: number,
+    width: number,
+    height: number,
+    fn: (page: number) => T,
+  ): T {
+    const page = this.api.FPDFPage_New(this.handle, index, width, height);
+    if (!page) throw new RangeError("out of memory: could not add a page");
     try {
       return fn(page);
     } finally {

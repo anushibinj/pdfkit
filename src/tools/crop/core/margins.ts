@@ -1,11 +1,11 @@
-import { applyToPoint } from "@/lib/geometry/affine";
+import { applyToPoint } from "@/lib/affine";
 import {
   viewSize,
   viewToUser,
   type PageBox,
   type QuarterTurns,
   type Size,
-} from "@/lib/geometry/page-geometry";
+} from "@/lib/pdfium/page-box";
 
 /**
  * How much to cut from each edge of a page, in points, measured on the page

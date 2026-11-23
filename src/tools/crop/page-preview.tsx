@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { drawPixels } from "@/lib/draw-pixels";
-import { viewSize } from "@/lib/geometry/page-geometry";
+import { viewSize } from "@/lib/pdfium/page-box";
 import type { PageInfo } from "@/lib/pdfium/pdfium-document";
 import { renderWidthFor } from "@/lib/render-width";
 import { useElementWidth } from "@/lib/use-element-observers";

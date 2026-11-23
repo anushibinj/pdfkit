@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyToPoint } from "@/lib/geometry/affine";
+import { applyToPoint } from "@/lib/affine";
 import {
   CLICK_TOLERANCE,
   DEFAULT_BOX_SIZE,

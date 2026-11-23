@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { PageBox } from "@/lib/geometry/page-geometry";
+import type { PageBox } from "@/lib/pdfium/page-box";
 import {
   MIN_CROP_SIZE,
   NO_MARGINS,

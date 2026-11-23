@@ -9,7 +9,7 @@ import {
   mockApi,
   type MockedApi,
   type PdfiumFunctions,
-} from "@/lib/pdfium/test-utils/fake-pdfium-core";
+} from "@/lib/pdfium/test-utils/fake-pdfium";
 import type { CropPdfiumApi } from "../engine/crop-pdfium-api";
 
 /** Each function of the crop API as a typed `vi.fn` mock. */

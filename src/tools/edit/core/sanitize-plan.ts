@@ -1,4 +1,4 @@
-import { clampChannel } from "./colors";
+import { clampChannel } from "@/lib/color";
 import {
   FONT_SIZE_LIMITS,
   MAX_COORDINATE,
@@ -14,7 +14,7 @@ import {
   type Rgb,
   type TextEdit,
 } from "./model";
-import { isQuarterTurns } from "@/lib/geometry/page-geometry";
+import { isQuarterTurns } from "@/lib/pdfium/page-box";
 import type { SaveImage, SavePage, SavePlan } from "./save-plan";
 import {
   normalizeTextInput,

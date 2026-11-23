@@ -47,6 +47,12 @@ describe("tool registry", () => {
     expect(tool?.beta).toBe(true);
   });
 
+  it("registers the HTML to PDF converter as a beta tool", () => {
+    const tool = getTool("html-to-pdf");
+    expect(tool?.name).toBe("HTML to PDF");
+    expect(tool?.beta).toBe(true);
+  });
+
   it("registers the PDF editor as a beta tool", () => {
     const tool = getTool("edit");
     expect(tool?.name).toBe("PDF Editor");
@@ -69,8 +75,90 @@ describe("tool registry", () => {
     expect(typeof mod.default).toBe("function");
   });
 
+  it("loads the HTML to PDF component lazily", async () => {
+    const mod = await getTool("html-to-pdf")!.component();
+    expect(typeof mod.default).toBe("function");
+  });
+
+  it("registers Protect PDF as a beta tool", () => {
+    const tool = getTool("protect");
+    expect(tool?.name).toBe("Protect PDF");
+    expect(tool?.beta).toBe(true);
+  });
+
+  it("loads the Protect PDF component lazily", async () => {
+    const mod = await getTool("protect")!.component();
+    expect(typeof mod.default).toBe("function");
+  });
+
+  it("registers the watermark tool as a beta tool", () => {
+    const tool = getTool("watermark");
+    expect(tool?.name).toBe("Add Watermark");
+    expect(tool?.beta).toBe(true);
+  });
+
+  it("loads the watermark component lazily", async () => {
+    const mod = await getTool("watermark")!.component();
+    expect(typeof mod.default).toBe("function");
+  });
+
+  it("registers the PDF splitter as a beta tool", () => {
+    const tool = getTool("split");
+    expect(tool?.name).toBe("Split PDF");
+    expect(tool?.beta).toBe(true);
+  });
+
+  it("loads the PDF splitter component lazily", async () => {
+    const mod = await getTool("split")!.component();
+    expect(typeof mod.default).toBe("function");
+  });
+
+  it("registers Merge PDFs as a beta tool", () => {
+    const tool = getTool("merge");
+    expect(tool?.name).toBe("Merge PDFs");
+    expect(tool?.beta).toBe(true);
+  });
+
+  it("loads the Merge PDFs component lazily", async () => {
+    const mod = await getTool("merge")!.component();
+    expect(typeof mod.default).toBe("function");
+  });
+
   it("loads the Markdown to PDF component lazily", async () => {
     const mod = await getTool("markdown-to-pdf")!.component();
+    expect(typeof mod.default).toBe("function");
+  });
+
+  it("registers the page organizer as a beta tool", () => {
+    const tool = getTool("organize");
+    expect(tool?.name).toBe("Organize Pages");
+    expect(tool?.beta).toBe(true);
+  });
+
+  it("loads the page organizer component lazily", async () => {
+    const mod = await getTool("organize")!.component();
+    expect(typeof mod.default).toBe("function");
+  });
+
+  it("registers PDF to Images as a beta tool", () => {
+    const tool = getTool("pdf-to-images");
+    expect(tool?.name).toBe("PDF to Images");
+    expect(tool?.beta).toBe(true);
+  });
+
+  it("loads the PDF to Images component lazily", async () => {
+    const mod = await getTool("pdf-to-images")!.component();
+    expect(typeof mod.default).toBe("function");
+  });
+
+  it("registers Images to PDF as a beta tool", () => {
+    const tool = getTool("images-to-pdf");
+    expect(tool?.name).toBe("Images to PDF");
+    expect(tool?.beta).toBe(true);
+  });
+
+  it("loads the Images to PDF component lazily", async () => {
+    const mod = await getTool("images-to-pdf")!.component();
     expect(typeof mod.default).toBe("function");
   });
 });

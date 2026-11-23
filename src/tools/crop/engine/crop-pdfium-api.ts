@@ -1,5 +1,5 @@
 import type { WrappedPdfiumModule } from "@embedpdf/pdfium";
-import type { PdfiumCoreApi } from "@/lib/pdfium/pdfium-core-api";
+import type { PdfiumCoreApi } from "@/lib/pdfium/core-api";
 
 /**
  * The PDFium functions the crop tool calls, on top of the core ones

@@ -1,8 +1,8 @@
 "use client";
 
 import { useRef, type PointerEvent as ReactPointerEvent } from "react";
-import type { Point } from "@/lib/geometry/affine";
-import type { Size } from "@/lib/geometry/page-geometry";
+import type { Point } from "@/lib/affine";
+import type { Size } from "@/lib/pdfium/page-box";
 import {
   RESIZE_HANDLES,
   cursorFor,

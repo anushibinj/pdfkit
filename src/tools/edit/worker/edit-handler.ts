@@ -2,7 +2,7 @@ import { errorMessage, isOutOfMemory } from "@/lib/errors";
 import { toTransferableBuffer } from "@/lib/transfer";
 import type { HandlerContext, HandlerResult } from "@/lib/worker-protocol";
 import type { PageInfo, QuarterTurns } from "../core/model";
-import { isQuarterTurns } from "@/lib/geometry/page-geometry";
+import { isQuarterTurns } from "@/lib/pdfium/page-box";
 import { InvalidPlanError } from "../core/sanitize-plan";
 import type { TextRun } from "../core/text-runs";
 import type { PageRender } from "../engine/editor-session";

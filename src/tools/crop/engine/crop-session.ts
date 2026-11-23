@@ -1,4 +1,4 @@
-import { viewSize } from "@/lib/geometry/page-geometry";
+import { viewSize } from "@/lib/pdfium/page-box";
 import {
   PdfOpenError,
   PdfiumDocument,

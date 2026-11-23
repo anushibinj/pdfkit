@@ -1,25 +1,22 @@
+import type { PdfiumCoreApi } from "@/lib/pdfium/core-api";
+
 /**
  * The slice of the PDFium WebAssembly module (`@embedpdf/pdfium`) that the
- * editor uses.
+ * editor uses: the shared core (opening, rendering, saving; see
+ * `@/lib/pdfium/core-api`) plus the editing functions below.
  *
  * Declared here instead of importing the library's full type so that:
  * - the engine depends on a small, explicit surface (about 70 of the ~500
  *   exported functions), and tests can fake exactly that surface;
  * - this module never pulls in the 4.6 MB WebAssembly binary.
  * `load-pdfium.ts` checks at compile time that the real module satisfies
- * this interface. The part every tool needs (opening, rendering, saving)
- * is `PdfiumCoreApi` in `src/lib/pdfium/pdfium-core-api.ts`.
+ * this interface.
  *
  * All handles (documents, pages, objects, bitmaps, writers) and pointers are
  * plain numbers: addresses inside the WebAssembly memory. 0 means "failed".
  */
 
-import type { PdfiumCoreApi } from "@/lib/pdfium/pdfium-core-api";
-
-/**
- * The PDFium functions the editor calls (signatures from PDFium's C API), on
- * top of the core ones every tool uses.
- */
+/** The PDFium functions the editor calls (signatures from PDFium's C API). */
 export interface PdfiumApi extends PdfiumCoreApi {
   FPDF_MovePages(
     doc: number,

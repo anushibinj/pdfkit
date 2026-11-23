@@ -8,7 +8,7 @@ export function ToolGrid({ tools }: { tools: ToolDefinition[] }) {
         <ToolCard key={tool.slug} tool={tool} />
       ))}
       <li data-testid="more-tools-card">
-        <div className="flex h-full min-h-32 items-center justify-center rounded-xl border-2 border-dashed border-muted-foreground/40 p-6 text-center text-muted-foreground">
+        <div className="border-muted-foreground/40 text-muted-foreground flex h-full min-h-32 items-center justify-center rounded-xl border-2 border-dashed p-6 text-center">
           More tools on the way
         </div>
       </li>

@@ -1,5 +1,5 @@
-import { compose, type Matrix } from "@/lib/geometry/affine";
-import { userToView, viewSize } from "@/lib/geometry/page-geometry";
+import { compose, type Matrix } from "@/lib/affine";
+import { userToView, viewSize } from "@/lib/pdfium/page-box";
 import { PdfiumDocument } from "@/lib/pdfium/pdfium-document";
 import type { WasmHeap } from "@/lib/pdfium/wasm-heap";
 import type { CropPlan } from "../core/crop-plan";

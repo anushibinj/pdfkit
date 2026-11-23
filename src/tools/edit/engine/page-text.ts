@@ -1,4 +1,4 @@
-import type { Matrix } from "@/lib/geometry/affine";
+import type { Matrix } from "@/lib/affine";
 import type { Rgb } from "../core/model";
 import {
   observedCharacters,
@@ -10,7 +10,7 @@ import {
 import { PAGE_OBJECT_TEXT, type PdfiumApi } from "./pdfium-api";
 import type { TextSurface } from "./text-edits";
 import type { WasmHeap } from "@/lib/pdfium/wasm-heap";
-import { check } from "./writers/object-writer";
+import { check } from "@/lib/pdfium/page-objects";
 
 /** Text render modes that paint glyphs and do not clip: fill, stroke, both. */
 const EDITABLE_RENDER_MODES = new Set([0, 1, 2]);

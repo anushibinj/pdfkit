@@ -1,4 +1,4 @@
-import { applyToPoint, applyToVector } from "@/lib/geometry/affine";
+import { applyToPoint, applyToVector } from "@/lib/affine";
 import {
   DEFAULT_HIGHLIGHT_COLOR,
   DEFAULT_INK_COLOR,
@@ -20,7 +20,8 @@ import {
   type TextObject,
 } from "./model";
 import { uprightFrameAt, viewToObject } from "./object-frame";
-import { viewSize, viewToUser } from "@/lib/geometry/page-geometry";
+import { viewSize } from "@/lib/pdfium/page-box";
+import { viewToUser } from "./page-geometry";
 
 /** Tools that react to pointer input on a page. */
 export type DrawingTool =

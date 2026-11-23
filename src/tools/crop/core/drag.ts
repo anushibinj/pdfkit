@@ -1,5 +1,5 @@
-import type { Point } from "@/lib/geometry/affine";
-import type { Size } from "@/lib/geometry/page-geometry";
+import type { Point } from "@/lib/affine";
+import type { Size } from "@/lib/pdfium/page-box";
 import { MIN_CROP_SIZE, type ViewRect } from "./margins";
 
 /**

@@ -1,14 +1,10 @@
-import { compose } from "@/lib/geometry/affine";
+import { compose } from "@/lib/affine";
 import type { TextObject } from "../../core/model";
 import { objectToUser } from "../../core/object-frame";
 import { STANDARD_FONT_NAME } from "../../core/standard-font-metrics";
 import { layoutText, type FontMetricsSource } from "../../core/text-layout";
-import {
-  check,
-  insertNewObject,
-  type ObjectWriter,
-  type WriteContext,
-} from "./object-writer";
+import { check, insertNewObject } from "@/lib/pdfium/page-objects";
+import type { ObjectWriter, WriteContext } from "./object-writer";
 
 /**
  * Writes text objects as PDF text in a standard font (nothing embedded).

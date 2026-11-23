@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { FPDF_ERR } from "@/lib/pdfium/pdfium-core-api";
+import { FPDF_ERR } from "@/lib/pdfium/core-api";
 import { PdfOpenError } from "@/lib/pdfium/pdfium-document";
 import { InvalidCropPlanError } from "../core/crop-plan";
 import { fakeCropPdfium } from "../test-utils/fake-crop-pdfium";

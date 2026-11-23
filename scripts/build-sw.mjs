@@ -7,7 +7,8 @@ import path from "node:path";
 const out = path.resolve(import.meta.dirname, "../out");
 const SKIP = new Set(["sw.js", "404.html", "404/index.html"]);
 // Too large to download on every visitor's first load (ironpress is ~15 MB;
-// PDFium is ~4.6 MB plus ~290 KB of glue only the editor and cropper import;
+// PDFium is ~4.6 MB plus ~290 KB of glue only the editor, the watermark
+// tool, the splitter's thumbnails, the page organizer and cropper import;
 // pdf-crop is ~1 MB, used only by the cropper). Kept out of the precache;
 // the service worker caches each the first time a tool actually requests it,
 // so the tool still works offline after one use.

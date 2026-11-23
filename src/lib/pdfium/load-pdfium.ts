@@ -1,4 +1,5 @@
 import type { WrappedPdfiumModule } from "@embedpdf/pdfium";
+import type { ModuleImporter } from "@/lib/module-importer";
 
 /**
  * What `pdfium.js` (the package's browser build, copied to /wasm/) exports:
@@ -11,19 +12,6 @@ export interface PdfiumGlue {
   }): Promise<WrappedPdfiumModule>;
 }
 
-/** Imports a module by URL; the worker passes a real dynamic `import()`. */
-export type ModuleImporter = (url: string) => Promise<unknown>;
-
-/**
- * Narrows the full PDFium module to the interface a tool uses. Each tool
- * passes an identity function typed with its own interface (e.g. the
- * editor's `asPdfiumApi`): at runtime it returns the module unchanged, and
- * at compile time TypeScript checks that the library's real signatures
- * still match that interface (after an upgrade, say), instead of the tool
- * failing in a user's browser.
- */
-export type PdfiumNarrower<Api> = (pdfium: WrappedPdfiumModule) => Api;
-
 /**
  * Load and initialise PDFium from our own origin.
  *
@@ -35,19 +23,22 @@ export type PdfiumNarrower<Api> = (pdfium: WrappedPdfiumModule) => Api;
  * request visible here). `PDFiumExt_Init` initialises the library once per
  * instance and must run before any other call.
  *
+ * The full module is returned, or narrowed to a tool's own interface via `narrow`.
+ *
  * @param wasmDir Absolute URL of the directory, ending in "/".
  * @param importer Performs the dynamic import (injected for tests).
- * @param narrow Types the module as the tool's interface (see
- *   {@link PdfiumNarrower}).
- * @returns The ready-to-use API.
+ * @param narrow Optional function to narrow the full module to a tool-specific API.
+ * @returns The ready-to-use module.
  */
-export async function loadPdfium<Api>(
+export async function loadPdfiumModule<T = WrappedPdfiumModule>(
   wasmDir: string,
   importer: ModuleImporter,
-  narrow: PdfiumNarrower<Api>,
-): Promise<Api> {
+  narrow?: (pdfium: WrappedPdfiumModule) => T,
+): Promise<T> {
   const glue = (await importer(`${wasmDir}pdfium.js`)) as PdfiumGlue;
   const pdfium = await glue.init({ locateFile: (path) => `${wasmDir}${path}` });
   pdfium.PDFiumExt_Init();
-  return narrow(pdfium);
+  return narrow ? narrow(pdfium) : (pdfium as unknown as T);
 }
+
+export const loadPdfium = loadPdfiumModule;

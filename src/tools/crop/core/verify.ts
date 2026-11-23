@@ -1,4 +1,4 @@
-import { applyToPoint, type Matrix } from "@/lib/geometry/affine";
+import { applyToPoint, type Matrix } from "@/lib/affine";
 import type { UserRect } from "./margins";
 
 /**

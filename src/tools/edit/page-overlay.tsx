@@ -30,7 +30,8 @@ import type {
 } from "./core/model";
 import { runToView } from "./core/inline-editing";
 import { objectToView } from "./core/object-frame";
-import { addTurns, viewSize } from "@/lib/geometry/page-geometry";
+import { viewSize } from "@/lib/pdfium/page-box";
+import { addTurns } from "./core/page-geometry";
 import type { FontMetricsSource } from "./core/text-layout";
 import type { TextRun } from "./core/text-runs";
 import {
