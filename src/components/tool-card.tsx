@@ -30,7 +30,7 @@ export function ToolCard({ tool }: { tool: ToolDefinition }) {
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <CardTitle className="text-lg">{tool.name}</CardTitle>
-              {tool.beta && <BetaBadge />}
+              {tool.beta && <BetaBadge note={tool.betaNote} />}
             </div>
             <CardDescription>{tool.tagline}</CardDescription>
           </CardHeader>

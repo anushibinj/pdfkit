@@ -6,6 +6,7 @@ import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { Dropzone } from "@/components/dropzone";
 import { FileRow } from "@/components/file-row";
+import { StartOverButton } from "@/components/start-over-button";
 import { StatusBadge } from "@/components/status-badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -142,19 +143,21 @@ export default function ProtectTool() {
 
   return (
     <div className="space-y-6">
-      <Dropzone
-        accept=".pdf,application/pdf"
-        isAccepted={isPdfFile}
-        onFiles={chooseFile}
-        onRejected={(files) =>
-          toast.error(
-            `Only PDF files are supported. Skipped: ${files.map((f) => f.name).join(", ")}`,
-          )
-        }
-        title="Drop a PDF here"
-        buttonLabel="Choose a PDF file"
-        disabled={protecting}
-      />
+      {!file && (
+        <Dropzone
+          accept=".pdf,application/pdf"
+          isAccepted={isPdfFile}
+          onFiles={chooseFile}
+          onRejected={(files) =>
+            toast.error(
+              `Only PDF files are supported. Skipped: ${files.map((f) => f.name).join(", ")}`,
+            )
+          }
+          title="Drop a PDF here"
+          buttonLabel="Choose a PDF file"
+          disabled={protecting}
+        />
+      )}
 
       <div role="status" aria-live="polite" className="sr-only">
         {file ? announcementFor(state, file.name) : ""}
@@ -162,6 +165,9 @@ export default function ProtectTool() {
 
       {file && (
         <section aria-label="Protect the PDF" className="space-y-4">
+          <div className="flex items-center justify-end">
+            <StartOverButton onClick={removeFile} disabled={protecting} />
+          </div>
           <ul>
             <FileRow
               name={file.name}

@@ -114,6 +114,16 @@ describe("ProtectTool", () => {
     expect(screen.getByText(/Large file/)).toBeInTheDocument();
   });
 
+  it("hides the dropzone once a file is chosen and restores it on Start over", async () => {
+    const user = userEvent.setup();
+    renderWithFiles(pdfFile());
+    expect(screen.queryByRole("button", { name: "Choose a PDF file" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: /Start over/ }));
+    expect(
+      screen.getByRole("button", { name: "Choose a PDF file" }),
+    ).toBeInTheDocument();
+  });
+
   it("removes the file", async () => {
     const user = userEvent.setup();
     renderWithFiles(pdfFile());
@@ -130,9 +140,7 @@ describe("ProtectTool", () => {
     expect(screen.getByText("Protecting…")).toBeInTheDocument();
     expect(passwordBox()).toBeDisabled();
     expect(confirmBox()).toBeDisabled();
-    expect(
-      screen.getByRole("button", { name: "Choose a PDF file" }),
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Start over/ })).toBeDisabled();
     expect(
       screen.getByRole("button", { name: "Remove report.pdf" }),
     ).toBeDisabled();

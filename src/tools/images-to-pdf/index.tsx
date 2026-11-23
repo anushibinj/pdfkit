@@ -6,14 +6,13 @@ import {
   Download,
   FilePlus2,
   RotateCw,
-  Trash2,
   X,
 } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
-import { BetaNotice } from "@/components/beta-notice";
 import { Dropzone } from "@/components/dropzone";
 import { FileRow } from "@/components/file-row";
+import { StartOverButton } from "@/components/start-over-button";
 import { StatusBadge } from "@/components/status-badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -173,34 +172,21 @@ export default function ImagesToPdfTool() {
 
   return (
     <div className="space-y-6">
-      <BetaNotice title="Beta: how images are embedded">
-        <li>
-          JPEG photos are embedded as their original compressed bytes without
-          re-encoding, keeping quality intact and file sizes small.
-        </li>
-        <li>
-          PNG images preserve transparency as a PDF soft mask, and each image
-          becomes one page in the order listed.
-        </li>
-        <li>
-          All processing runs locally in your browser with PDFium WebAssembly;
-          no images leave your device.
-        </li>
-      </BetaNotice>
-
-      <Dropzone
-        accept={IMAGE_ACCEPT}
-        isAccepted={isSupportedImageFile}
-        onFiles={onFiles}
-        onRejected={(files) =>
-          toast.error(
-            `Only PNG and JPEG images are supported. Skipped: ${files.map((f) => f.name).join(", ")}`,
-          )
-        }
-        title="Drop PNG or JPEG images here"
-        buttonLabel="Choose images"
-        disabled={building}
-      />
+      {items.length === 0 && (
+        <Dropzone
+          accept={IMAGE_ACCEPT}
+          isAccepted={isSupportedImageFile}
+          onFiles={onFiles}
+          onRejected={(files) =>
+            toast.error(
+              `Only PNG and JPEG images are supported. Skipped: ${files.map((f) => f.name).join(", ")}`,
+            )
+          }
+          title="Drop PNG or JPEG images here"
+          buttonLabel="Choose images"
+          disabled={building}
+        />
+      )}
 
       <div role="status" aria-live="polite" className="sr-only">
         {outcomeAnnouncement(outcome)}
@@ -210,14 +196,7 @@ export default function ImagesToPdfTool() {
         <section aria-label="Images to convert" className="space-y-4">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-lg font-semibold">Images ({items.length})</h2>
-            <Button
-              variant="outline"
-              className="min-h-11"
-              disabled={building}
-              onClick={clear}
-            >
-              <Trash2 aria-hidden="true" /> Clear all
-            </Button>
+            <StartOverButton disabled={building} onClick={clear} />
           </div>
 
           <ol

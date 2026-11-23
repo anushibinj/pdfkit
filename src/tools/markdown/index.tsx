@@ -3,12 +3,12 @@
 import { RotateCcw } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { BetaNotice } from "@/components/beta-notice";
 import { CodeEditor } from "@/components/code-editor";
 import { ConversionActions } from "@/components/conversion-actions";
 import { ConversionStatus } from "@/components/conversion-status";
 import { Dropzone } from "@/components/dropzone";
 import { PageSettings } from "@/components/page-settings";
+import { StartOverButton } from "@/components/start-over-button";
 import { Button } from "@/components/ui/button";
 import { downloadBlob } from "@/lib/download";
 import { DEFAULT_PAGE_SETUP } from "@/lib/html-pdf/page-setup";
@@ -61,35 +61,32 @@ export default function MarkdownTool() {
 
   return (
     <div className="space-y-6">
-      <BetaNotice title="Beta: what the PDF engine can and cannot do yet">
-        <li>
-          Fonts cover Latin, Greek, Cyrillic, Hebrew and Arabic. Indic scripts
-          (such as Devanagari), Chinese, Japanese, Korean and emoji do not
-          display correctly yet.
-        </li>
-        <li>
-          Use the font families <code>sans-serif</code>, <code>serif</code> or{" "}
-          <code>monospace</code>; other names fall back to one of them.
-        </li>
-        <li>
-          Images that point to the web or to files on your computer are not
-          included.
-        </li>
-      </BetaNotice>
-
-      <Dropzone
-        accept={MARKDOWN_ACCEPT}
-        isAccepted={isMarkdownFile}
-        onFiles={(files) => void openFiles(files)}
-        onRejected={(files) =>
-          toast.error(
-            `Only Markdown or text files are supported. Skipped: ${files.map((f) => f.name).join(", ")}`,
-          )
-        }
-        title="Drop a Markdown file here"
-        buttonLabel="Open Markdown file"
-        disabled={converting}
-      />
+      {!sourceName ? (
+        <Dropzone
+          accept={MARKDOWN_ACCEPT}
+          isAccepted={isMarkdownFile}
+          onFiles={(files) => void openFiles(files)}
+          onRejected={(files) =>
+            toast.error(
+              `Only Markdown or text files are supported. Skipped: ${files.map((f) => f.name).join(", ")}`,
+            )
+          }
+          title="Drop a Markdown file here"
+          buttonLabel="Open Markdown file"
+          disabled={converting}
+        />
+      ) : (
+        <div className="flex items-center justify-end">
+          <StartOverButton
+            disabled={converting}
+            onClick={() => {
+              setSourceName(undefined);
+              setMarkdown(SAMPLE_MARKDOWN);
+              inputChanged();
+            }}
+          />
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <CodeEditor

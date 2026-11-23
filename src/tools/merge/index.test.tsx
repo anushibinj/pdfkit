@@ -54,10 +54,9 @@ const fileList = () =>
   );
 
 describe("MergeTool", () => {
-  it("shows the beta notes and only the drop area before files are added", () => {
+  it("shows only the drop area before files are added", () => {
     render(<MergeTool />);
-    expect(screen.getByRole("note")).toHaveTextContent(/Beta/);
-    expect(screen.getByRole("note")).toHaveTextContent(/Bookmarks/);
+    expect(screen.queryByRole("note")).toBeNull();
     expect(
       screen.getByRole("button", { name: "Choose PDF files" }),
     ).toBeEnabled();
@@ -84,18 +83,26 @@ describe("MergeTool", () => {
     expect(toasts.warning).not.toHaveBeenCalled();
   });
 
-  it("warns when the files add up to a lot of memory", async () => {
-    hook.state.items = [item("a", ready(1), LARGE_TOTAL_BYTES)];
+  it("warns when the dropped files add up to a lot of memory", async () => {
     const user = userEvent.setup();
     const { container } = render(<MergeTool />);
     const input = container.querySelector(
       "input[type=file]",
     ) as HTMLInputElement;
-    await user.upload(input, file("b.pdf", 10));
+    await user.upload(input, [file("a.pdf", LARGE_TOTAL_BYTES), file("b.pdf", 10)]);
     expect(toasts.warning).toHaveBeenCalledWith(
       expect.stringMatching(/500 MB/),
     );
     expect(hook.add).toHaveBeenCalled();
+  });
+
+  it("hides the dropzone once files are added and resets on Start over", async () => {
+    hook.state.items = [item("a", ready(1)), item("b", ready(1))];
+    const user = userEvent.setup();
+    render(<MergeTool />);
+    expect(screen.queryByRole("button", { name: "Choose PDF files" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: /Start over/ }));
+    expect(hook.clear).toHaveBeenCalled();
   });
 
   it("lists files in merge order with their status and pages", () => {
@@ -132,7 +139,7 @@ describe("MergeTool", () => {
     expect(hook.move).toHaveBeenCalledWith("b", -1);
     await user.click(screen.getByRole("button", { name: "Remove a.pdf" }));
     expect(hook.remove).toHaveBeenCalledWith("a");
-    await user.click(screen.getByRole("button", { name: /Clear all/ }));
+    await user.click(screen.getByRole("button", { name: /Start over/ }));
     expect(hook.clear).toHaveBeenCalled();
   });
 
@@ -154,17 +161,14 @@ describe("MergeTool", () => {
     expect(hook.merge).toHaveBeenCalled();
   });
 
-  it("locks the list and the drop area while merging", () => {
+  it("locks the list while merging", () => {
     hook.state = {
       items: [item("a", ready(1)), item("b", ready(1))],
       outcome: { kind: "merging" },
     };
     render(<MergeTool />);
     expect(screen.getByRole("button", { name: /Merging…/ })).toBeDisabled();
-    expect(
-      screen.getByRole("button", { name: "Choose PDF files" }),
-    ).toBeDisabled();
-    expect(screen.getByRole("button", { name: /Clear all/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Start over/ })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Remove a.pdf" })).toBeDisabled();
     expect(
       screen.getByRole("button", { name: "Move a.pdf down" }),

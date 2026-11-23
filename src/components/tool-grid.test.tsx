@@ -1,4 +1,5 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { Lock } from "lucide-react";
 import { describe, expect, it } from "vitest";
 import { ToolGrid } from "./tool-grid";
@@ -36,13 +37,26 @@ describe("ToolGrid", () => {
       if (tool.beta) {
         expect(label).toBeInTheDocument();
         // same row as the title, i.e. not in a footer below the description
-        expect(label?.parentElement).toContainElement(
-          within(link).getByText(tool.name),
-        );
+        expect(
+          within(link).getByText(tool.name).parentElement,
+        ).toContainElement(label);
       } else {
         expect(label).toBeNull();
       }
     }
+  });
+
+  it("shows the extended beta message when hovering a beta tag on the landing page", async () => {
+    const user = userEvent.setup();
+    const betaTool = tools.find((t) => t.beta && t.betaNote)!;
+    render(<ToolGrid tools={[betaTool]} />);
+
+    expect(screen.queryByText(betaTool.betaNote!.title)).toBeNull();
+    await user.hover(screen.getByText("Beta"));
+
+    await waitFor(() => {
+      expect(screen.getByText(betaTool.betaNote!.title)).toBeInTheDocument();
+    });
   });
 
   it("ends with a non-link 'More tools on the way' card", () => {

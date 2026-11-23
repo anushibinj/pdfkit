@@ -56,6 +56,13 @@ export const tools: ToolDefinition[] = [
     ],
     icon: Lock,
     beta: true,
+    betaNote: {
+      title: "Beta: how password protection works",
+      items: [
+        "Encrypts the PDF with AES-256 locally in your browser using qpdf WebAssembly.",
+        "Existing digital signatures are invalidated when a file is re-encrypted.",
+      ],
+    },
     component: () => import("./protect"),
   },
   {
@@ -73,6 +80,15 @@ export const tools: ToolDefinition[] = [
     ],
     icon: ShieldCheck,
     beta: true,
+    betaNote: {
+      title: "Beta: signature checks are limited for now",
+      items: [
+        "We check that the signed content is unchanged and that the signature is cryptographically correct.",
+        'We do not yet check who signed. Certificates are not validated against a trusted list (such as Adobe or EU trust lists) or for revocation, so a green tick means "signature intact", not "signer trusted".',
+        "The tick is added as an annotation after the original signature. The signature stays valid, but some PDF readers will report a change made after signing.",
+      ],
+      footer: "We are working on full certificate and revocation checks.",
+    },
     component: () => import("./verify"),
   },
   {
@@ -91,6 +107,14 @@ export const tools: ToolDefinition[] = [
     ],
     icon: FileCode,
     beta: true,
+    betaNote: {
+      title: "Beta: what the PDF engine can and cannot do yet",
+      items: [
+        "Fonts cover Latin, Greek, Cyrillic, Hebrew and Arabic. Indic scripts (such as Devanagari), Chinese, Japanese, Korean and emoji do not display correctly yet.",
+        "Use the font families sans-serif, serif or monospace; other names fall back to one of them.",
+        "Images that point to the web or to files on your computer are not included.",
+      ],
+    },
     component: () => import("./markdown"),
   },
   {
@@ -109,6 +133,14 @@ export const tools: ToolDefinition[] = [
     ],
     icon: CodeXml,
     beta: true,
+    betaNote: {
+      title: "Beta: what the PDF engine can and cannot do yet",
+      items: [
+        "Only what is inside the HTML is used: CSS in <style> elements and style attributes, and PNG or JPEG images embedded as data: URLs. Linked stylesheets, images from the web or your computer, and scripts are left out; you are told after converting.",
+        "Fonts cover Latin, Greek, Cyrillic, Hebrew and Arabic, in sans-serif, serif and monospace styles (look-alikes of Arial, Times New Roman and Courier New); other font families, including web fonts, fall back to one of them. Indic scripts (such as Devanagari), Chinese, Japanese, Korean and emoji do not display correctly yet.",
+        "An @page rule in the HTML sets the paper size and margins, and overrides the page settings below.",
+      ],
+    },
     component: () => import("./html"),
   },
   {
@@ -128,6 +160,15 @@ export const tools: ToolDefinition[] = [
     ],
     icon: FilePen,
     beta: true,
+    betaNote: {
+      title: "Beta: what the editor can and cannot do yet",
+      items: [
+        "Change the PDF's own text in place with Edit text: click a line and type. The line keeps its font when the file's font has every character you type; otherwise it switches to the closest standard font (Helvetica, Times or Courier) in the same place, size and colour.",
+        "Add text, drawings, boxes, highlights and pictures (such as a signature); rotate, reorder or delete pages.",
+        "Text in scanned pages (pictures of text) and in some reused page parts cannot be edited. New and substituted text uses the standard PDF fonts, which cover English and other Western European languages, not other scripts (such as Devanagari, Chinese or Arabic) or emoji.",
+        "Editing a digitally signed PDF invalidates its signatures.",
+      ],
+    },
     component: () => import("./edit"),
   },
   {
@@ -147,6 +188,13 @@ export const tools: ToolDefinition[] = [
     ],
     icon: Crop,
     beta: true,
+    betaNote: {
+      title: "Beta: how cropping works",
+      items: [
+        "Crops every chosen page and removes content outside the crop box.",
+        "Cropping a digitally signed PDF invalidates its signatures.",
+      ],
+    },
     component: () => import("./crop"),
   },
   {
@@ -165,6 +213,14 @@ export const tools: ToolDefinition[] = [
     ],
     icon: Stamp,
     beta: true,
+    betaNote: {
+      title: "Beta: what the watermark tool can and cannot do yet",
+      items: [
+        "Text watermarks use the standard PDF fonts (Helvetica, Times, Courier), which cover English and other Western European languages, not other scripts (such as Devanagari, Chinese or Arabic) or emoji. For those, use a picture of the text.",
+        "The page content is not rewritten: the watermark is added on top of it or underneath it. Password-protected PDFs keep their password.",
+        "Adding a watermark invalidates the PDF's digital signatures.",
+      ],
+    },
     component: () => import("./watermark"),
   },
   {
@@ -183,6 +239,14 @@ export const tools: ToolDefinition[] = [
     ],
     icon: Combine,
     beta: true,
+    betaNote: {
+      title: "Beta: what is and is not kept",
+      items: [
+        "Every page is copied as it is: text, images, links, comments and form fields stay, and nothing is re-compressed.",
+        "Bookmarks (the outline) and document properties such as the title are not carried over.",
+        "The merged file has no password, and digital signatures in the original files are no longer valid in it.",
+      ],
+    },
     component: () => import("./merge"),
   },
   {
@@ -201,6 +265,14 @@ export const tools: ToolDefinition[] = [
     ],
     icon: Scissors,
     beta: true,
+    betaNote: {
+      title: "Beta: what is and is not kept",
+      items: [
+        "Pages are copied as they are: text, images, comments, form fields and links between kept pages stay, and nothing is re-compressed.",
+        "The new files keep the original's password and document properties such as the title.",
+        "Bookmarks and links that pointed to a page left out no longer go anywhere, and digital signatures are no longer valid in the new files.",
+      ],
+    },
     component: () => import("./split"),
   },
   {
@@ -221,6 +293,14 @@ export const tools: ToolDefinition[] = [
     ],
     icon: LayoutGrid,
     beta: true,
+    betaNote: {
+      title: "Beta: what the organizer can and cannot do yet",
+      items: [
+        "Add several PDFs: their pages appear on one board, numbered and coloured by file. Drag pages (or press Ctrl or ⌘ with the arrow keys) to reorder them; Ctrl, ⌘ or Shift with a click selects several.",
+        "Rotate, duplicate or delete pages, insert blank pages, reverse the order, or interleave a double-sided scan (fronts, then backs in reverse). Rotating only turns the page: text stays text.",
+        "The download is a new PDF made of the pages. Bookmarks, form fields and document properties are not carried over, links between pages may stop working, digital signatures are not kept, and files opened with a password are saved without one.",
+      ],
+    },
     component: () => import("./organize"),
   },
   {
@@ -240,6 +320,13 @@ export const tools: ToolDefinition[] = [
     ],
     icon: FileImage,
     beta: true,
+    betaNote: {
+      title: "Beta: how image export works",
+      items: [
+        "Renders PDF pages to PNG or JPEG, or extracts original embedded images locally.",
+        "Very large or high-DPI pages may take longer depending on device memory.",
+      ],
+    },
     component: () => import("./pdf-to-images"),
   },
   {
@@ -259,6 +346,14 @@ export const tools: ToolDefinition[] = [
     ],
     icon: Images,
     beta: true,
+    betaNote: {
+      title: "Beta: how images are embedded",
+      items: [
+        "JPEG photos are embedded as their original compressed bytes without re-encoding, keeping quality intact and file sizes small.",
+        "PNG images preserve transparency as a PDF soft mask, and each image becomes one page in the order listed.",
+        "All processing runs locally in your browser with PDFium WebAssembly; no images leave your device.",
+      ],
+    },
     component: () => import("./images-to-pdf"),
   },
 ];
