@@ -84,6 +84,21 @@ const engines = [
       `PDF repair: pdf-repair ${version}, part of pdfkit (crates/pdf-repair), built on lopdf (MIT)\n` +
       "and other Rust crates (see LICENSE-pdf-repair-third-party.txt). https://github.com/J-F-Liu/lopdf\n",
   },
+  {
+    // Built from crates/pdf-compress by `pnpm wasm:compress`; the binary is committed.
+    pkg: "pdf-compress",
+    dir: "crates/pdf-compress",
+    files: [{ from: "dist/pdf_compress.wasm", to: "pdf-compress.wasm" }],
+    licenses: [
+      {
+        from: "dist/THIRD_PARTY_LICENSES.txt",
+        to: "LICENSE-pdf-compress-third-party.txt",
+      },
+    ],
+    notice: (version) =>
+      `PDF compression: pdf-compress ${version}, part of pdfkit (crates/pdf-compress), built on lopdf (MIT)\n` +
+      "and other Rust crates (see LICENSE-pdf-compress-third-party.txt). https://github.com/J-F-Liu/lopdf\n",
+  },
 ];
 
 /**

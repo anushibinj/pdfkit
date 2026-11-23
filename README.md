@@ -143,6 +143,16 @@ Currently shipped tools:
   missing or corrupted headers (`%PDF-`), missing EOF markers (`%%EOF`), and
   malformed trailers are reconstructed via custom WebAssembly byte scanning
   (`crates/pdf-repair`) and normalized through PDFium. Nothing is uploaded.
+- **Compress PDF** (`/tools/compress/`, beta): shrinks PDF file sizes in your
+  browser with **Lossless**, **Balanced** (150 DPI, 0.75 quality), **Small**
+  (100 DPI, 0.60 quality), **Custom** (DPI, quality, grayscale), and **Target
+  size** ("make it under X MB") modes. Combines `crates/pdf-compress`
+  WebAssembly (stream deduplication, Flate level-9 recompression, area-averaged
+  image downsampling, baseline JPEG encoding, `/SMask` transparency preservation),
+  [qpdf](https://github.com/qpdf/qpdf) object-stream optimization, and
+  [PDFium](https://pdfium.googlesource.com/pdfium/) image decoding and
+  side-by-side before/after page previews. Supports batch compression and ZIP
+  downloads; files are never expanded and never leave your device.
 
 Built with Next.js (App Router, static export), TypeScript (strict), Tailwind
 CSS, shadcn/ui, next-themes and Vitest, plus two Rust crates compiled to
