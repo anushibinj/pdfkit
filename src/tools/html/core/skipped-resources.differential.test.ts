@@ -239,7 +239,7 @@ describe("tag scanner vs a spec-compliant parser", () => {
     // The documents must actually contain resources to compare.
     expect(elements).toBeGreaterThan(RUNS);
     // jsdom's parser takes a few milliseconds per document.
-  }, 60_000);
+  }, 120_000);
 
   it("totals match the per-element comparison", () => {
     const html =

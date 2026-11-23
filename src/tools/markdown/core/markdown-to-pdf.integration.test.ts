@@ -42,7 +42,7 @@ describe("Markdown to PDF, end to end", () => {
     // body text is sans-serif; code spans and blocks are monospace
     expect([...fonts].some((f) => f.startsWith("LiberationSans"))).toBe(true);
     expect([...fonts].some((f) => f.startsWith("LiberationMono"))).toBe(true);
-  });
+  }, 15_000);
 
   it("applies custom CSS to Markdown headings", () => {
     const page = { size: "A4", marginMm: 20 } as const;

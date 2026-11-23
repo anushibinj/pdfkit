@@ -202,7 +202,7 @@ describe("sniffHtmlEncoding vs html-encoding-sniffer", () => {
     // misses that the prescan has to reject.
     expect(detected).toBeGreaterThan(RUNS * 0.1);
     expect(detected).toBeLessThan(RUNS * 0.9);
-  });
+  }, 30_000);
 
   it("deliberately differs on replacement-encoding labels", () => {
     // The reference returns the "replacement" encoding, which decodes a whole

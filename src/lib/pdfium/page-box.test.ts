@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
+import { applyToPoint } from "../affine";
 import {
   addTurns,
   boxSize,
   isQuarterTurns,
+  userToView,
   viewSize,
+  viewToUser,
   type PageBox,
+  type QuarterTurns,
 } from "./page-box";
 
 // A box that does not start at the origin, to catch offset mistakes.
@@ -38,5 +42,48 @@ describe("addTurns", () => {
     [2, 6, 0],
   ])("%d + %d -> %d", (a, b, expected) => {
     expect(addTurns(a, b)).toBe(expected);
+  });
+});
+
+const view = (turns: QuarterTurns, x: number, y: number) => {
+  const p = applyToPoint(userToView(box, turns), { x, y });
+  return { x: Math.round(p.x * 1000) / 1000, y: Math.round(p.y * 1000) / 1000 };
+};
+
+describe("userToView", () => {
+  it("unrotated: top-left corner at the origin, y pointing down", () => {
+    expect(view(0, 100, 450)).toEqual({ x: 0, y: 0 });
+    expect(view(0, 700, 50)).toEqual({ x: 600, y: 400 });
+    expect(view(0, 110, 440)).toEqual({ x: 10, y: 10 });
+  });
+
+  it("90 degrees clockwise: the old top-left corner moves to the top-right", () => {
+    expect(view(1, 100, 450)).toEqual({ x: 400, y: 0 });
+    expect(view(1, 700, 450)).toEqual({ x: 400, y: 600 });
+    expect(view(1, 100, 50)).toEqual({ x: 0, y: 0 });
+  });
+
+  it("180 degrees: corners swap diagonally", () => {
+    expect(view(2, 100, 450)).toEqual({ x: 600, y: 400 });
+    expect(view(2, 700, 50)).toEqual({ x: 0, y: 0 });
+  });
+
+  it("270 degrees: the old top-left corner moves to the bottom-left", () => {
+    expect(view(3, 100, 450)).toEqual({ x: 0, y: 600 });
+    expect(view(3, 100, 50)).toEqual({ x: 400, y: 600 });
+    expect(view(3, 700, 450)).toEqual({ x: 0, y: 0 });
+  });
+});
+
+describe("viewToUser", () => {
+  it("inverts userToView for each rotation", () => {
+    for (const turns of [0, 1, 2, 3] as const) {
+      const u2v = userToView(box, turns);
+      const v2u = viewToUser(box, turns);
+      const p = { x: 234, y: 156 };
+      const roundtrip = applyToPoint(v2u, applyToPoint(u2v, p));
+      expect(roundtrip.x).toBeCloseTo(p.x, 6);
+      expect(roundtrip.y).toBeCloseTo(p.y, 6);
+    }
   });
 });

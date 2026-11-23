@@ -1,6 +1,6 @@
 import { commit, createHistory, redo, undo, type History } from "@/lib/history";
 import type { EditObject, EditorDocument, EditorPage } from "./model";
-import { addTurns } from "./page-geometry";
+import { addTurns } from "@/lib/pdfium/page-box";
 
 /** The selected object, identified by its page and id. */
 export interface Selection {

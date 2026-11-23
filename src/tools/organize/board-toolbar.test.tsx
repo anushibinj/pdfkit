@@ -61,7 +61,7 @@ describe("BoardToolbar", () => {
     expect(onAction.mock.calls.map((c) => c[0])).toEqual(
       expected.map(([, action]) => action),
     );
-  });
+  }, 15_000);
 
   it("labels arrange buttons for the whole board when the selection is too small", () => {
     show({

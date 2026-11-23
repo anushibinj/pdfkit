@@ -23,20 +23,22 @@ export interface PdfiumGlue {
  * request visible here). `PDFiumExt_Init` initialises the library once per
  * instance and must run before any other call.
  *
- * The full module is returned; each tool narrows it to its own interface
- * (for example the editor's `asPdfiumApi`), which is where TypeScript checks
- * that the real signatures match what the tool calls.
+ * The full module is returned, or narrowed to a tool's own interface via `narrow`.
  *
  * @param wasmDir Absolute URL of the directory, ending in "/".
  * @param importer Performs the dynamic import (injected for tests).
+ * @param narrow Optional function to narrow the full module to a tool-specific API.
  * @returns The ready-to-use module.
  */
-export async function loadPdfiumModule(
+export async function loadPdfiumModule<T = WrappedPdfiumModule>(
   wasmDir: string,
   importer: ModuleImporter,
-): Promise<WrappedPdfiumModule> {
+  narrow?: (pdfium: WrappedPdfiumModule) => T,
+): Promise<T> {
   const glue = (await importer(`${wasmDir}pdfium.js`)) as PdfiumGlue;
   const pdfium = await glue.init({ locateFile: (path) => `${wasmDir}${path}` });
   pdfium.PDFiumExt_Init();
-  return pdfium;
+  return narrow ? narrow(pdfium) : (pdfium as unknown as T);
 }
+
+export const loadPdfium = loadPdfiumModule;

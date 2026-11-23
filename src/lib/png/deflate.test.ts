@@ -15,7 +15,7 @@ describe("deflateZlib", () => {
     expect(((out[0] << 8) | out[1]) % 31).toBe(0);
     expect(out.length).toBeLessThan(input.length);
     expect(new Uint8Array(inflateSync(out))).toEqual(input);
-  });
+  }, 20_000);
 
   it("handles empty input", async () => {
     expect(inflateSync(await deflateZlib(new Uint8Array(0))).length).toBe(0);

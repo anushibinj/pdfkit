@@ -77,6 +77,20 @@ Currently shipped tools:
   password and stay protected after saving. Text in scanned pages or inside
   form XObjects cannot be edited, and new or substituted text is limited to
   the standard PDF fonts (WinAnsi: English and Western European languages).
+- **Crop PDF** (`/tools/crop/`, beta): crops pages by margins (typed in
+  millimetres or dragged on the page, measured on the page as displayed) on
+  all pages or a page range. A plain crop only hides what lies outside (it
+  sets the CropBox, and anyone can undo it). **Remove what's outside**
+  deletes it from the file: text glyph by glyph, drawings, pictures, form
+  XObjects (trimmed copies where they cross the edge) and annotations, and
+  shrinks the MediaBox, using **pdf-crop**, this repository's own Rust
+  library compiled to WASM (`crates/pdf-crop`, see its README for why and
+  how). Content inside the crop area is kept intact, and every
+  cropped page is then checked against the original with PDFium; a result
+  that differs inside the crop area is never offered. Pictures crossing the
+  edge are kept whole, and text in fonts that cannot be measured exactly is
+  kept; the result lists both. Encrypted PDFs are refused (unlock them
+  first).
 - **Add Watermark** (`/tools/watermark/`, beta): adds a text or picture
   (PNG/JPEG) watermark to every page or to a page range, with opacity, angle,
   one of nine positions or tiled across the page, over or under the content.
@@ -126,7 +140,8 @@ Currently shipped tools:
   Actual-size (72 DPI) scaling.
 
 Built with Next.js (App Router, static export), TypeScript (strict), Tailwind
-CSS, shadcn/ui, next-themes and Vitest. It is an installable, offline-capable PWA.
+CSS, shadcn/ui, next-themes and Vitest, plus one Rust crate compiled to
+WebAssembly (`crates/pdf-crop`). It is an installable, offline-capable PWA.
 
 ## How privacy is enforced
 
@@ -162,6 +177,7 @@ pnpm build            # static site in out/, then builds sw.js and updates the C
 pnpm preview          # serves out/ through the Firebase Hosting emulator (real headers)
 pnpm preview:simple   # plain static server (no CSP headers)
 pnpm icons            # regenerate PWA icons from assets/icon.svg (outputs are committed)
+pnpm wasm:crop        # rebuild crates/pdf-crop/dist/pdf_crop.wasm (needs rustup; output is committed)
 ```
 
 `pnpm build` runs `scripts/copy-wasm.mjs` first (prebuild) and
@@ -228,8 +244,9 @@ gzipped) and PDFium (binary ~4.6 MB, ~2 MB gzipped, plus its JavaScript glue)
 are on that list: each is cached the first time a tool loads it, so visitors who never use
 those tools never download it, and the tools still work offline after first use. Markdown to PDF
 and HTML to PDF load the same ironpress files, and the PDF Editor, Add Watermark, Split PDF
-(thumbnails) and Organize Pages the same PDFium files, so using any tool of a group caches its
-engine for the others.
+(thumbnails), Organize Pages, PDF to Images and Crop PDF the same PDFium files, so using any tool of a group caches its
+engine for the others. The pdf-crop module (~1 MB, ~390 KB gzipped) and its dependencies' licence
+texts are on the list too.
 
 ## Manual test checklist (PDF to Images)
 
@@ -323,6 +340,31 @@ Sample files live in `fixtures/` (`user-password.pdf` has password `hunter2`;
       PDF and download it.
 - [ ] At 360px width there is no horizontal scroll and drawing with a finger
       does not scroll the page.
+
+## Manual test checklist (Crop PDF)
+
+Use `fixtures/text-chromium.pdf` (Chromium output with subset fonts) and
+`fixtures/plain.pdf`.
+
+- [ ] Opening a PDF shows page 1 with the crop frame on the whole page;
+      the arrows show the other pages.
+- [ ] Dragging a corner or edge handle changes the margin fields, and
+      typing a margin moves the frame; dragging inside the frame moves it.
+- [ ] Margins that leave nothing show "The margins leave nothing to keep"
+      and **Crop PDF** says which page; **Reset margins** clears them.
+- [ ] "Only these pages" with `1-2, 9` explains that page 9 does not exist.
+- [ ] With **Remove what's outside** (default): cropping shows the
+      progress, then a summary of what was removed; the download
+      (`<name>-cropped.pdf`) opens at the cropped size, and the text cut
+      off can no longer be found or copied in a PDF reader.
+- [ ] Without it: the result says the content is only hidden, and a
+      reader's "page boxes" or text search still finds it.
+- [ ] `fixtures/owner-restricted.pdf` is refused with a pointer to the PDF
+      Unlocker.
+- [ ] Offline after one crop: reload with DevTools > Network > Offline,
+      open a PDF and crop it.
+- [ ] At 360px width there is no horizontal scroll, and the handles can be
+      dragged with a finger.
 
 ## Manual test checklist (HTML to PDF)
 
@@ -508,8 +550,17 @@ Gouron, licensed under the **MIT License** (licence at
 under the **MIT License**. Fonts: Geist and
 Inter (SIL Open Font License 1.1), bundled locally.
 
+Crop PDF uses **pdf-crop** (`crates/pdf-crop`, part of this repository),
+which links [lopdf](https://github.com/J-F-Liu/lopdf) (MIT) and other Rust
+crates under MIT, Apache-2.0, BSD, Zlib and Unicode licences; their texts
+ship at `/wasm/LICENSE-pdf-crop-third-party.txt`. Its standard font metrics
+come from Adobe's Core 14 AFM files via **@pdf-lib/standard-fonts** (MIT),
+and its encoding tables from ISO 32000-1 Annex D as transcribed by
+**pdf.js**, Copyright 2012 Mozilla Foundation (Apache License 2.0). It shows
+and checks pages with PDFium (below).
+
 The PDF Editor, Add Watermark, Split PDF's thumbnails, Organize Pages, PDF
-to Images and Images to PDF use **PDFium**, Copyright The PDFium Authors, licensed under the **BSD 3-Clause
+to Images, Images to PDF and Crop PDF use **PDFium**, Copyright The PDFium Authors, licensed under the **BSD 3-Clause
 License** and the **Apache License 2.0** (licence at
 `/wasm/LICENSE-pdfium.txt`), compiled to WebAssembly by **@embedpdf/pdfium**,
 Copyright (c) 2024 CloudPDF, Ji Chang, licensed under the **MIT License**

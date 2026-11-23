@@ -8,13 +8,17 @@ const out = path.resolve(import.meta.dirname, "../out");
 const SKIP = new Set(["sw.js", "404.html", "404/index.html"]);
 // Too large to download on every visitor's first load (ironpress is ~15 MB;
 // PDFium is ~4.6 MB plus ~290 KB of glue only the editor, the watermark
-// tool, the splitter's thumbnails and the page organizer import). Kept out
-// of the precache; the service worker caches each the first time a tool
-// actually requests it, so the tool still works offline after one use.
+// tool, the splitter's thumbnails, the page organizer and cropper import;
+// pdf-crop is ~1 MB, used only by the cropper). Kept out of the precache;
+// the service worker caches each the first time a tool actually requests it,
+// so the tool still works offline after one use.
 const ON_FIRST_USE = new Set([
   "wasm/ironpress_bg.wasm",
   "wasm/pdfium.wasm",
   "wasm/pdfium.js",
+  "wasm/pdf-crop.wasm",
+  // Its dependencies' licence texts (~160 KB); fetched only when opened.
+  "wasm/LICENSE-pdf-crop-third-party.txt",
 ]);
 
 async function walk(dir) {

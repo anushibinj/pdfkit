@@ -1,0 +1,6 @@
+# lopdf -> rand -> getrandom has no default randomness source on
+# wasm32-unknown-unknown. Use the "custom" backend, whose function is defined
+# in src/ffi.rs and always fails: the crop never encrypts, so it never needs
+# random bytes.
+[target.wasm32-unknown-unknown]
+rustflags = ['--cfg', 'getrandom_backend="custom"']

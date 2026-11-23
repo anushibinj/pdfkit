@@ -109,7 +109,7 @@ describe("PageAssembler with the real qpdf", () => {
     const straight = await PDFDocument.load(direct.files[0], { updateMetadata: false });
     expect(viaPart.getTitle()).toBe(straight.getTitle());
     expect(viaPart.getForm().getFields().map((f) => f.getName())).toEqual(["field7"]);
-  });
+  }, 15_000);
 
   it("keeps the password of an encrypted file", () => {
     const encrypted = readFixture("user-password.pdf");

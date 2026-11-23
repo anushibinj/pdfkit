@@ -5,4 +5,6 @@ pnpm-lock.yaml
 public/wasm
 public/og
 src/components/ui
+crates/*/target
+crates/pdf-crop/dist
 fixtures/*.html

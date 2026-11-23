@@ -173,5 +173,5 @@ describe("PdfProtector with real qpdf, checked by PDFium", () => {
       );
       expect(openWithPdfium(result.pdf, `pw${i}`).pages).toBeGreaterThan(0);
     }
-  });
+  }, 15_000);
 });

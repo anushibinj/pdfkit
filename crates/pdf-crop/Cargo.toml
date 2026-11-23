@@ -1,0 +1,30 @@
+[package]
+name = "pdf-crop"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.88"
+description = "Crops PDF pages and removes the content outside the crop area. Compiled to WebAssembly for pdfkit."
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# The PDF object model (parse, edit, save). Default features pull in a clock
+# and a thread pool, neither of which exists in a browser worker.
+lopdf = { version = "=0.47.0", default-features = false }
+# Strict Flate decoding of the streams the crop rewrites (lopdf's own decoder
+# returns partial data for damaged streams). Already a dependency of lopdf.
+flate2 = "1"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+# lopdf depends on getrandom (for encrypting, which this crate never does).
+# The crate registers a backend that always fails; see `src/ffi.rs`.
+getrandom = "0.4"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

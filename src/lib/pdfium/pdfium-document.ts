@@ -1,5 +1,6 @@
 import { FPDF_ERR, RENDER_FLAGS, type PdfiumCoreApi } from "./core-api";
 import { isQuarterTurns, type PageInfo, type QuarterTurns } from "./page-box";
+export type { PageInfo } from "./page-box";
 import type { WasmHeap } from "./wasm-heap";
 
 /** Why a file could not be opened, from PDFium's error code. */
