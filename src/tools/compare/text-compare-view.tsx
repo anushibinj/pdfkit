@@ -64,6 +64,7 @@ function RenderedPagePane({
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [rendering, setRendering] = useState(false);
+  const [renderError, setRenderError] = useState<string | null>(null);
 
   const view = info ? viewSize(info.box, info.rotation) : null;
   const aspectRatio =
@@ -82,11 +83,14 @@ function RenderedPagePane({
     );
 
     setRendering(true);
+    setRenderError(null);
     void renderPage(side, pageIndex, width, controller.signal).then((res) => {
       if (controller.signal.aborted) return;
       setRendering(false);
       if (res.status === "rendered" && canvasRef.current) {
         drawPixels(canvasRef.current, res.width, res.height, res.pixels);
+      } else if (res.status === "error") {
+        setRenderError(res.message);
       }
     });
 
@@ -125,6 +129,14 @@ function RenderedPagePane({
           aria-hidden="true"
           className="bg-background/40 pointer-events-none absolute inset-0"
         />
+      )}
+      {renderError && (
+        <div
+          role="alert"
+          className="bg-background/90 absolute inset-0 flex items-center justify-center p-4 text-center text-sm text-red-700 dark:text-red-300"
+        >
+          {renderError}
+        </div>
       )}
       <div className="pointer-events-none absolute inset-0">
         {highlights.map(({ changeId, rects }) => {

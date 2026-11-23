@@ -59,6 +59,15 @@ export function VisualCompareView({
   renderPage,
   computeVisualDiff,
 }: VisualCompareViewProps) {
+  type RenderedBitmap = Extract<RenderPageResult, { status: "rendered" }>;
+
+  interface CachedSideRenders {
+    pairIndex: number;
+    width: number;
+    left: RenderedBitmap | null;
+    right: RenderedBitmap | null;
+  }
+
   const pair: AlignedPagePair | undefined = summary.pairs[activePairIndex];
   const [layout, setLayout] = useState<VisualLayout>("overlay");
   const [threshold, setThreshold] = useState<number>(DEFAULT_VISUAL_THRESHOLD);
@@ -66,12 +75,19 @@ export function VisualCompareView({
   const [activeRegionIdx, setActiveRegionIdx] = useState<number | null>(null);
   const [diffSummary, setDiffSummary] = useState<VisualDiffSummary | null>(null);
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [usedWebGl, setUsedWebGl] = useState(false);
+  const [cachedRenders, setCachedRenders] = useState<CachedSideRenders | null>(
+    null,
+  );
 
   const stageRef = useRef<HTMLDivElement>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
   const leftCanvasRef = useRef<HTMLCanvasElement>(null);
   const rightCanvasRef = useRef<HTMLCanvasElement>(null);
+  // Synchronous cache ref so threshold adjustments skip redundant page renders
+  // even before React commits `cachedRenders` state.
+  const cachedRendersRef = useRef<CachedSideRenders | null>(null);
 
   useEffect(() => {
     if (!pair) return;
@@ -82,9 +98,11 @@ export function VisualCompareView({
       typeof window !== "undefined" ? window.devicePixelRatio : 1,
     );
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    /* eslint-disable react-hooks/set-state-in-effect */
     setLoading(true);
+    setErrorMsg(null);
     setActiveRegionIdx(null);
+    /* eslint-enable react-hooks/set-state-in-effect */
 
     const run = async () => {
       const diffRes = await computeVisualDiff(
@@ -95,9 +113,24 @@ export function VisualCompareView({
       );
       if (controller.signal.aborted) return;
 
-      if (diffRes.status === "visual-diff") {
-        setDiffSummary(diffRes.summary);
+      if (diffRes.status === "error") {
+        setDiffSummary(null);
+        setErrorMsg(diffRes.message);
+        setLoading(false);
+        return;
+      }
 
+      setDiffSummary(diffRes.summary);
+
+      // Reuse already-rendered left/right bitmaps for the same (pair, width)
+      // so sensitivity slider changes only re-run the diff shader/pass.
+      let leftBitmap: RenderedBitmap | null = null;
+      let rightBitmap: RenderedBitmap | null = null;
+      const hit = cachedRendersRef.current;
+      if (hit && hit.pairIndex === pair.pairIndex && hit.width === width) {
+        leftBitmap = hit.left;
+        rightBitmap = hit.right;
+      } else {
         const { leftSize, rightSize } = alignedRenderDimensions(
           pair.leftInfo,
           pair.rightInfo,
@@ -120,49 +153,46 @@ export function VisualCompareView({
 
         if (controller.signal.aborted) return;
 
-        if (leftRes?.status === "rendered" && leftCanvasRef.current) {
-          drawPixels(
-            leftCanvasRef.current,
-            leftRes.width,
-            leftRes.height,
-            leftRes.pixels,
-          );
-        }
-        if (rightRes?.status === "rendered" && rightCanvasRef.current) {
-          drawPixels(
-            rightCanvasRef.current,
-            rightRes.width,
-            rightRes.height,
-            rightRes.pixels,
-          );
+        if (leftRes?.status === "error") {
+          setErrorMsg(leftRes.message);
+        } else if (rightRes?.status === "error") {
+          setErrorMsg(rightRes.message);
         }
 
-        const canvas = overlayCanvasRef.current;
-        if (canvas) {
-          let gpuOk = false;
-          if (
-            leftRes?.status === "rendered" &&
-            rightRes?.status === "rendered"
-          ) {
-            gpuOk = renderVisualDiffWebGl(canvas, {
-              leftPixels: new Uint8Array(leftRes.pixels),
-              leftWidth: leftRes.width,
-              leftHeight: leftRes.height,
-              rightPixels: new Uint8Array(rightRes.pixels),
-              rightWidth: rightRes.width,
-              rightHeight: rightRes.height,
-              threshold,
-            });
-          }
-          setUsedWebGl(gpuOk);
-          if (!gpuOk) {
-            drawPixels(
-              canvas,
-              diffRes.summary.width,
-              diffRes.summary.height,
-              diffRes.pixels,
-            );
-          }
+        leftBitmap = leftRes?.status === "rendered" ? leftRes : null;
+        rightBitmap = rightRes?.status === "rendered" ? rightRes : null;
+        const entry: CachedSideRenders = {
+          pairIndex: pair.pairIndex,
+          width,
+          left: leftBitmap,
+          right: rightBitmap,
+        };
+        cachedRendersRef.current = entry;
+        setCachedRenders(entry);
+      }
+
+      const canvas = overlayCanvasRef.current;
+      if (canvas) {
+        let gpuOk = false;
+        if (leftBitmap && rightBitmap) {
+          gpuOk = renderVisualDiffWebGl(canvas, {
+            leftPixels: new Uint8Array(leftBitmap.pixels),
+            leftWidth: leftBitmap.width,
+            leftHeight: leftBitmap.height,
+            rightPixels: new Uint8Array(rightBitmap.pixels),
+            rightWidth: rightBitmap.width,
+            rightHeight: rightBitmap.height,
+            threshold,
+          });
+        }
+        setUsedWebGl(gpuOk);
+        if (!gpuOk) {
+          drawPixels(
+            canvas,
+            diffRes.summary.width,
+            diffRes.summary.height,
+            diffRes.pixels,
+          );
         }
       }
       setLoading(false);
@@ -171,6 +201,28 @@ export function VisualCompareView({
     void run();
     return () => controller.abort();
   }, [pair, threshold, computeVisualDiff, renderPage]);
+
+  // Draw cached source page bitmaps whenever Side-by-Side canvases mount or
+  // new page renders arrive.
+  useEffect(() => {
+    if (layout !== "side-by-side" || !cachedRenders) return;
+    if (cachedRenders.left && leftCanvasRef.current) {
+      drawPixels(
+        leftCanvasRef.current,
+        cachedRenders.left.width,
+        cachedRenders.left.height,
+        cachedRenders.left.pixels,
+      );
+    }
+    if (cachedRenders.right && rightCanvasRef.current) {
+      drawPixels(
+        rightCanvasRef.current,
+        cachedRenders.right.width,
+        cachedRenders.right.height,
+        cachedRenders.right.pixels,
+      );
+    }
+  }, [layout, cachedRenders]);
 
   if (!pair) return null;
 
@@ -257,6 +309,15 @@ export function VisualCompareView({
           <span className="text-muted-foreground ml-auto">
             {formatPairLabel(pair)} · {usedWebGl ? "GPU WebGL diff" : "CPU diff"}
           </span>
+        </div>
+      )}
+
+      {errorMsg && (
+        <div
+          role="alert"
+          className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200"
+        >
+          {errorMsg}
         </div>
       )}
 

@@ -80,6 +80,17 @@ describe("report-builder", () => {
     expect(truncateNote("hello world", 8)).toBe("hello...");
   });
 
+  it("truncates overly long file names in cover summary lines", () => {
+    const longName = `${"very-long-contract-name-".repeat(5)}.pdf`;
+    const lines = buildSummaryLines(
+      { ...sampleSummary, leftFileName: longName, rightFileName: longName },
+      new Map(),
+    );
+    expect(lines[1].text).toContain("...");
+    expect(lines[1].text.length).toBeLessThan(120);
+    expect(lines[2].text).toContain("...");
+  });
+
   it("builds cover summary lines including scanned-page notice and visual diff percentage", () => {
     const visual = new Map<number, VisualDiffSummary>([
       [
@@ -174,6 +185,93 @@ describe("report-builder", () => {
       expect(api.FPDFAnnot_AppendAttachmentPoints).toHaveBeenCalledTimes(2);
       expect(api.EPDFAnnot_GenerateAppearance).toHaveBeenCalledTimes(3);
       expect(api.FPDFPage_CloseAnnot).toHaveBeenCalledTimes(3);
+    } finally {
+      leftDoc.close();
+      rightDoc.close();
+    }
+
+    expect(runtime.leaks()).toEqual([]);
+  });
+
+  it("annotates scanned added and removed pages with fallback Square banners", () => {
+    const { api, runtime } = fakeComparePdfium();
+    const heap = new WasmHeap(api.pdfium);
+
+    let outPages = 0;
+    api.FPDFPage_New.mockImplementation(() => ++outPages + 100);
+    api.FPDF_ImportPagesByIndex.mockImplementation(() => {
+      outPages++;
+      return true;
+    });
+    api.FPDF_GetPageCount.mockImplementation(() => outPages);
+
+    const leftDoc = PdfiumDocument.open(api, heap, new Uint8Array([1]), "");
+    const rightDoc = PdfiumDocument.open(api, heap, new Uint8Array([2]), "");
+
+    try {
+      const scannedSummary: CompareSummary = {
+        leftFileName: "scan-old.pdf",
+        rightFileName: "scan-new.pdf",
+        leftPageCount: 1,
+        rightPageCount: 1,
+        totalChanges: 0,
+        addedWords: 0,
+        removedWords: 0,
+        scannedPagesCount: 2,
+        pairs: [
+          {
+            pairIndex: 0,
+            leftIndex: 0,
+            rightIndex: null,
+            status: "removed",
+            similarity: 0,
+            leftHasText: false,
+            rightHasText: false,
+            leftInfo: {
+              box: { left: 0, bottom: 0, right: 612, top: 792 },
+              rotation: 0,
+            },
+            rightInfo: null,
+            changes: [],
+          },
+          {
+            pairIndex: 1,
+            leftIndex: null,
+            rightIndex: 0,
+            status: "added",
+            similarity: 0,
+            leftHasText: false,
+            rightHasText: false,
+            leftInfo: null,
+            rightInfo: {
+              box: { left: 0, bottom: 0, right: 612, top: 792 },
+              rotation: 0,
+            },
+            changes: [],
+          },
+        ],
+      };
+
+      const builder = new PdfiumComparisonReportBuilder(api, heap);
+      builder.buildReport({
+        summary: scannedSummary,
+        leftDoc,
+        rightDoc,
+        visualDiffs: new Map(),
+      });
+
+      expect(api.FPDFPage_CreateAnnot).toHaveBeenCalledTimes(2);
+      expect(api.FPDFPage_CreateAnnot).toHaveBeenNthCalledWith(
+        1,
+        expect.any(Number),
+        FPDF_ANNOT_SQUARE,
+      );
+      expect(api.FPDFPage_CreateAnnot).toHaveBeenNthCalledWith(
+        2,
+        expect.any(Number),
+        FPDF_ANNOT_SQUARE,
+      );
+      expect(api.EPDFAnnot_GenerateAppearance).toHaveBeenCalledTimes(2);
     } finally {
       leftDoc.close();
       rightDoc.close();

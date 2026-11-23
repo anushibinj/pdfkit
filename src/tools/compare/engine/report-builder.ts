@@ -3,7 +3,12 @@
  */
 import { applyToPoint } from "@/lib/affine";
 import { check, insertNewObject } from "@/lib/pdfium/page-objects";
-import { viewSize, viewToUser, type PageBox } from "@/lib/pdfium/page-box";
+import {
+  viewSize,
+  viewToUser,
+  type PageBox,
+  type PageInfo,
+} from "@/lib/pdfium/page-box";
 import { PdfiumDocument } from "@/lib/pdfium/pdfium-document";
 import type { WasmHeap } from "@/lib/pdfium/wasm-heap";
 import {
@@ -30,6 +35,7 @@ const SUMMARY_MARGIN_X = 48;
 const SUMMARY_START_Y = 740;
 const SUMMARY_MIN_Y = 56;
 const MAX_ANNOT_NOTE_CHARS = 320;
+const MAX_FILENAME_CHARS = 72;
 
 /** Inputs required to generate the comparison report PDF. */
 export interface ReportBuildInput {
@@ -116,14 +122,14 @@ export function buildSummaryLines(
       color: dark,
     },
     {
-      text: `Original (Left): ${toSummaryAscii(summary.leftFileName)} (${summary.leftPageCount} pages)`,
+      text: `Original (Left): ${truncateNote(toSummaryAscii(summary.leftFileName), MAX_FILENAME_CHARS)} (${summary.leftPageCount} pages)`,
       font: "Helvetica",
       fontSize: 11,
       leading: 16,
       color: dark,
     },
     {
-      text: `Revised (Right): ${toSummaryAscii(summary.rightFileName)} (${summary.rightPageCount} pages)`,
+      text: `Revised (Right): ${truncateNote(toSummaryAscii(summary.rightFileName), MAX_FILENAME_CHARS)} (${summary.rightPageCount} pages)`,
       font: "Helvetica",
       fontSize: 11,
       leading: 22,
@@ -338,6 +344,17 @@ export class PdfiumComparisonReportBuilder implements ComparisonReportBuilder {
             contents: `Removed: ${truncateNote(change.leftText, MAX_ANNOT_NOTE_CHARS)}`,
           });
         }
+        // Scanned or image-only removed pages have no word boxes; place a red
+        // header banner Square annotation so the removal is still flagged in Acrobat.
+        if (deletionChanges.length === 0 && pair.leftInfo) {
+          this.addPageBannerSquare(page, pair.leftInfo, {
+            color: { r: 239, g: 68, b: 68, a: 220 },
+            borderWidth: 2,
+            author: "Removed Page",
+            contents:
+              "Page removed from revised PDF (no extractable text layer).",
+          });
+        }
       });
       return;
     }
@@ -351,6 +368,17 @@ export class PdfiumComparisonReportBuilder implements ComparisonReportBuilder {
             color: { r: 34, g: 197, b: 94, a: 100 },
             author: "Added Page",
             contents: `Added: ${truncateNote(change.rightText, MAX_ANNOT_NOTE_CHARS)}`,
+          });
+        }
+        // Scanned or image-only added pages have no word boxes; place a green
+        // header banner Square annotation so the insertion is still flagged in Acrobat.
+        if (insertionChanges.length === 0 && pair.rightInfo) {
+          this.addPageBannerSquare(page, pair.rightInfo, {
+            color: { r: 22, g: 163, b: 74, a: 220 },
+            borderWidth: 2,
+            author: "Added Page",
+            contents:
+              "Page added in revised PDF (no extractable text layer).",
           });
         }
       });
@@ -486,6 +514,114 @@ export class PdfiumComparisonReportBuilder implements ComparisonReportBuilder {
   }
 
   /**
+   * Convert a normalised `[0..1]` top-left view-space rectangle into an
+   * ordered PDF user-space bounding box respecting page dimensions and `/Rotate`.
+   *
+   * @param info Source page dimensions and rotation.
+   * @param rect Normalised `[0..1]` view-space coordinates.
+   * @returns Ordered PDF user-space bounds, or `null` if degenerate.
+   */
+  private viewRectToUserRect(
+    info: PageInfo,
+    rect: { left: number; top: number; right: number; bottom: number },
+  ): PageBox | null {
+    const view = viewSize(info.box, info.rotation);
+    const toUser = viewToUser(info.box, info.rotation);
+    const p1 = applyToPoint(toUser, {
+      x: rect.left * view.width,
+      y: rect.top * view.height,
+    });
+    const p2 = applyToPoint(toUser, {
+      x: rect.right * view.width,
+      y: rect.bottom * view.height,
+    });
+
+    const left = Math.min(p1.x, p2.x);
+    const right = Math.max(p1.x, p2.x);
+    const bottom = Math.min(p1.y, p2.y);
+    const top = Math.max(p1.y, p2.y);
+    if (right <= left || top <= bottom) return null;
+    return { left, bottom, right, top };
+  }
+
+  /**
+   * Create a PDF Square annotation with Rect, RGBA stroke colour, border width,
+   * popup metadata, and generated `/AP` stream.
+   *
+   * @param page Loaded `FPDF_PAGE` handle.
+   * @param bounds Ordered PDF user-space annotation bounds.
+   * @param spec Stroke colour, border width, author, and popup note.
+   */
+  private addSquareAnnot(
+    page: number,
+    bounds: PageBox,
+    spec: {
+      color: { r: number; g: number; b: number; a: number };
+      borderWidth: number;
+      author: string;
+      contents: string;
+    },
+  ): void {
+    const annot = this.api.FPDFPage_CreateAnnot(page, FPDF_ANNOT_SQUARE);
+    if (!annot) return;
+    try {
+      this.heap.using(
+        this.heap.floats([bounds.left, bounds.top, bounds.right, bounds.bottom]),
+        (rectPtr) => {
+          this.api.FPDFAnnot_SetRect(annot, rectPtr);
+        },
+      );
+      this.api.FPDFAnnot_SetColor(
+        annot,
+        FPDF_ANNOT_COLOR_MAIN,
+        spec.color.r,
+        spec.color.g,
+        spec.color.b,
+        spec.color.a,
+      );
+      this.api.FPDFAnnot_SetBorder(annot, 0, 0, spec.borderWidth);
+      this.api.FPDFAnnot_SetFlags(annot, FPDF_ANNOT_FLAG_PRINT);
+      this.heap.using(this.heap.utf16(spec.author), (ptr) => {
+        this.api.FPDFAnnot_SetStringValue(annot, "T", ptr);
+      });
+      this.heap.using(this.heap.utf16(spec.contents), (ptr) => {
+        this.api.FPDFAnnot_SetStringValue(annot, "Contents", ptr);
+      });
+      this.api.EPDFAnnot_GenerateAppearance(annot);
+    } finally {
+      this.api.FPDFPage_CloseAnnot(annot);
+    }
+  }
+
+  /**
+   * Add a top-margin Square banner annotation on scanned added or removed pages
+   * that carry no extractable text boxes.
+   *
+   * @param page Loaded `FPDF_PAGE` handle.
+   * @param info Page geometry for user-space coordinate conversion.
+   * @param spec Banner colour, border width, author, and popup note.
+   */
+  private addPageBannerSquare(
+    page: number,
+    info: PageInfo,
+    spec: {
+      color: { r: number; g: number; b: number; a: number };
+      borderWidth: number;
+      author: string;
+      contents: string;
+    },
+  ): void {
+    const bounds = this.viewRectToUserRect(info, {
+      left: 0.06,
+      top: 0.03,
+      right: 0.94,
+      bottom: 0.075,
+    });
+    if (!bounds) return;
+    this.addSquareAnnot(page, bounds, spec);
+  }
+
+  /**
    * Add an amber Square annotation on the revised page around a visual-diff
    * region, mapping normalised view-space coordinates back to PDF user space.
    *
@@ -498,52 +634,14 @@ export class PdfiumComparisonReportBuilder implements ComparisonReportBuilder {
     pair: AlignedPagePair,
     region: VisualDiffRegion,
   ): void {
-    const info = pair.rightInfo;
-    if (!info) return;
-
-    const view = viewSize(info.box, info.rotation);
-    const toUser = viewToUser(info.box, info.rotation);
-    const p1 = applyToPoint(toUser, {
-      x: region.left * view.width,
-      y: region.top * view.height,
+    if (!pair.rightInfo) return;
+    const bounds = this.viewRectToUserRect(pair.rightInfo, region);
+    if (!bounds) return;
+    this.addSquareAnnot(page, bounds, {
+      color: { r: 217, g: 119, b: 6, a: 220 },
+      borderWidth: 1.5,
+      author: "Visual Difference",
+      contents: `Visual difference detected (${region.pixelCount} changed pixels).`,
     });
-    const p2 = applyToPoint(toUser, {
-      x: region.right * view.width,
-      y: region.bottom * view.height,
-    });
-
-    const left = Math.min(p1.x, p2.x);
-    const right = Math.max(p1.x, p2.x);
-    const bottom = Math.min(p1.y, p2.y);
-    const top = Math.max(p1.y, p2.y);
-    if (right <= left || top <= bottom) return;
-
-    const annot = this.api.FPDFPage_CreateAnnot(page, FPDF_ANNOT_SQUARE);
-    if (!annot) return;
-    try {
-      this.heap.using(
-        this.heap.floats([left, top, right, bottom]),
-        (rectPtr) => {
-          this.api.FPDFAnnot_SetRect(annot, rectPtr);
-        },
-      );
-      this.api.FPDFAnnot_SetColor(annot, FPDF_ANNOT_COLOR_MAIN, 217, 119, 6, 220);
-      this.api.FPDFAnnot_SetBorder(annot, 0, 0, 1.5);
-      this.api.FPDFAnnot_SetFlags(annot, FPDF_ANNOT_FLAG_PRINT);
-      this.heap.using(this.heap.utf16("Visual Difference"), (ptr) => {
-        this.api.FPDFAnnot_SetStringValue(annot, "T", ptr);
-      });
-      this.heap.using(
-        this.heap.utf16(
-          `Visual difference detected (${region.pixelCount} changed pixels).`,
-        ),
-        (ptr) => {
-          this.api.FPDFAnnot_SetStringValue(annot, "Contents", ptr);
-        },
-      );
-      this.api.EPDFAnnot_GenerateAppearance(annot);
-    } finally {
-      this.api.FPDFPage_CloseAnnot(annot);
-    }
   }
 }

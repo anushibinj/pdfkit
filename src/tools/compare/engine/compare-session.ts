@@ -284,9 +284,31 @@ export class CompareSession {
   }
 
   /**
+   * Populate visual diffs before building a report for matched pairs that had
+   * no text differences (for example moved logos, layout tweaks, or scanned
+   * pages) and have not yet been inspected in Visual mode.
+   */
+  private populateMissingVisualDiffs(): void {
+    if (!this.summary) return;
+    // Use an intermediate DPI width (~800px) so visual checks remain fast
+    // across multi-page documents even when exporting straight from Text mode.
+    const REPORT_SCAN_WIDTH = 800;
+    for (const pair of this.summary.pairs) {
+      if (
+        pair.status === "matched" &&
+        pair.changes.length === 0 &&
+        !this.visualDiffs.has(pair.pairIndex)
+      ) {
+        this.computeVisualDiff(pair.pairIndex, REPORT_SCAN_WIDTH);
+      }
+    }
+  }
+
+  /**
    * Build the downloadable Comparison Report PDF with summary cover page(s)
-   * and PDF Highlight annotations for all text changes (plus any computed
-   * visual diff regions).
+   * and PDF Highlight annotations for all text changes (plus visual diff
+   * Square annotations, computing missing visual diffs for matched pages
+   * without text changes).
    *
    * @returns Serialised PDF file bytes.
    * @throws When both PDFs are not currently open.
@@ -295,6 +317,7 @@ export class CompareSession {
     if (!this.left || !this.right || !this.summary) {
       throw new Error("Open both PDFs before exporting a comparison report.");
     }
+    this.populateMissingVisualDiffs();
     return this.reportBuilder.buildReport({
       summary: this.summary,
       leftDoc: this.left.doc,

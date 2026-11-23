@@ -95,6 +95,37 @@ describe("CompareSession", () => {
     const report = session.buildReport();
     expect(report).toEqual(new Uint8Array([37, 80, 68, 70]));
     expect(reportBuilder.buildReport).toHaveBeenCalledTimes(1);
+    const buildArg = vi.mocked(reportBuilder.buildReport).mock.calls[0][0];
+    // Pair 1 had zero text changes and was not pre-visited in Visual mode;
+    // buildReport() must scan it automatically so visual diffs aren't missed.
+    expect(buildArg.visualDiffs.has(1)).toBe(true);
+
+    session.closeAll();
+    expect(runtime.leaks()).toEqual([]);
+  });
+
+  it("populates visual diffs during buildReport even when Visual mode was never opened", () => {
+    const { api, runtime } = fakeComparePdfium();
+    api.FPDF_GetPageCount.mockReturnValue(1);
+
+    const leftTexts = [makeExtracted(0, "")];
+    const rightTexts = [makeExtracted(0, "")];
+    let calls = 0;
+    const extractor: PdfTextExtractor = {
+      extractPage: () => (calls++ === 0 ? leftTexts[0] : rightTexts[0]),
+    };
+    const reportBuilder: ComparisonReportBuilder = {
+      buildReport: vi.fn(() => new Uint8Array([1, 2, 3])),
+    };
+
+    const session = new CompareSession(api, { extractor, reportBuilder });
+    session.openSide("left", "scan1.pdf", new Uint8Array([1]), "");
+    session.openSide("right", "scan2.pdf", new Uint8Array([2]), "");
+
+    session.buildReport();
+    const arg = vi.mocked(reportBuilder.buildReport).mock.calls[0][0];
+    expect(arg.visualDiffs.size).toBe(1);
+    expect(arg.visualDiffs.has(0)).toBe(true);
 
     session.closeAll();
     expect(runtime.leaks()).toEqual([]);

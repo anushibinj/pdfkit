@@ -144,4 +144,68 @@ describe("CompareTool UI", () => {
       expect(mockState.exportReport).toHaveBeenCalledTimes(1);
     });
   });
+
+  it("reuses cached visual page renders on threshold change and draws them when toggling side-by-side layout", async () => {
+    vi.mocked(mockState.renderPage).mockClear();
+    vi.mocked(mockState.computeVisualDiff).mockClear();
+
+    render(<CompareTool />);
+
+    // Initial Text view renders 2 panes (left + right).
+    await waitFor(() => {
+      expect(mockState.renderPage).toHaveBeenCalledTimes(2);
+    });
+
+    vi.mocked(mockState.renderPage).mockClear();
+
+    // Switch to Visual mode: computes visual diff and renders both sides once.
+    fireEvent.click(screen.getByRole("button", { name: /Visual/i }));
+    await waitFor(() => {
+      expect(mockState.computeVisualDiff).toHaveBeenCalledTimes(1);
+      expect(mockState.renderPage).toHaveBeenCalledTimes(2);
+    });
+
+    // Change threshold sensitivity: re-computes diff, but MUST NOT re-render left/right pages.
+    fireEvent.click(screen.getByRole("button", { name: "Strict" }));
+    await waitFor(() => {
+      expect(mockState.computeVisualDiff).toHaveBeenCalledTimes(2);
+    });
+    expect(mockState.renderPage).toHaveBeenCalledTimes(2);
+
+    // Toggle to Side-by-Side layout: newly mounted canvases must receive cached dimensions.
+    fireEvent.click(screen.getByRole("button", { name: "Side by side + diff" }));
+    await waitFor(() => {
+      const canvases = document.querySelectorAll("canvas");
+      expect(canvases.length).toBe(3);
+      // drawPixels sets width=200 and height=260 from mockState.renderPage
+      expect(canvases[0]).toHaveAttribute("width", "200");
+      expect(canvases[2]).toHaveAttribute("width", "200");
+    });
+    expect(mockState.renderPage).toHaveBeenCalledTimes(2);
+  });
+
+  it("displays accessible error alerts when page rendering or visual diff fails", async () => {
+    vi.mocked(mockState.renderPage).mockResolvedValueOnce({
+      status: "error",
+      reason: "failed",
+      message: "Left page render failed",
+    });
+
+    render(<CompareTool />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Left page render failed",
+    );
+
+    vi.mocked(mockState.computeVisualDiff).mockResolvedValueOnce({
+      status: "error",
+      reason: "failed",
+      message: "Visual comparison timed out",
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Visual/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Visual comparison timed out",
+    );
+  });
 });
