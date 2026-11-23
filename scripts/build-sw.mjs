@@ -19,6 +19,8 @@ const ON_FIRST_USE = new Set([
   "wasm/pdf-crop.wasm",
   // Its dependencies' licence texts (~160 KB); fetched only when opened.
   "wasm/LICENSE-pdf-crop-third-party.txt",
+  "wasm/pdf-repair.wasm",
+  "wasm/LICENSE-pdf-repair-third-party.txt",
 ]);
 
 async function walk(dir) {

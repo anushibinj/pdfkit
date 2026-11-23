@@ -12,6 +12,7 @@ import {
   Scissors,
   ShieldCheck,
   Stamp,
+  Wrench,
 } from "lucide-react";
 import type { ToolDefinition } from "./types";
 
@@ -355,6 +356,33 @@ export const tools: ToolDefinition[] = [
       ],
     },
     component: () => import("./images-to-pdf"),
+  },
+  {
+    slug: "repair",
+    name: "Repair PDF",
+    tagline: "Fix damaged, corrupt or unreadable PDFs, locally.",
+    description:
+      "Free PDF repair tool that runs in your browser. Fix damaged, corrupt or unreadable PDF files and rebuild broken cross-reference tables. Nothing is uploaded.",
+    keywords: [
+      "repair pdf",
+      "fix damaged pdf",
+      "corrupt pdf repair",
+      "recover broken pdf",
+      "rebuild pdf xref",
+      "fix pdf online",
+      "private pdf repair",
+    ],
+    icon: Wrench,
+    beta: true,
+    betaNote: {
+      title: "Beta: how PDF repair works",
+      items: [
+        "Carves undamaged indirect PDF objects from corrupt or truncated files using WebAssembly byte scanning.",
+        "Rebuilds missing headers, cross-reference tables, and trailer dictionaries directly in your browser.",
+        "All processing runs client-side; your sensitive documents are never uploaded to any server.",
+      ],
+    },
+    component: () => import("./repair"),
   },
 ];
 

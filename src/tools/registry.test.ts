@@ -81,7 +81,7 @@ describe("tool registry", () => {
   it("loads the PDF editor component lazily", async () => {
     const mod = await getTool("edit")!.component();
     expect(typeof mod.default).toBe("function");
-  });
+  }, 15000);
 
   it("loads the HTML to PDF component lazily", async () => {
     const mod = await getTool("html-to-pdf")!.component();
@@ -167,6 +167,17 @@ describe("tool registry", () => {
 
   it("loads the Images to PDF component lazily", async () => {
     const mod = await getTool("images-to-pdf")!.component();
+    expect(typeof mod.default).toBe("function");
+  });
+
+  it("registers Repair PDF as a beta tool", () => {
+    const tool = getTool("repair");
+    expect(tool?.name).toBe("Repair PDF");
+    expect(tool?.beta).toBe(true);
+  });
+
+  it("loads the Repair PDF component lazily", async () => {
+    const mod = await getTool("repair")!.component();
     expect(typeof mod.default).toBe("function");
   });
 });

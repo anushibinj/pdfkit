@@ -138,10 +138,15 @@ Currently shipped tools:
   in 90° steps, placed on Fit-to-image, A4, Letter, or Legal pages with Auto,
   Portrait, or Landscape orientation, custom margins (0–50 mm), and Fit or
   Actual-size (72 DPI) scaling.
+- **Repair PDF** (`/tools/repair/`, beta): recovers damaged, truncated or corrupt
+  PDFs locally using a two-tier recovery engine. Broken cross-reference tables,
+  missing or corrupted headers (`%PDF-`), missing EOF markers (`%%EOF`), and
+  malformed trailers are reconstructed via custom WebAssembly byte scanning
+  (`crates/pdf-repair`) and normalized through PDFium. Nothing is uploaded.
 
 Built with Next.js (App Router, static export), TypeScript (strict), Tailwind
-CSS, shadcn/ui, next-themes and Vitest, plus one Rust crate compiled to
-WebAssembly (`crates/pdf-crop`). It is an installable, offline-capable PWA.
+CSS, shadcn/ui, next-themes and Vitest, plus two Rust crates compiled to
+WebAssembly (`crates/pdf-crop` and `crates/pdf-repair`). It is an installable, offline-capable PWA.
 
 ## How privacy is enforced
 

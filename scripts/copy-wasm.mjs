@@ -69,6 +69,21 @@ const engines = [
       "Adobe Core 14 AFM via @pdf-lib/standard-fonts (MIT); encodings from ISO 32000-1 Annex D\n" +
       "as transcribed by pdf.js (Apache-2.0). https://github.com/J-F-Liu/lopdf\n",
   },
+  {
+    // Built from crates/pdf-repair by `pnpm wasm:repair`; the binary is committed.
+    pkg: "pdf-repair",
+    dir: "crates/pdf-repair",
+    files: [{ from: "dist/pdf_repair.wasm", to: "pdf-repair.wasm" }],
+    licenses: [
+      {
+        from: "dist/THIRD_PARTY_LICENSES.txt",
+        to: "LICENSE-pdf-repair-third-party.txt",
+      },
+    ],
+    notice: (version) =>
+      `PDF repair: pdf-repair ${version}, part of pdfkit (crates/pdf-repair), built on lopdf (MIT)\n` +
+      "and other Rust crates (see LICENSE-pdf-repair-third-party.txt). https://github.com/J-F-Liu/lopdf\n",
+  },
 ];
 
 /**
