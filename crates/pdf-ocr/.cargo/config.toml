@@ -1,0 +1,9 @@
+# lopdf -> rand -> getrandom has no default randomness source on
+# wasm32-unknown-unknown, and host Windows GNU avoids dlltool import-lib
+# linking when using the custom backend. Use the "custom" backend defined in
+# src/ffi.rs (pdf-ocr never encrypts, so it never needs random bytes).
+[build]
+rustflags = ['--cfg', 'getrandom_backend="custom"']
+
+[target.wasm32-unknown-unknown]
+rustflags = ['--cfg', 'getrandom_backend="custom"']

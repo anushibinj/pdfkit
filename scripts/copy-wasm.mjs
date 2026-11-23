@@ -99,6 +99,67 @@ const engines = [
       `PDF compression: pdf-compress ${version}, part of pdfkit (crates/pdf-compress), built on lopdf (MIT)\n` +
       "and other Rust crates (see LICENSE-pdf-compress-third-party.txt). https://github.com/J-F-Liu/lopdf\n",
   },
+  {
+    // Built from crates/pdf-ocr by `pnpm wasm:ocr`; the binary is committed.
+    pkg: "pdf-ocr",
+    dir: "crates/pdf-ocr",
+    files: [{ from: "dist/pdf_ocr.wasm", to: "pdf-ocr.wasm" }],
+    licenses: [
+      {
+        from: "dist/THIRD_PARTY_LICENSES.txt",
+        to: "LICENSE-pdf-ocr-third-party.txt",
+      },
+    ],
+    notice: (version) =>
+      `PDF OCR helpers: pdf-ocr ${version}, part of pdfkit (crates/pdf-ocr), built on lopdf (MIT)\n` +
+      "and other Rust crates (see LICENSE-pdf-ocr-third-party.txt). https://github.com/J-F-Liu/lopdf\n",
+  },
+  {
+    pkg: "tesseract.js-core",
+    files: [
+      "tesseract-core-simd-lstm.wasm",
+      "tesseract-core-lstm.wasm",
+      "tesseract-core-simd-lstm.js",
+      "tesseract-core-lstm.js",
+    ],
+    licenses: [{ from: "LICENSE", to: "LICENSE-tesseract-core.txt" }],
+    notice: (version) =>
+      `OCR engine: Tesseract OCR compiled to WebAssembly by tesseract.js-core ${version} (Apache-2.0).\n` +
+      "https://github.com/tesseract-ocr/tesseract  https://github.com/naptha/tesseract.js-core\n",
+  },
+  {
+    pkg: "tesseract.js",
+    files: [{ from: "dist/worker.min.js", to: "tesseract-worker.min.js" }],
+    licenses: [{ from: "LICENSE.md", to: "LICENSE-tesseract.txt" }],
+    notice: (version) =>
+      `Tesseract JavaScript bindings: tesseract.js ${version} (Apache-2.0).\n` +
+      "https://github.com/naptha/tesseract.js\n",
+  },
+  ...[
+    "eng",
+    "hin",
+    "ben",
+    "tam",
+    "tel",
+    "kan",
+    "mal",
+    "mar",
+    "guj",
+    "pan",
+    "ori",
+  ].map((lang) => ({
+    pkg: `@tesseract.js-data/${lang}`,
+    files: [
+      {
+        from: `4.0.0_best_int/${lang}.traineddata.gz`,
+        to: `${lang}.traineddata.gz`,
+      },
+    ],
+    licenses: [],
+    notice: (version) =>
+      `OCR language model (${lang}): @tesseract.js-data/${lang} ${version} (Apache-2.0 / MIT).\n` +
+      "https://github.com/tesseract-ocr/tessdata_fast\n",
+  })),
 ];
 
 /**
@@ -167,5 +228,14 @@ for (const { pkg, dir, files, licenses, notice } of engines) {
   const version = await engineVersion(pkgDir);
   notices.push(notice(version));
   console.log(`${pkg} ${version} copied to public/wasm`);
+}
+// Generate ES-module wrappers for tesseract-core-*-lstm.js so module Web Workers
+// can `import()` them directly from `/wasm/` under strict CSP (`script-src 'self'`).
+for (const base of ["tesseract-core-simd-lstm", "tesseract-core-lstm"]) {
+  const jsSource = await readFile(path.join(out, `${base}.js`), "utf8");
+  await writeFile(
+    path.join(out, `${base}.mjs`),
+    `${jsSource}\nexport default TesseractCore;\n`,
+  );
 }
 await writeFile(path.join(out, "NOTICE.txt"), notices.join("\n"));

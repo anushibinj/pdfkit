@@ -11,6 +11,7 @@ import {
   LayoutGrid,
   Lock,
   LockOpen,
+  ScanText,
   Scissors,
   ShieldCheck,
   Stamp,
@@ -439,6 +440,34 @@ export const tools: ToolDefinition[] = [
       ],
     },
     component: () => import("./compare"),
+  },
+  {
+    slug: "ocr",
+    name: "OCR PDF",
+    tagline: "Make scanned PDFs and images searchable, incl. Indian languages.",
+    description:
+      "Free PDF OCR in your browser. Turn scanned PDFs or images into searchable PDFs with English and 10 Indian languages, plus text export. Nothing is uploaded.",
+    keywords: [
+      "ocr pdf",
+      "searchable pdf",
+      "pdf ocr hindi",
+      "indian language ocr",
+      "scanned pdf to searchable pdf",
+      "image to searchable pdf",
+      "offline pdf ocr",
+      "private pdf ocr",
+    ],
+    icon: ScanText,
+    beta: true,
+    betaNote: {
+      title: "Beta: how client-side OCR works",
+      items: [
+        "Recognizes English and 10 Indian languages (Hindi, Bengali, Tamil, Telugu, Kannada, Malayalam, Marathi, Gujarati, Punjabi, Odia) locally using self-hosted Tesseract WebAssembly.",
+        "Adds an invisible Unicode text layer over your original pages via qpdf so the output looks pixel-identical to the input.",
+        "Pages that already contain selectable text are skipped automatically unless you enable Redo OCR.",
+      ],
+    },
+    component: () => import("./ocr"),
   },
 ];
 
