@@ -357,18 +357,23 @@ export default function CompressTool() {
                     {zipping ? "Building ZIP…" : "Download all (ZIP)"}
                   </Button>
                 )}
-                {hasReadyOrError && (
-                  <Button
-                    size="lg"
-                    disabled={validationError !== null}
-                    onClick={() => void compressAll()}
-                  >
-                    <FileDown className="size-4" aria-hidden="true" />
-                    {state.items.length === 1
-                      ? "Compress PDF"
-                      : `Compress ${state.items.filter((i) => i.status.kind === "ready" || i.status.kind === "error").length} PDFs`}
-                  </Button>
-                )}
+                {hasReadyOrError && (() => {
+                  const pendingCount = state.items.filter(
+                    (i) => i.status.kind === "ready" || i.status.kind === "error",
+                  ).length;
+                  return (
+                    <Button
+                      size="lg"
+                      disabled={validationError !== null}
+                      onClick={() => void compressAll()}
+                    >
+                      <FileDown className="size-4" aria-hidden="true" />
+                      {state.items.length === 1
+                        ? "Compress PDF"
+                        : `Compress ${pendingCount} ${pendingCount === 1 ? "PDF" : "PDFs"}`}
+                    </Button>
+                  );
+                })()}
               </>
             )}
           </div>

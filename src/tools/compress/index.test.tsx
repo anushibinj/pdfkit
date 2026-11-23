@@ -120,7 +120,7 @@ describe("CompressTool UI", () => {
     fireEvent.click(screen.getByRole("button", { name: /Preview/i }));
     expect(openPreview).toHaveBeenCalledWith("1", 0);
 
-    fireEvent.click(screen.getByRole("button", { name: /Compress 1 PDFs/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Compress 1 PDF$/i }));
     expect(compressAll).toHaveBeenCalledTimes(1);
   });
 });
