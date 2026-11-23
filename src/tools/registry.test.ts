@@ -191,4 +191,15 @@ describe("tool registry", () => {
     const mod = await getTool("compress")!.component();
     expect(typeof mod.default).toBe("function");
   });
+
+  it("registers Compare PDFs as a beta tool", () => {
+    const tool = getTool("compare");
+    expect(tool?.name).toBe("Compare PDFs");
+    expect(tool?.beta).toBe(true);
+  });
+
+  it("loads the Compare PDFs component lazily", async () => {
+    const mod = await getTool("compare")!.component();
+    expect(typeof mod.default).toBe("function");
+  });
 });

@@ -154,9 +154,21 @@ Currently shipped tools:
   side-by-side before/after page previews. Supports batch compression and ZIP
   downloads; files are never expanded and never leave your device.
 
+- **Compare PDFs** (`/tools/compare/`, beta): compares two PDFs locally in
+  your browser using [PDFium](https://pdfium.googlesource.com/pdfium/) inside a
+  Web Worker (reuses the same cached WASM build, no extra download) and
+  [jsdiff](https://github.com/kpdecker/jsdiff) (`diff`, BSD-3-Clause). Text
+  mode aligns pages by word similarity so inserted or removed pages do not mark
+  every later page as changed, and highlights word-level insertions and
+  deletions side by side with synced scrolling and next/previous change
+  navigation. Visual mode renders pages at equal DPI and computes per-pixel
+  differences (using WebGL on the GPU with a worker CPU fallback) to flag
+  moved logos, drawings, and layout shifts. Exports a Comparison Report PDF
+  with standard PDF Highlight annotations visible in Adobe Acrobat.
+
 Built with Next.js (App Router, static export), TypeScript (strict), Tailwind
-CSS, shadcn/ui, next-themes and Vitest, plus two Rust crates compiled to
-WebAssembly (`crates/pdf-crop` and `crates/pdf-repair`). It is an installable, offline-capable PWA.
+CSS, shadcn/ui, next-themes and Vitest, plus three Rust crates compiled to
+WebAssembly (`crates/pdf-crop`, `crates/pdf-repair`, and `crates/pdf-compress`). It is an installable, offline-capable PWA.
 
 ## How privacy is enforced
 
@@ -575,11 +587,14 @@ and its encoding tables from ISO 32000-1 Annex D as transcribed by
 and checks pages with PDFium (below).
 
 The PDF Editor, Add Watermark, Split PDF's thumbnails, Organize Pages, PDF
-to Images, Images to PDF and Crop PDF use **PDFium**, Copyright The PDFium Authors, licensed under the **BSD 3-Clause
+to Images, Images to PDF, Compare PDFs, Compress PDF and Crop PDF use **PDFium**, Copyright The PDFium Authors, licensed under the **BSD 3-Clause
 License** and the **Apache License 2.0** (licence at
 `/wasm/LICENSE-pdfium.txt`), compiled to WebAssembly by **@embedpdf/pdfium**,
 Copyright (c) 2024 CloudPDF, Ji Chang, licensed under the **MIT License**
 (licence at `/wasm/LICENSE-embedpdf-pdfium.txt`). Text measurements come from
 Adobe's standard font metrics via **@pdf-lib/standard-fonts** (MIT License).
+Compare PDFs also uses **jsdiff** (`diff`), licensed under the **BSD 3-Clause License**.
+Compress PDF also uses **pdf-compress** (`crates/pdf-compress`, part of this repository,
+with third-party Rust crate licences at `/wasm/LICENSE-pdf-compress-third-party.txt`) and **qpdf** (`@jspawn/qpdf-wasm`).
 PDF to Images' PNG encoder (`src/lib/png`) is part of this project;
 compression uses the browser's built-in `CompressionStream`.

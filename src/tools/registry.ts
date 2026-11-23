@@ -3,6 +3,7 @@ import {
   Combine,
   Crop,
   FileCode,
+  FileDiff,
   FileDown,
   FileImage,
   FilePen,
@@ -411,6 +412,33 @@ export const tools: ToolDefinition[] = [
       ],
     },
     component: () => import("./compress"),
+  },
+  {
+    slug: "compare",
+    name: "Compare PDFs",
+    tagline: "Compare two PDFs for text and visual differences, locally.",
+    description:
+      "Free PDF comparison tool in your browser. Compare two PDFs side by side for word-level text differences and visual pixel overlays. Nothing is uploaded.",
+    keywords: [
+      "compare pdf",
+      "pdf diff",
+      "compare two pdfs",
+      "pdf text comparison",
+      "visual pdf compare",
+      "pdf revision compare",
+      "private pdf compare",
+    ],
+    icon: FileDiff,
+    beta: true,
+    betaNote: {
+      title: "Beta: how PDF comparison works",
+      items: [
+        "Text mode aligns pages by similarity so inserted or removed pages do not mark later pages as changed, and highlights word-level insertions and deletions.",
+        "Visual mode renders pages at equal DPI and tints per-pixel differences, catching moved logos, drawings, and layout shifts.",
+        "Exported comparison reports embed standard PDF Highlight annotations visible in Adobe Acrobat and other readers.",
+      ],
+    },
+    component: () => import("./compare"),
   },
 ];
 
